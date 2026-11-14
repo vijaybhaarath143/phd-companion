@@ -4,12 +4,12 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { monthOptions, valueOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { restoreFromTrash, setReminders, updateProfile, type RestorableTable } from "@/server/actions/settings";
 import { quickAction } from "@/components/app/call-action";
 import { disconnectApp } from "@/server/actions/connections";
-import { monthNames } from "@/lib/dates";
 import { TIMEZONES } from "@/lib/timezones";
 import type { Profile } from "@/server/profile";
 
@@ -36,21 +36,13 @@ export function ProfileForm({ profile, thisYear }: { profile: Profile; thisYear:
       <fieldset className="flex max-w-96 flex-col gap-1.5">
         <legend className="mb-1.5 text-sm font-medium">Programme start</legend>
         <div className="grid grid-cols-2 gap-2">
-          <NativeSelect name="startMonth" aria-label="Month" defaultValue={profile.programmeStart?.slice(5, 7) ?? ""}>
-            <option value="">Month</option>
-            {monthNames.map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
-          </NativeSelect>
-          <NativeSelect name="startYear" aria-label="Year" defaultValue={profile.programmeStart?.slice(0, 4) ?? ""}>
-            <option value="">Year</option>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
-          </NativeSelect>
+          <AppSelect name="startMonth" aria-label="Month" defaultValue={profile.programmeStart?.slice(5, 7) ?? ""} options={monthOptions("Month")} />
+          <AppSelect name="startYear" aria-label="Year" defaultValue={profile.programmeStart?.slice(0, 4) ?? ""} options={valueOptions(years, "Year")} />
         </div>
       </fieldset>
       <div className="flex max-w-96 flex-col gap-1.5">
         <label htmlFor="s-tz" className="text-sm font-medium">Time zone</label>
-        <NativeSelect id="s-tz" name="timezone" defaultValue={profile.timezone}>
-          {TIMEZONES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
-        </NativeSelect>
+        <AppSelect id="s-tz" name="timezone" defaultValue={profile.timezone} options={valueOptions(TIMEZONES, undefined, (t) => t.replace("_", " "))} />
         <p className="text-[13px] text-muted-foreground">Used to decide what &ldquo;today&rdquo; and &ldquo;overdue&rdquo; mean.</p>
       </div>
       <Button type="submit" className="self-start">Save profile</Button>
@@ -76,7 +68,7 @@ export function RemindersToggle({ enabled }: { enabled: boolean }) {
 export function TrashList({ items, kind }: { items: { table: RestorableTable; id: string; title: string; when: string }[]; kind: "trash" | "archive" }) {
   const [pending, start] = useTransition();
   if (!items.length) return null;
-  const label: Record<RestorableTable, string> = { entries: "Entry", tasks: "Task", projects: "Project", courses: "Course", goals: "Goal" };
+  const label: Record<RestorableTable, string> = { entries: "Entry", tasks: "Task", projects: "Project", courses: "Course", goals: "Goal", notes: "Note" };
   return (
     <ul className="mt-2 divide-y divide-zinc-100 rounded-lg border">
       {items.map((it) => (

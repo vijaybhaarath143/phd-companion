@@ -114,7 +114,8 @@ export const schemas = {
   create_task: {
     title: z.string().trim().min(1, "Add a title.").max(300),
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("Due date, YYYY-MM-DD."),
-    priority: z.enum(["normal", "important"]).optional(),
+    priority: z.enum(["high", "normal", "low", "important"]).optional().describe("high, normal (default) or low. \"important\" is read as high."),
+    remind_until_done: z.boolean().optional().describe("True to keep a reminder banner on every page until the task is done."),
     project_id: id("project").optional(),
     manuscript_id: id("manuscript").optional(),
     from_entry_id: id("journal entry").optional().describe("The journal entry this task came out of, if any."),
@@ -166,6 +167,38 @@ export const schemas = {
   move_to_trash: {
     record_type: z.enum(["entry", "task"]).describe("entry (journal entry, experiment or feedback) or task."),
     record_id: id("record"),
+  },
+  update_review_step: {
+    step_id: id("review step").describe("The review step's id (from get_project's review_steps)."),
+    status: z.enum(["not_started", "in_progress", "done", "skipped"]).optional().describe("Where the step stands. done records today unless done_on is given."),
+    done_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("When it was done, YYYY-MM-DD."),
+    count: z.number().int().min(0).max(10_000_000).nullable().optional().describe("The PRISMA number this step records (see the step's count_kind), e.g. records identified. null clears it."),
+    note: z.string().max(5000).optional().describe("A note on the step, e.g. which databases were searched. Replaces the current note."),
+  },
+  add_course_deadline: {
+    course_id: id("course").describe("The course's id (from get_academics)."),
+    kind: z.enum(["assignment", "exam_registration", "exam"]).describe("assignment, exam_registration (the deadline to register) or exam."),
+    title: z.string().trim().max(200).optional().describe("e.g. Week 3 assignment. Optional for exam registration and exam."),
+    due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("Due date, YYYY-MM-DD. Leave out if not known."),
+    request_id: requestId,
+  },
+  add_trial: {
+    experiment_id: id("experiment"),
+    run_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("When this run was done, YYYY-MM-DD. Defaults to today."),
+    conditions: z.string().max(5000).optional().describe("What was different in this run. Left out: the last trial's conditions are copied."),
+    result: z.string().max(10000).optional().describe("What she observed or measured."),
+    outcome: z.enum(["worked", "did_not_work", "inconclusive"]).optional(),
+    request_id: requestId,
+  },
+  list_notes: {},
+  get_note: { note_id: id("note").describe("The note's id (from list_notes or search).") },
+  create_note: {
+    kind: z.enum(["scratch", "checklist"]).describe("scratch (free text) or checklist (items to tick off)."),
+    title: z.string().trim().max(300).optional(),
+    body: z.string().max(100000).optional().describe("The note's text (for a checklist: notes under the list)."),
+    items: z.array(z.string().trim().min(1).max(1000)).max(500).optional().describe("Checklist items, not ticked yet."),
+    project_id: id("project").optional(),
+    request_id: requestId,
   },
 } satisfies Record<string, z.ZodRawShape>;
 

@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { type ReactNode, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { Badge } from "@/components/ui/badge";
 import { SaveStatus, useAutosave } from "@/components/app/autosave";
 import { ActionForm, SaveError } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
-import { callAction, quickAction } from "@/components/app/call-action";
+import { callAction, quickAction, trashWithUndo } from "@/components/app/call-action";
+import { undoTrash } from "@/server/actions/settings";
+import { useRouter } from "next/navigation";
 import { addBlocker, archiveExperiment, resolveBlocker, trashExperiment, updateExperiment, updateExperimentDetails } from "@/server/actions/research";
 import { setEntryDate } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
@@ -58,6 +61,7 @@ export function ExperimentEditor({
   evidence,
   today,
   openDate = false,
+  trials,
 }: {
   entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number; archivedAt: Date | null };
   experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number };
@@ -68,6 +72,8 @@ export function ExperimentEditor({
   evidence: EvidenceItem[];
   today: string;
   openDate?: boolean;
+  /** The Trials section, rendered on the server page. */
+  trials?: ReactNode;
 }) {
   const [f, setF] = useState<Fields>({
     objective: experiment.objective ?? "",
@@ -88,6 +94,7 @@ export function ExperimentEditor({
     (a, b) => ({ ...a, ...b }),
   );
   const [pending, start] = useTransition();
+  const router = useRouter();
   const [viewing, setViewing] = useState<string | null>(null);
   const [date, setDate] = useState<PartialDate>({ date: entry.entryDate, precision: entry.entryPrecision });
   const [editingDate, setEditingDate] = useState(openDate);
@@ -134,9 +141,9 @@ export function ExperimentEditor({
   /** Archive / Trash: only after everything typed has saved. */
   const leave = (how: "archive" | "trash") =>
     start(async () => {
-      if (how === "trash" && !confirm("Move this experiment to Trash? You can restore it from Settings for 30 days.")) return;
       if (!(await auto.flush())) return void toast.error("Your latest changes haven't saved yet — copy your text or try again first.");
-      await quickAction(() => (how === "archive" ? archiveExperiment(entry.id) : trashExperiment(entry.id)));
+      if (how === "archive") return void (await quickAction(() => archiveExperiment(entry.id)));
+      await trashWithUndo({ what: "Experiment", trash: () => trashExperiment(entry.id), undo: () => undoTrash("entries", entry.id), onUndone: () => router.push(`/research/experiments/${entry.id}`) });
     });
 
   return (
@@ -167,10 +174,7 @@ export function ExperimentEditor({
             </div>
             <div className="flex max-w-96 flex-col gap-1.5">
               <label htmlFor="x-project" className="text-sm font-medium">Project</label>
-              <NativeSelect id="x-project" name="projectId" defaultValue={projectId}>
-                <option value="">No project</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-              </NativeSelect>
+              <AppSelect id="x-project" name="projectId" defaultValue={projectId} options={rowOptions(projects, (p) => p.title, "No project")} />
             </div>
             {detailsError && <SaveError message={detailsError} />}
             <div className="flex gap-2">
@@ -248,6 +252,7 @@ export function ExperimentEditor({
             {area("outcome", "Outcome", null, 2)}
             {area("nextSteps", "Next steps", null, 2)}
           </section>
+          {trials}
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-[13px] text-muted-foreground">Incomplete is fine. Save what you have and come back later.</p>
             <div className="flex gap-1">
@@ -313,9 +318,7 @@ export function ExperimentEditor({
             <ActionForm action={addBlocker.bind(null, entry.id)} success="Blocker recorded" className="flex flex-col gap-2 border-t border-zinc-100 pt-3">
               <Input name="description" required maxLength={1000} placeholder="What's blocking?" aria-label="Blocker" />
               <div className="flex gap-2">
-                <NativeSelect name="category" defaultValue="other" aria-label="Kind of blocker">
-                  {Object.entries(blockerCategories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                </NativeSelect>
+                <AppSelect name="category" defaultValue="other" aria-label="Kind of blocker" options={toOptions(blockerCategories)} />
                 <Button type="submit" variant="outline">Add</Button>
               </div>
             </ActionForm>

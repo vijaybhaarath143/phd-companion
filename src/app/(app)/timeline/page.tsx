@@ -23,7 +23,8 @@ import { projectOptions, requireProfile } from "@/server/profile";
 import { formatDay, monthKey, monthLabel, todayIn } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { PageHeader } from "@/components/app/ui";
 import { TimelineAddButton, TimelineFiles } from "./timeline-client";
 
@@ -245,17 +246,9 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
 
       {!nothingYet && (
         <form className="flex flex-wrap items-end gap-2" data-guide="timeline-filters">
-          <NativeSelect name="type" defaultValue={timeline.type ?? ""} aria-label="Type" className="h-9 w-auto">
-            <option value="">Everything</option>
-            {Object.entries(TIMELINE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </NativeSelect>
-          <NativeSelect name="project" defaultValue={timeline.project ?? ""} aria-label="Project" className="h-9 w-auto max-w-56">
-            <option value="">All projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.title.split(":")[0]}</option>)}
-          </NativeSelect>
-          <NativeSelect name="period" defaultValue={timeline.period} aria-label="Period" className="h-9 w-auto">
-            {Object.entries(PERIODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </NativeSelect>
+          <AppSelect name="type" defaultValue={timeline.type ?? ""} aria-label="Type" size="sm" className="w-auto" options={toOptions(TIMELINE_TYPES, "Everything")} />
+          <AppSelect name="project" defaultValue={timeline.project ?? ""} aria-label="Project" size="sm" className="w-auto max-w-56" options={rowOptions(projects, (p) => p.title.split(":")[0], "All projects")} />
+          <AppSelect name="period" defaultValue={timeline.period} aria-label="Period" size="sm" className="w-auto" options={toOptions(PERIODS)} />
           <Button type="submit" size="sm">Apply</Button>
           {filtering && <Button asChild size="sm" variant="ghost"><Link href="/timeline">Clear</Link></Button>}
         </form>

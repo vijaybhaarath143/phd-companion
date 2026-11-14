@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { run, oneOf, required, text, dateOrNull, versionOf, expectRow, ValidationError } from "@/server/actions/run";
+import { run, oneOf, required, text, dateOrNull, uuidOrNull, versionOf, expectRow, ValidationError } from "@/server/actions/run";
 import { ensureProfile } from "@/server/profile";
 import { TIMEZONES } from "@/lib/timezones";
 
@@ -39,15 +39,29 @@ export async function setReminders(enabled: boolean) {
 }
 
 /** What Settings → Trash / Archive can bring back. */
-const RESTORABLE = ["entries", "tasks", "projects", "courses", "goals"] as const;
+const RESTORABLE = ["entries", "tasks", "projects", "courses", "goals", "notes"] as const;
 export type RestorableTable = (typeof RESTORABLE)[number];
 
 export async function restoreFromTrash(table: RestorableTable, id: string) {
   return run(async (tx) => {
     const t = oneOf(table, RESTORABLE);
     if (!t) throw new ValidationError("That can't be restored.");
-    const archivable = t !== "goals"; // goals have no archive
+    const archivable = t !== "goals" && t !== "notes"; // goals and notes have no archive
     await tx`update ${tx("public." + t)} set deleted_at = null, ${archivable ? tx`archived_at = null,` : tx``} version = version + 1 where id = ${id}`;
+    refresh();
+  });
+}
+
+/**
+ * The Undo on a "Moved to Trash" toast: takes it back out of Trash only, so something
+ * that was archived before it was trashed goes back to the archive, not the main list.
+ */
+export async function undoTrash(table: RestorableTable, id: string) {
+  return run(async (tx) => {
+    const t = oneOf(table, RESTORABLE);
+    if (!t) throw new ValidationError("That can't be restored.");
+    expectRow(await tx`update ${tx("public." + t)} set deleted_at = null, version = version + 1
+                       where id = ${id} and deleted_at is not null returning id`);
     refresh();
   });
 }
@@ -93,6 +107,19 @@ export async function setGoalOutcome(id: string, outcome: string) {
   return run(async (tx) => {
     expectRow(await tx`update public.goals set outcome = ${oneOf(outcome, ["open", "achieved", "dropped"] as const, "open")}, version = version + 1
                        where id = ${id} and deleted_at is null returning id`);
+    refresh();
+  });
+}
+
+/** Undo for things removed from a list (not Trash): a trial, a review step, a course deadline. */
+const REMOVABLE = { trial: "experiment_trials", review_step: "review_steps", course_item: "course_items" } as const;
+
+export async function undoRemove(kind: keyof typeof REMOVABLE, id: string) {
+  return run(async (tx) => {
+    const table = kind in REMOVABLE ? REMOVABLE[kind] : null;
+    if (!table) throw new ValidationError("That can't be restored.");
+    expectRow(await tx`update ${tx("public." + table)} set removed_at = null, version = version + 1
+                       where id = ${uuidOrNull(id)} and removed_at is not null returning id`);
     refresh();
   });
 }

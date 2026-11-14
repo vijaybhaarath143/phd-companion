@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { asUser } from "@/server/auth";
-import { getExperimentBundle } from "@/server/research";
+import { getExperimentBundle, getTrials } from "@/server/research";
+import { Trials } from "./trials";
 import { projectOptions, requireProfile } from "@/server/profile";
 import { formatTimestamp, todayIn } from "@/lib/dates";
 import { isUuid } from "@/lib/utils";
@@ -15,7 +16,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
   if (!isUuid(id)) notFound();
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
-    return { bundle: await getExperimentBundle(tx, id), projects: await projectOptions(tx), today: todayIn(profile.timezone), tz: profile.timezone };
+    return { bundle: await getExperimentBundle(tx, id), trials: await getTrials(tx, id), projects: await projectOptions(tx), today: todayIn(profile.timezone), tz: profile.timezone };
   });
   if (!data.bundle) notFound();
   const { revisions, ...bundle } = data.bundle;
@@ -28,6 +29,7 @@ export default async function ExperimentPage({ params, searchParams }: PageProps
       projects={data.projects}
       today={data.today}
       openDate={openDate}
+      trials={<Trials entryId={id} trials={data.trials} />}
     />
   );
 }

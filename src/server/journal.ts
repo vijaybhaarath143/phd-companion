@@ -116,6 +116,10 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
       select 'Task', title, '/planner' from public.tasks where deleted_at is null and (title ilike ${like} or notes ilike ${like})
       union all
       select 'Course', name, '/academics' from public.courses where deleted_at is null and (name ilike ${like} or provider ilike ${like})
+      union all
+      select case when kind = 'checklist' then 'Checklist' else 'Note' end, title, '/notes?id=' || id from public.notes
+        where deleted_at is null and (title ilike ${like} or body ilike ${like}
+          or exists (select 1 from jsonb_array_elements(items) i where i ->> 'text' ilike ${like}))
       limit 12`;
   }
 

@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { run, ValidationError, creditsOrNull, oneOf, required, text, dateOrNull, uuidOrNull, versionOf, expectRow } from "@/server/actions/run";
 import { readPartialDate } from "@/lib/dates";
+import { insertCourseItem } from "@/server/writes";
 
 const COURSE_STATUSES = ["planned", "enrolled", "completed", "dropped"] as const;
 
@@ -130,6 +131,54 @@ export async function updateEnquiry(entryId: string, form: FormData) {
                closed_at = case when ${status} = 'closed' then coalesce(closed_at, now()) else null end,
                version = version + 1
              where entry_id = ${entryId}`;
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- course deadlines
+
+const ITEM_KINDS = ["assignment", "exam_registration", "exam"] as const;
+
+/** An assignment, exam registration or exam for a course; dated ones show in Reminders and the calendar. */
+export async function addCourseItem(courseId: string, form: FormData) {
+  return run(async (tx) => {
+    await insertCourseItem(tx, { courseId, kind: oneOf(form.get("kind"), ITEM_KINDS, "assignment")!, title: text(form.get("title"), 200), dueDate: dateOrNull(form.get("dueDate")) });
+    refresh();
+  });
+}
+
+export async function toggleCourseItem(id: string, done: boolean) {
+  return run(async (tx) => {
+    const [row] = await tx`
+      update public.course_items set done_at = ${done ? tx`now()` : null}, version = version + 1
+      where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.courses c where c.id = course_id and c.deleted_at is null) returning id`;
+    if (!row) throw new ValidationError("That deadline wasn't found.");
+    refresh();
+  });
+}
+
+/** Hidden, not erased (still in the export). */
+export async function removeCourseItem(id: string) {
+  return run(async (tx) => {
+    const [row] = await tx`update public.course_items set removed_at = now(), version = version + 1 where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.courses c where c.id = course_id and c.deleted_at is null) returning id`;
+    if (!row) throw new ValidationError("That deadline wasn't found.");
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- admin key details
+
+/** Saves the whole list of label → value pairs (blank rows are dropped). */
+export async function saveAdminDetails(form: FormData) {
+  return run(async (tx) => {
+    const labels = form.getAll("label").map((v) => String(v).trim());
+    const values = form.getAll("value").map((v) => String(v).trim());
+    const details = labels
+      .map((label, i) => ({ label: label.slice(0, 120), value: (values[i] ?? "").slice(0, 500) }))
+      .filter((d) => d.label || d.value)
+      .map((d) => ({ label: d.label || "Detail", value: d.value }));
+    if (details.length > 50) throw new ValidationError("Keep it to 50 details.");
+    await tx`update public.profiles set admin_details = ${tx.json(details)}, version = version + 1 where user_id = auth.uid()`;
     refresh();
   });
 }

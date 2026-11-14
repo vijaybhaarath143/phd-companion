@@ -6,17 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
-import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback } from "@/server/actions/research";
+import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback, setArticleType } from "@/server/actions/research";
+import { Segmented } from "@/components/app/segmented";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
 import { quickAction } from "@/components/app/call-action";
 import { phases, submissionStatuses, type Phase, viaLabel } from "@/lib/labels";
 
 type Props = {
-  manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null };
+  manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null; articleType: string | null };
   project: { id: string; title: string } | null;
   history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; recordedLabel: string; kind: string; note: string | null; createdVia: string }[];
   submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; version: number }[];
@@ -30,9 +32,7 @@ type Panel = null | "change" | "earlier" | "submission" | "feedback";
 
 function PhaseSelect({ name = "phase", defaultValue }: { name?: string; defaultValue?: string }) {
   return (
-    <NativeSelect name={name} defaultValue={defaultValue} required aria-label="Phase">
-      {Object.entries(phases).map(([k, v], i) => <option key={k} value={k}>{i + 1}. {v}</option>)}
-    </NativeSelect>
+    <AppSelect name={name} defaultValue={defaultValue} required aria-label="Phase" options={Object.entries(phases).map(([value, label], i) => ({ value, label: `${i + 1}. ${label}` }))} />
   );
 }
 
@@ -74,6 +74,17 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">{manuscript.title}</h1>
         {project && <p className="text-muted-foreground">{project.title}</p>}
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+          <span className="text-muted-foreground">Article type</span>
+          <Segmented
+            name="articleType"
+            label="Article type"
+            size="sm"
+            value={manuscript.articleType === "review" ? "review" : "original"}
+            onChange={(v) => start(async () => { await quickAction(() => setArticleType(manuscript.id, v)); })}
+            options={[{ value: "review", label: "Review article" }, { value: "original", label: "Original article" }]}
+          />
+        </div>
       </div>
 
       <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
@@ -112,11 +123,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
             {panel === "change" && (
               <div className="flex max-w-96 flex-col gap-1.5">
                 <label htmlFor="ph-stop" className="text-sm font-medium">If stopped: why?</label>
-                <NativeSelect id="ph-stop" name="stoppedReason" defaultValue="">
-                  <option value="">—</option>
-                  <option value="withdrawn">Withdrawn</option>
-                  <option value="abandoned">Abandoned</option>
-                </NativeSelect>
+                <AppSelect id="ph-stop" name="stoppedReason" defaultValue="" options={toOptions({ withdrawn: "Withdrawn", abandoned: "Abandoned" }, "—")} />
               </div>
             )}
             <div className="flex gap-2">
@@ -230,11 +237,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                 </div>
                 <div className="flex max-w-72 flex-col gap-1.5">
                   <label htmlFor="sub-status" className="text-sm font-medium">Status</label>
-                  <NativeSelect id="sub-status" name="status" defaultValue="submitted">
-                    <option value="planned">Planned — not sent yet</option>
-                    <option value="submitted">Submitted</option>
-                    <option value="under_review">Under review</option>
-                  </NativeSelect>
+                  <AppSelect id="sub-status" name="status" defaultValue="submitted" options={toOptions({ planned: "Planned — not sent yet", submitted: "Submitted", under_review: "Under review" })} />
                 </div>
                 <PartialDateInput name="submitted" label="Submitted on" today={today} noneLabel="Not sent yet" />
                 <div className="flex gap-2">
@@ -267,14 +270,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                         <input type="hidden" name="version" value={s.version} />
                         <div className="flex flex-col gap-1.5">
                           <label className="text-sm font-medium" htmlFor={`dec-${s.id}`}>Journal&apos;s decision</label>
-                          <NativeSelect id={`dec-${s.id}`} name="status" defaultValue={s.status} className="w-56">
-                            <option value="submitted">Submitted</option>
-                            <option value="under_review">Under review</option>
-                            <option value="revise">Revise and resubmit (same journal)</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="withdrawn">Withdrawn</option>
-                          </NativeSelect>
+                          <AppSelect id={`dec-${s.id}`} name="status" defaultValue={s.status} className="w-56" options={toOptions({ submitted: "Submitted", under_review: "Under review", revise: "Revise and resubmit (same journal)", accepted: "Accepted", rejected: "Rejected", withdrawn: "Withdrawn" })} />
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-sm font-medium" htmlFor={`dd-${s.id}`}>Decision date</label>

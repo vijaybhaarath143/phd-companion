@@ -71,14 +71,18 @@ export class ConflictError extends Error {
  * How the nightly Trash purge last went (pg_cron keeps its own log), so a stuck job shows
  * up in /api/health instead of failing silently. Null when it hasn't run yet.
  */
-export async function lastPurge(): Promise<{ status: string; at: string } | null> {
+export async function lastPurge(): Promise<{ status: string; at: string; job: string } | null> {
   try {
-    const [r] = await sql<{ status: string; at: Date }[]>`
-      select d.status, d.start_time as at
+    // the latest run of each nightly clean-up job; a failure of either one counts
+    const runs = await sql<{ jobname: string; status: string; at: Date }[]>`
+      select distinct on (j.jobname) j.jobname, d.status, d.start_time as at
       from cron.job_run_details d join cron.job j on j.jobid = d.jobid
-      where j.jobname = 'purge-trash'
-      order by d.start_time desc limit 1`;
-    return r ? { status: r.status, at: new Date(r.at).toISOString() } : null;
+      where j.jobname in ('purge-trash', 'purge-notes-and-trials')
+      order by j.jobname, d.start_time desc`;
+    if (!runs.length) return null;
+    const failed = runs.find((r) => r.status !== "succeeded");
+    const r = failed ?? runs.reduce((a, b) => (a.at > b.at ? a : b));
+    return { status: r.status, at: new Date(r.at).toISOString(), job: r.jobname };
   } catch {
     return null;
   }

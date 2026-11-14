@@ -135,7 +135,7 @@ export async function restoreEntry(id: string) {
   });
 }
 
-export async function addLink(parentType: "entry" | "project" | "manuscript", parentId: string, form: FormData) {
+export async function addLink(parentType: "entry" | "project" | "manuscript" | "trial", parentId: string, form: FormData) {
   return run(async (tx) => {
     await insertLink(tx, parentType, parentId, String(form.get("url") ?? ""), String(form.get("label") ?? ""));
     refresh();

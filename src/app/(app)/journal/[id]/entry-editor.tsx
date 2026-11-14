@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { Badge } from "@/components/ui/badge";
 import { SaveStatus, useAutosave } from "@/components/app/autosave";
 import { PartialDateInput } from "@/components/app/partial-date-input";
@@ -16,7 +17,9 @@ import { archiveEntry, setEntryDate, trashEntry, updateEntry } from "@/server/ac
 import { Evidence } from "@/components/app/evidence";
 import { quickTask } from "@/server/actions/tasks";
 import { TaskCheckbox } from "@/components/app/task-checkbox";
-import { callAction, quickAction } from "@/components/app/call-action";
+import { callAction, quickAction, trashWithUndo } from "@/components/app/call-action";
+import { undoTrash } from "@/server/actions/settings";
+import { useRouter } from "next/navigation";
 import { categories, entryStatuses, participation, registration, enquiryStatuses, viaLabel } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
 import type { EntryDetail } from "@/server/journal";
@@ -81,6 +84,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
   const [editingDate, setEditingDate] = useState(openDate);
   const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   const set = (key: keyof typeof v, section: keyof Patch, column: string, value: string, delay?: number) => {
     setV((s) => ({ ...s, [key]: value }));
@@ -112,9 +116,9 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
   /** Archive / Trash: only after everything typed has saved. */
   const leave = (how: "archive" | "trash") =>
     start(async () => {
-      if (how === "trash" && !confirm("Move this entry to Trash? You can restore it from Settings for 30 days.")) return;
       if (!(await auto.flush())) return void toast.error("Your latest changes haven't saved yet — copy your text or try again first.");
-      await quickAction(() => (how === "archive" ? archiveEntry(entry.id) : trashEntry(entry.id)));
+      if (how === "archive") return void (await quickAction(() => archiveEntry(entry.id)));
+      await trashWithUndo({ what: "Entry", trash: () => trashEntry(entry.id), undo: () => undoTrash("entries", entry.id), onUndone: () => router.push(`/journal/${entry.id}`) });
     });
 
   return (
@@ -178,31 +182,20 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
           </Row>
 
           <Row label="Category" htmlFor="category">
-            <NativeSelect id="category" value={v.category} onChange={(e) => set("category", "entry", "category", e.target.value, 0)} className="max-w-72">
-              <option value="">No category</option>
-              {Object.entries(categories).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </NativeSelect>
+            <AppSelect id="category" value={v.category} onValueChange={(x) => set("category", "entry", "category", x, 0)} className="max-w-72" options={toOptions(categories, "No category")} />
           </Row>
 
           <Row label="Status" htmlFor="status">
-            <NativeSelect id="status" value={v.status} onChange={(e) => set("status", "entry", "status", e.target.value, 0)} className="max-w-72">
-              <option value="">Not set</option>
-              {Object.entries(entryStatuses).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-            </NativeSelect>
+            <AppSelect id="status" value={v.status} onValueChange={(x) => set("status", "entry", "status", x, 0)} className="max-w-72" options={toOptions(entryStatuses, "Not set")} />
           </Row>
 
           {isEvent && (
             <>
               <Row label="Registration" htmlFor="registration">
-                <NativeSelect id="registration" value={v.registration} onChange={(e) => set("registration", "event", "registration", e.target.value, 0)} className="max-w-72">
-                  <option value="">Not recorded</option>
-                  {Object.entries(registration).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </NativeSelect>
+                <AppSelect id="registration" value={v.registration} onValueChange={(x) => set("registration", "event", "registration", x, 0)} className="max-w-72" options={toOptions(registration, "Not recorded")} />
               </Row>
               <Row label="Participation" htmlFor="participation">
-                <NativeSelect id="participation" value={v.participation} onChange={(e) => set("participation", "event", "participation", e.target.value, 0)} className="max-w-72">
-                  {Object.entries(participation).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </NativeSelect>
+                <AppSelect id="participation" value={v.participation} onValueChange={(x) => set("participation", "event", "participation", x, 0)} className="max-w-72" options={toOptions(participation)} />
               </Row>
               <Row label="Award" htmlFor="award">
                 <Input id="award" value={v.award} onChange={(e) => set("award", "event", "award", e.target.value)} placeholder="e.g. Third prize (optional)" className="max-w-72" />
@@ -239,9 +232,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
               <Row label="Response" htmlFor="response" top><Textarea id="response" rows={3} value={v.response} onChange={(e) => set("response", "enquiry", "response", e.target.value)} /></Row>
               <Row label="Follow up on" htmlFor="followup"><Input id="followup" type="date" value={v.followUpDate} onChange={(e) => set("followUpDate", "enquiry", "followUpDate", e.target.value, 0)} className="max-w-48" /></Row>
               <Row label="Status" htmlFor="enq-status">
-                <NativeSelect id="enq-status" value={v.enquiryStatus} onChange={(e) => set("enquiryStatus", "enquiry", "status", e.target.value, 0)} className="max-w-72">
-                  {Object.entries(enquiryStatuses).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </NativeSelect>
+                <AppSelect id="enq-status" value={v.enquiryStatus} onValueChange={(x) => set("enquiryStatus", "enquiry", "status", x, 0)} className="max-w-72" options={toOptions(enquiryStatuses)} />
               </Row>
             </>
           )}
@@ -253,10 +244,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
           )}
 
           <Row label="Project" htmlFor="project">
-            <NativeSelect id="project" value={v.projectId} onChange={(e) => set("projectId", "entry", "projectId", e.target.value, 0)} className="max-w-96">
-              <option value="">Not linked</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </NativeSelect>
+            <AppSelect id="project" value={v.projectId} onValueChange={(x) => set("projectId", "entry", "projectId", x, 0)} className="max-w-96" options={rowOptions(projects, (p) => p.title, "Not linked")} />
           </Row>
 
           <Row label="People" htmlFor="people">

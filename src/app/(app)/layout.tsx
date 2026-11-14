@@ -8,16 +8,23 @@ import { todayIn } from "@/lib/dates";
 import { QuickAddProvider } from "@/components/app/quick-add";
 import { MobileNav, Sidebar } from "@/components/app/nav";
 import { GuideProvider } from "@/components/app/guide";
+import { KeepReminding } from "@/components/app/keep-reminding";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { profile, projects, overdue } = await asUser(async (tx) => {
+  const { profile, projects, overdue, nagging } = await asUser(async (tx) => {
     const profile = await getProfile(tx);
     const projects = await projectOptions(tx);
     const tz = profile?.timezone ?? "Asia/Kolkata";
     const [{ overdue }] = await tx<{ overdue: number }[]>`
       select count(*)::int as overdue from public.tasks
       where deleted_at is null and status not in ('done','cancelled') and due_date < ${todayIn(tz)}`;
-    return { profile, projects, overdue };
+    // tasks she asked to be reminded about until they're done, most urgent first
+    const nagging = await tx<{ id: string; title: string; total: number }[]>`
+      select id, title, count(*) over ()::int as total from public.tasks
+      where remind_until_done and deleted_at is null and status not in ('done','cancelled')
+      order by due_date nulls last, case priority when 'high' then 0 when 'normal' then 1 else 2 end, created_at
+      limit 1`;
+    return { profile, projects, overdue, nagging };
   });
   if (!profile?.onboardedAt) redirect("/welcome");
 
@@ -33,6 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         <div className="flex min-h-dvh">
           <Sidebar name={profile.displayName ?? ""} department={profile.department} />
           <div className="flex min-w-0 flex-1 flex-col">
+            {nagging.length > 0 && <KeepReminding tasks={nagging} />}
             {profile.remindersEnabled && overdue > 0 && (
               <div role="status" className="border-b border-attention-border bg-attention px-5 py-2 text-center text-[13px] text-attention-foreground md:px-10">
                 {overdue === 1 ? "1 task is overdue." : `${overdue} tasks are overdue.`}{" "}

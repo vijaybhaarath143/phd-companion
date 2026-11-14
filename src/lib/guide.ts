@@ -44,14 +44,29 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "nav", chapter: "basics", path: "/", target: "nav",
-    title: "Six places",
-    body: "Home is your summary. Timeline is the whole story in date order. Journal holds your entries. Research holds your projects, papers and experiments. Planner holds tasks and goals. Academics tracks credits and milestones.",
-    phoneBody: "Home is your summary and Timeline is the whole story in date order. Planner holds tasks and goals. Journal, Research, Academics and Settings are under More.",
+    title: "Finding your way",
+    body: "Home is your summary. Timeline is the whole story in date order. Journal holds your entries. Research holds your projects, publications and benchwork. Planner holds tasks and goals. Academics tracks credits, deadlines and admin info. Events lists conferences and training; Notes holds scribbles and checklists.",
+    phoneBody: "Home is your summary and Timeline is the whole story in date order. Planner holds tasks and goals. Journal, Research, Academics, Events, Notes and Settings are under More.",
+  },
+  {
+    id: "reminders", chapter: "basics", path: "/", target: "reminders",
+    title: "Reminders",
+    body: "Every open task, course deadline and coming event, in date order: overdue (in red) first, then today, the next 7 days, later, and things with no date yet. Tick a task off right here.",
+  },
+  {
+    id: "home-calendar", chapter: "basics", path: "/", target: "home-calendar",
+    title: "This month",
+    body: "Days with something on them have a dot. Days in red have a task or deadline that's still open after its date. Tap a day to open the full calendar.",
   },
   {
     id: "attention", chapter: "basics", path: "/", target: "attention",
     title: "Needs attention",
-    body: "Home gathers anything that needs you: overdue tasks, things you're waiting on, entries missing a date, courses with no credits filled in. Tap a line to go straight to it.",
+    body: "Anything else that needs you shows here when there is something: guide feedback to address, things you're waiting on, entries missing a date, courses with no credits filled in.",
+  },
+  {
+    id: "areas", chapter: "basics", path: "/", target: "areas",
+    title: "Your areas",
+    body: "Benchwork, coursework, publications, guide meetings, events and admin info — each opens straight to its records. Whatever you add with Quick Add lands in the right one.",
   },
   {
     id: "working-on", chapter: "basics", path: "/", target: "working-on",
@@ -110,7 +125,17 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "experiments", chapter: "research", path: "/research", target: "experiments",
     title: "Experiments",
-    body: "Note what you tried, what you observed and anything blocking you, like equipment or supplies. Each time you change an experiment, the earlier version is kept, so you can always see what changed.",
+    body: "Note what you tried, what you observed and anything blocking you, like equipment or supplies. Each run is a trial with its own date, result and files. Each time you change an experiment, the earlier version is kept.",
+  },
+  {
+    id: "review-steps", chapter: "research", path: "/research", target: "review-steps",
+    title: "Review milestones",
+    body: "A review project tracks its steps — protocol, search, screening, eligibility, extraction, PRISMA diagram, draft, feedback. Record the numbers at each step and the PRISMA counts fill themselves in.",
+  },
+  {
+    id: "research-views", chapter: "research", path: "/research", target: "research-views",
+    title: "Publications and benchwork",
+    body: "Publications lists your review and original articles with how far along each is. Benchwork lists every experiment with its trials.",
   },
   {
     id: "project-tasks", chapter: "research", path: "/research", target: "project-tasks",
@@ -134,7 +159,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "add-task", chapter: "planner", path: "/planner", target: "planner-add",
     title: "Add a task",
-    body: "Type what needs doing. A due date and a project are optional. Overdue tasks show a gentle reminder at the top of every page.",
+    body: "Add task opens Quick Add on Task: type what needs doing; a due date, priority (High, Normal, Low) and project are optional. Tick \"Keep reminding me until it's done\" and it stays at the top of every page until it's done.",
   },
   {
     id: "waiting", chapter: "planner", path: "/planner", target: "planner-show",
@@ -145,6 +170,11 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: "planner-views", chapter: "planner", path: "/planner", target: "planner-views",
     title: "Calendar and Goals",
     body: "Calendar shows your tasks and entries by date. Goals are bigger aims for a week, month, semester or year — mark each one achieved or dropped when the time comes.",
+  },
+  {
+    id: "notes", chapter: "planner", path: "/notes", target: "notes-list",
+    title: "Notes and checklists",
+    body: "A note is a blank page for scribbles. A checklist is for things to tick off, like the journals you've shortlisted. Both save as you type and show up in search.",
   },
 
   // Academics
@@ -167,6 +197,16 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: "enquiries", chapter: "academics", path: "/academics", target: "enquiries",
     title: "Office enquiries",
     body: "Asked an office something? Note who you asked, their reply, and when to follow up. It stays open until you close it.",
+  },
+  {
+    id: "admin-info", chapter: "academics", path: "/academics", target: "admin-info",
+    title: "Admin info",
+    body: "Keep the details you keep looking up — enrolment number, office contacts — in one place. Only you can see them.",
+  },
+  {
+    id: "events", chapter: "academics", path: "/events", target: "events-tabs",
+    title: "Events",
+    body: "Conferences, workshops, training and competitions: what's coming up, and under Past what you attended — with all its details and certificates — and anything you haven't said whether you went to.",
   },
 
   // Keeping your work safe

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { monthOptions, valueOptions } from "@/lib/options";
 import { Segmented } from "@/components/app/segmented";
 import { monthNames, type PartialDate, type Precision } from "@/lib/dates";
 
@@ -95,14 +96,8 @@ export function PartialDateInput({
         <>
           <input type="hidden" name={`${name}Month`} value={`${year}-${month}`} />
           <div className="grid max-w-80 grid-cols-2 gap-2">
-            <NativeSelect aria-label="Month" value={month} onChange={(e) => { setMonth(e.target.value); emit("month", day, e.target.value); }}>
-              {monthNames.map((m, i) => (
-                <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
-              ))}
-            </NativeSelect>
-            <NativeSelect aria-label="Year" value={year} onChange={(e) => { setYear(e.target.value); emit("month", day, month, e.target.value); }}>
-              {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </NativeSelect>
+            <AppSelect aria-label="Month" value={month} onValueChange={(m) => { setMonth(m); emit("month", day, m); }} options={monthOptions()} />
+            <AppSelect aria-label="Year" value={year} onValueChange={(y) => { setYear(y); emit("month", day, month, y); }} options={valueOptions(years)} />
           </div>
           <p className="text-[13px] text-muted-foreground">
             Shown as “{monthNames[Number(month) - 1]} {year} · day not known”. We never guess the day.

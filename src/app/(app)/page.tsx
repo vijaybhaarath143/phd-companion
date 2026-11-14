@@ -2,9 +2,11 @@ import Link from "next/link";
 import { BookOpen, Download, Search } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
-import { getHome, needsBackupReminder } from "@/server/home";
-import { formatTimestamp, greeting, longToday, todayIn } from "@/lib/dates";
-import { describeBucket, formatCredits } from "@/lib/credits";
+import { getAreas, getHome, getHomeCalendar, getRecentUpdates, getReminders, needsBackupReminder } from "@/server/home";
+import { formatTimestamp, greeting, longToday, monthLabel, todayIn } from "@/lib/dates";
+import { CreditBar } from "@/components/app/credit-bar";
+import { StepBar } from "@/components/app/step-bar";
+import { Areas, MiniMonth, RecentUpdates, Reminders } from "@/components/app/home-panels";
 import { Empty, PageHeader, RowLink, Rows, Section } from "@/components/app/ui";
 import { GuideInvite } from "@/components/app/guide";
 import { QuickAddButton } from "@/components/app/quick-add";
@@ -37,9 +39,17 @@ function Attention({ home }: { home: Awaited<ReturnType<typeof getHome>> }) {
 }
 
 export default async function HomePage() {
-  const { profile, home } = await asUser(async (tx) => {
+  const { profile, home, reminders, calendar, updates, areas } = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
-    return { profile, home: await getHome(tx, todayIn(profile.timezone)) };
+    const today = todayIn(profile.timezone);
+    return {
+      profile,
+      home: await getHome(tx, today),
+      reminders: await getReminders(tx, today),
+      calendar: await getHomeCalendar(tx, today),
+      updates: await getRecentUpdates(tx, today, profile.timezone),
+      areas: await getAreas(tx),
+    };
   });
   const tz = profile.timezone;
   const name = profile.displayName?.split(" ")[0];
@@ -80,57 +90,53 @@ export default async function HomePage() {
 
   const c = home.credits?.summary;
   return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
-      <PageHeader eyebrow={longToday(tz)} title={greeting(tz)} />
+    <div className="mx-auto flex max-w-[1060px] flex-col gap-6">
+      <PageHeader eyebrow={longToday(tz)} title={greeting(tz) + (name ? `, ${name}` : "")} actions={<QuickAddButton label="Quick Add" variant="default" />} />
       <GuideInvite />
       {backup}
       <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground md:hidden">
         <Search className="size-4" aria-hidden /> Search everything
       </Link>
       <div className="flex flex-wrap items-start gap-4">
-        <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <Attention home={home} />
-
-          <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All projects</Link>}>
-            {home.workingOn.length ? (
-              <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail={p.detail} />)}</Rows>
-            ) : (
-              <Empty>No active projects. <Link href="/research" className="underline">Add one</Link>.</Empty>
-            )}
+        <div className="flex min-w-0 flex-[3_1_440px] flex-col gap-4">
+          <Section guide="reminders" title="Reminders" action={<span className="text-[13px] text-muted-foreground">Tasks, deadlines and events, by date</span>}>
+            <Reminders groups={reminders} />
           </Section>
 
-          <Section title="Recently recorded" action={<Link href="/journal" className="text-[13px] hover:underline">Open Journal</Link>}>
-            {home.recent.length ? (
-              <Rows>{home.recent.map((e) => <RowLink key={e.id} href={e.href} title={e.title} detail={e.detail} />)}</Rows>
+          {home.attention.length > 0 && <Attention home={home} />}
+
+          <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All research</Link>}>
+            {home.workingOn.length ? (
+              <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+                {home.workingOn.map((p) => (
+                  <li key={p.id}>
+                    <Link href={p.href} className="block px-5 py-3 transition-colors hover:bg-zinc-50">
+                      <span className="block font-medium">{p.title}</span>
+                      <span className="block text-[13px] text-muted-foreground">{p.detail}</span>
+                      {p.steps && <StepBar done={p.steps.done} total={p.steps.total} currentNo={p.steps.currentNo} className="mt-2" />}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <Empty>No journal entries yet. Use Quick Add to record what happened.</Empty>
+              <Empty>No active projects. <Link href="/research" className="underline">Add one</Link>.</Empty>
             )}
           </Section>
         </div>
 
         <div className="flex min-w-0 flex-[2_1_300px] flex-col gap-4">
+          <Section padded guide="home-calendar" title={monthLabel(calendar.month)} action={<Link href="/planner?view=calendar" className="text-[13px] hover:underline">Calendar</Link>}>
+            <MiniMonth cal={calendar} />
+          </Section>
+
+          <Section title="Recent updates" action={<Link href="/timeline" className="text-[13px] hover:underline">Timeline</Link>}>
+            <RecentUpdates items={updates} />
+          </Section>
+
           <Section padded title={home.credits?.label ?? "Coursework credits"} action={home.credits?.period && <span className="text-[13px] text-muted-foreground">{home.credits.period}</span>}>
             {c ? (
               <>
-                <dl className="text-sm">
-                  {[
-                    ["Required", c.required === null ? { value: "Not set", note: null } : { value: formatCredits(c.required), note: null }],
-                    ["Enrolled", describeBucket(c.enrolled)],
-                    ["Completed", describeBucket(c.completed)],
-                    ["Officially recognised", { value: formatCredits(c.recognised), note: null }],
-                  ].map(([label, v]) => {
-                    const val = v as { value: string; note: string | null };
-                    return (
-                      <div key={label as string} className="flex items-baseline justify-between gap-3 border-t border-zinc-100 py-2.5 first:border-t-0">
-                        <dt>{label as string}</dt>
-                        <dd className="text-right">
-                          {val.note && val.value === "—" ? <span className="text-muted-foreground">{val.note}</span> : <span className="font-semibold tabular-nums">{val.value}</span>}
-                          {val.note && val.value !== "—" && <span className="block text-[12px] text-muted-foreground">{val.note}</span>}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
+                <CreditBar summary={c} />
                 {c.incomplete && <p className="mt-2 text-[13px] text-muted-foreground">Totals are incomplete until every course has a credit value.</p>}
               </>
             ) : (
@@ -139,12 +145,8 @@ export default async function HomePage() {
             <Link href="/academics" className="mt-3 inline-block text-[13px] underline-offset-4 hover:underline">Open Academics</Link>
           </Section>
 
-          <Section title="Coming up" action={<Link href="/planner" className="text-[13px] hover:underline">Planner</Link>}>
-            {home.comingUp.length ? (
-              <Rows>{home.comingUp.map((u) => <RowLink key={u.id} href={u.href} title={u.title} detail={u.detail} badge={u.badge} />)}</Rows>
-            ) : (
-              <Empty>Nothing dated yet.</Empty>
-            )}
+          <Section guide="areas" title="Your areas">
+            <Areas areas={areas} />
           </Section>
         </div>
       </div>

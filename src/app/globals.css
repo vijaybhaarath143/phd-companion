@@ -42,6 +42,9 @@
   --color-attention: var(--attention);
   --color-attention-border: var(--attention-border);
   --color-attention-foreground: var(--attention-foreground);
+  --color-overdue: var(--overdue);
+  --color-overdue-border: var(--overdue-border);
+  --color-overdue-foreground: var(--overdue-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -89,6 +92,10 @@
   --attention: oklch(0.987 0.022 95.277);
   --attention-border: oklch(0.924 0.12 95.746);
   --attention-foreground: oklch(0.473 0.137 46.201);
+  /* Red, only for overdue (tasks, deadlines, calendar days) */
+  --overdue: oklch(0.971 0.013 17.38);
+  --overdue-border: oklch(0.885 0.062 18.334);
+  --overdue-foreground: oklch(0.505 0.213 27.518);
 }
 
 .dark {
