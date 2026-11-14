@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Paperclip, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,8 @@ import { PartialDateInput } from "@/components/app/partial-date-input";
 import { createEntry } from "@/server/actions/entries";
 import { createTask } from "@/server/actions/tasks";
 import { categories } from "@/lib/labels";
+import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
+import { fileProblem, uploadEvidence } from "@/lib/upload";
 import { isFuture, type PartialDate } from "@/lib/dates";
 import type { ProjectOption } from "@/server/profile";
 
@@ -93,8 +95,19 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
   const [planned, setPlanned] = useState(true);
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<"normal" | "important">("normal");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  function pickFiles(list: FileList | null) {
+    const picked = Array.from(list ?? []);
+    const problems = picked.map(fileProblem).filter((p): p is string => Boolean(p));
+    if (problems.length) toast.error(problems.join(" "));
+    setFiles((prev) => [...prev, ...picked.filter((f) => !fileProblem(f))]);
+    if (fileInput.current) fileInput.current.value = "";
+  }
 
   const future = mode === "entry" && isFuture(date.date, date.precision, today);
   const Title = desktop ? DialogTitle : DrawerTitle;
@@ -113,7 +126,19 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
       }
       const savedId = id;
       const kind = "kind" in r.data ? r.data.kind : null;
-      toast.success(mode === "entry" ? "Entry saved" : "Task saved", {
+      // Files go in once the entry exists; a failed file never loses the entry itself.
+      let added = 0;
+      if (mode === "entry") {
+        for (const [i, file] of files.entries()) {
+          setUploading(files.length > 1 ? `Uploading ${i + 1} of ${files.length}: ${file.name}…` : `Uploading ${file.name}…`);
+          const problem = await uploadEvidence("entry", savedId, file);
+          if (problem) toast.error(`${problem} The entry was saved — open it to try the file again.`);
+          else added++;
+        }
+        setUploading(null);
+      }
+      const saved = mode === "task" ? "Task saved" : added === 0 ? "Entry saved" : `Entry saved with ${added === 1 ? "1 file" : `${added} files`}`;
+      toast.success(saved, {
         action:
           mode === "entry"
             ? { label: "View", onClick: () => router.push(kind === "experiment" ? `/research/experiments/${savedId}` : `/journal/${savedId}`) }
@@ -125,6 +150,7 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
         setNotes("");
         setPeople("");
         setDueDate("");
+        setFiles([]);
         // keep date, category and project — handy when backfilling several past entries
         document.getElementById("qa-title")?.focus();
       } else {
@@ -216,6 +242,37 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
           </div>
         </div>
 
+        {mode === "entry" && (
+          <div className="flex flex-col gap-2">
+            {files.length > 0 && (
+              <ul className="flex flex-col gap-1">
+                {files.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex min-h-9 items-center gap-2 text-sm">
+                    <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 truncate">{f.name}</span>
+                    <span className="shrink-0 text-[12px] text-muted-foreground">{formatBytes(f.size)}</span>
+                    <button
+                      type="button"
+                      aria-label={`Don't attach ${f.name}`}
+                      disabled={pending}
+                      onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                      className="ml-auto rounded p-1.5 text-muted-foreground hover:bg-muted"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <input ref={fileInput} type="file" accept={ACCEPT} multiple className="sr-only" id="qa-files" tabIndex={-1} onChange={(e) => pickFiles(e.target.files)} />
+            <button type="button" disabled={pending} onClick={() => fileInput.current?.click()} className="-ml-2 flex h-9 w-fit items-center gap-2 rounded-lg px-2 text-sm font-medium hover:bg-muted">
+              <Paperclip className="size-4" aria-hidden /> {files.length ? "Attach more files" : "Attach files"}
+              <span className="font-normal text-muted-foreground">(optional)</span>
+            </button>
+            {files.length > 0 && <p className="-mt-1 text-[12px] text-muted-foreground">{ALLOWED_DESCRIPTION}. Files are private to you.</p>}
+          </div>
+        )}
+
         {details ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -249,9 +306,10 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
       <div className="flex flex-wrap justify-end gap-2 border-t px-6 py-4">
         <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>Cancel</Button>
         <Button type="button" variant="outline" onClick={() => save(true)} disabled={pending || !title.trim()}>Save &amp; add another</Button>
-        <Button type="submit" disabled={pending || !title.trim()}>{pending ? "Saving…" : "Save"}</Button>
+        <Button type="submit" disabled={pending || !title.trim()}>{uploading ? "Uploading…" : pending ? "Saving…" : "Save"}</Button>
       </div>
-      <span className="sr-only" aria-live="polite">{pending ? "Saving" : ""}</span>
+      {uploading && <p role="status" className="px-6 pb-4 text-right text-[13px] text-muted-foreground">{uploading}</p>}
+      <span className="sr-only" aria-live="polite">{uploading ?? (pending ? "Saving" : "")}</span>
     </form>
   );
 }

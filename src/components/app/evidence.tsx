@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ActionForm } from "@/components/app/action-form";
 import { addLink } from "@/server/actions/entries";
-import { abandonUpload, finishUpload, removeEvidence, startUpload } from "@/server/actions/files";
-import { supabaseBrowser } from "@/lib/supabase/browser";
-import { ACCEPT, ALLOWED_DESCRIPTION, MAX_FILE_BYTES, formatBytes, isAllowedName } from "@/lib/files";
+import { removeEvidence } from "@/server/actions/files";
+import { uploadEvidence } from "@/lib/upload";
+import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
 import type { EvidenceItem } from "@/server/evidence";
 
 type Parent = "entry" | "project" | "manuscript";
@@ -25,24 +25,16 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
   const [addingLink, setAddingLink] = useState(false);
   const [pending, start] = useTransition();
 
-  async function upload(file: File) {
-    if (!isAllowedName(file.name)) return void toast.error(`That type of file isn't supported. You can add ${ALLOWED_DESCRIPTION}.`);
-    if (file.size > MAX_FILE_BYTES) return void toast.error("That file is larger than 20 MB. Add a link to it instead.");
-    setBusy(`Uploading ${file.name}…`);
+  async function upload(files: File[]) {
     try {
-      const started = await startUpload(parentType, parentId, { name: file.name, size: file.size });
-      if (!started.ok) return void toast.error(started.error.message);
-      const { error } = await supabaseBrowser().storage.from("evidence").uploadToSignedUrl(started.data.path, started.data.token, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      if (error) {
-        await abandonUpload(started.data.id);
-        return void toast.error("The upload didn't finish. Check your connection and try again.");
+      let added = 0;
+      for (const [i, file] of files.entries()) {
+        setBusy(files.length > 1 ? `Uploading ${i + 1} of ${files.length}: ${file.name}…` : `Uploading ${file.name}…`);
+        const error = await uploadEvidence(parentType, parentId, file);
+        if (error) toast.error(error);
+        else added++;
       }
-      setBusy("Checking the file…");
-      const done = await finishUpload(started.data.id);
-      if (!done.ok) return void toast.error(done.error.message);
-      toast.success("File added");
+      if (added) toast.success(added === 1 ? "File added" : `${added} files added`);
     } finally {
       setBusy(null);
       if (input.current) input.current.value = "";
@@ -101,11 +93,12 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
           ref={input}
           type="file"
           accept={ACCEPT}
+          multiple
           className="sr-only"
           id={`file-${parentId}`}
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void upload(f);
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) void upload(files);
           }}
         />
         <Button type="button" variant="outline" disabled={Boolean(busy)} onClick={() => input.current?.click()}>
