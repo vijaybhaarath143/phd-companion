@@ -8,7 +8,7 @@ import { projectOptions, requireProfile } from "@/server/profile";
 import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
-import { TaskList, AddTask, Goals } from "./planner-client";
+import { TaskList, AddTaskButton, Goals } from "./planner-client";
 
 export const metadata: Metadata = { title: "Planner" };
 
@@ -30,7 +30,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
     const profile = await requireProfile(tx);
     const today = todayIn(profile.timezone);
     const month = isMonthKey(sp.month) ? sp.month : today.slice(0, 7);
-    const tasks = view === "tasks" ? await listTasks(tx, show, limit + 1) : [];
+    const tasks = view === "tasks" ? await listTasks(tx, show, limit + 1, today) : [];
     return {
       today,
       month,
@@ -57,7 +57,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
-      <PageHeader title="Planner" subtitle="What needs doing, and when." />
+      <PageHeader title="Planner" subtitle="What needs doing, and when." actions={<AddTaskButton />} />
       <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex gap-5 border-b">
         {tab("tasks", "Tasks")}
         {tab("calendar", "Calendar")}
@@ -66,7 +66,6 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
 
       {view === "tasks" && (
         <>
-          <AddTask projects={data.projects} />
           <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-1 rounded-[10px] bg-muted p-1">
             {([["open", `Open · ${data.counts.open}`], ["waiting", `Waiting · ${data.counts.waiting}`], ["done", "Done"]] as const).map(([k, label]) => (
               <Link key={k} href={k === "open" ? "/planner" : `/planner?show=${k}`} aria-current={show === k ? "true" : undefined}
@@ -75,7 +74,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
               </Link>
             ))}
           </div>
-          <TaskList tasks={data.tasks} projects={data.projects} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Add a task above."} />
+          <TaskList tasks={data.tasks} projects={data.projects} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use Add task to plan your next step."} />
           {data.moreTasks && (
             <Link
               href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}

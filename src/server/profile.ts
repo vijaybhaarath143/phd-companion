@@ -16,6 +16,8 @@ export type Profile = {
   onboardedAt: Date | null;
   /** When she last downloaded "Export everything" (Free hosting keeps no backups). */
   lastExportAt: Date | null;
+  /** Things she keeps looking up: enrolment number, office contacts… */
+  adminDetails: { label: string; value: string }[];
   version: number;
 };
 

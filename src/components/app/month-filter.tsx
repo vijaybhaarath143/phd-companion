@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { NativeSelect } from "@/components/ui/native-select";
-import { monthNames } from "@/lib/dates";
+import { AppSelect } from "@/components/app/app-select";
+import { monthOptions, valueOptions } from "@/lib/options";
 import { yearOptions } from "@/components/app/partial-date-input";
 
 /**
@@ -17,14 +17,8 @@ export function MonthFilter({ name, label, defaultValue, today, edge }: { name: 
   return (
     <span role="group" aria-label={label} className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
       {label}
-      <NativeSelect aria-label={`${label}: month`} value={month} onChange={(e) => setMonth(e.target.value)} className="h-9 w-auto">
-        <option value="">Month</option>
-        {monthNames.map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m.slice(0, 3)}</option>)}
-      </NativeSelect>
-      <NativeSelect aria-label={`${label}: year`} value={year} onChange={(e) => setYear(e.target.value)} className="h-9 w-auto">
-        <option value="">Year</option>
-        {yearOptions(today, year).map((y) => <option key={y} value={y}>{y}</option>)}
-      </NativeSelect>
+      <AppSelect aria-label={`${label}: month`} value={month} onValueChange={setMonth} size="sm" className="w-auto" options={monthOptions("Month", true)} />
+      <AppSelect aria-label={`${label}: year`} value={year} onValueChange={setYear} size="sm" className="w-auto" options={valueOptions(yearOptions(today, year), "Year")} />
       {value && <input type="hidden" name={name} value={value} />}
     </span>
   );

@@ -54,7 +54,8 @@ export async function updateTask(id: string, form: FormData) {
       update public.tasks set
         title = ${title},
         status = ${status},
-        priority = ${oneOf(form.get("priority"), ["normal", "important"] as const, "normal")},
+        priority = ${oneOf(form.get("priority"), ["high", "normal", "low"] as const, "normal")},
+        remind_until_done = ${form.get("remindUntilDone") === "on"},
         due_date = ${dateOrNull(form.get("dueDate"))},
         notes = ${text(form.get("notes"), 5000)},
         project_id = ${uuidOrNull(form.get("projectId"))},

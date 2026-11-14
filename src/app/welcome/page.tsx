@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, monthOptions, valueOptions } from "@/lib/options";
 import { asUser } from "@/server/auth";
 import { getProfile } from "@/server/profile";
-import { monthNames, todayIn } from "@/lib/dates";
+import { todayIn } from "@/lib/dates";
 import { projectTypes } from "@/lib/labels";
 import { ContinueButton, SkipButton, WelcomeForm } from "./welcome-form";
 
@@ -83,14 +84,8 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
                 <fieldset className="flex flex-col gap-1.5">
                   <legend className="mb-1.5 text-sm font-medium">Programme start</legend>
                   <div className="grid grid-cols-2 gap-2">
-                    <NativeSelect name="startMonth" aria-label="Month" defaultValue={startMonth ?? ""}>
-                      <option value="">Month</option>
-                      {monthNames.map((m, i) => <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
-                    </NativeSelect>
-                    <NativeSelect name="startYear" aria-label="Year" defaultValue={startYear ?? ""}>
-                      <option value="">Year</option>
-                      {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                    </NativeSelect>
+                    <AppSelect name="startMonth" aria-label="Month" defaultValue={startMonth ?? ""} options={monthOptions("Month")} />
+                    <AppSelect name="startYear" aria-label="Year" defaultValue={startYear ?? ""} options={valueOptions(years, "Year")} />
                   </div>
                   <p className="text-[13px] text-muted-foreground">Month is enough — we don&apos;t need the exact day.</p>
                 </fieldset>
@@ -116,10 +111,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="type" className="text-sm font-medium">Type <span className="font-normal text-muted-foreground">(optional)</span></label>
-                  <NativeSelect id="type" name="type" defaultValue="">
-                    <option value="">Not sure</option>
-                    {Object.entries(projectTypes).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </NativeSelect>
+                  <AppSelect id="type" name="type" defaultValue="" options={toOptions(projectTypes, "Not sure")} />
                 </div>
               </div>
               {/* The main button comes first so pressing Enter continues rather than skips. */}

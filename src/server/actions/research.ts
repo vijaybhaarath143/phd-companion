@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/db";
 import { run, ValidationError, oneOf, required, text, uuidOrNull, dateOrNull, versionOf, expectRow } from "@/server/actions/run";
 import { readPartialDate } from "@/lib/dates";
-import { cleanTitle, insertFeedback, insertPhaseEvent } from "@/server/writes";
+import { cleanTitle, insertFeedback, insertPhaseEvent, insertTrial } from "@/server/writes";
+import { DEFAULT_REVIEW_STEPS } from "@/lib/labels";
 const PROJECT_TYPES = ["systematic_review", "narrative_review", "experimental", "method_development",
   "instrument_development", "collaboration", "other"] as const;
 const EXPERIMENT_STATUSES = ["planned", "in_progress", "completed", "inconclusive", "unsuccessful", "paused"] as const;
@@ -44,7 +45,11 @@ export async function createManuscript(projectId: string, form: FormData) {
   const r = await run(async (tx) => {
     const title = required(form.get("title"), "Manuscript title");
     const [m] = await tx<{ id: string }[]>`
-      insert into public.manuscripts (project_id, title) values (${uuidOrNull(projectId)}, ${title}) returning id`;
+      insert into public.manuscripts (project_id, title, article_type)
+      values (${uuidOrNull(projectId)}, ${title},
+              coalesce((select case when type in ('systematic_review', 'narrative_review') then 'review' end
+                          from public.projects where id = ${uuidOrNull(projectId)}), 'original'))
+      returning id`;
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind, effective_precision) values (${m.id}, 'planning', 'change', 'none')`;
     return m.id;
   });
@@ -255,6 +260,130 @@ export async function resolveBlocker(id: string) {
   return run(async (tx) => {
     // "today" on her own clock, not the database's (UTC)
     expectRow(await tx`update public.blockers set resolved_on = app.user_today() where id = ${id} and resolved_on is null returning id`);
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- review milestones
+
+const STEP_STATUSES = ["not_started", "in_progress", "done", "skipped"] as const;
+const COUNT_KINDS = ["identified", "duplicates_removed", "screened", "excluded_screening", "full_text_retrieved", "excluded_eligibility", "included"] as const;
+
+/** Start tracking a review with the standard steps (only when it has none yet). */
+export async function setUpReviewSteps(projectId: string) {
+  return run(async (tx) => {
+    // lock the project, so two "Set up" clicks at once can't both add the steps
+    const [p] = await tx`select 1 from public.projects where id = ${uuidOrNull(projectId)} and deleted_at is null for update`;
+    if (!p) throw new ValidationError("That project wasn't found.");
+    const [has] = await tx`select 1 from public.review_steps where project_id = ${projectId} and removed_at is null limit 1`;
+    if (has) return;
+    const rows = DEFAULT_REVIEW_STEPS.map((s, i) => ({ project_id: projectId, sort: i + 1, title: s.title, count_kind: s.count }));
+    await tx`insert into public.review_steps ${tx(rows, "project_id", "sort", "title", "count_kind")}`;
+    refresh();
+  });
+}
+
+export async function updateReviewStep(id: string, form: FormData) {
+  return run(async (tx) => {
+    const version = versionOf(form.get("version"));
+    const status = oneOf(form.get("status"), STEP_STATUSES, "not_started")!;
+    // "1,234" and "1 234" are fine; anything but digits isn't
+    const rawCount = String(form.get("count") ?? "").replace(/[\s,]/g, "");
+    if (rawCount !== "" && !/^\d{1,8}$/.test(rawCount)) throw new ValidationError("The number must be a whole number, like 412.");
+    const count = rawCount === "" ? null : Number(rawCount);
+    const title = text(form.get("title"), 200);
+    expectRow(await tx`
+      update public.review_steps set
+        ${title ? tx`title = ${title},` : tx``}
+        status = ${status},
+        done_on = ${status === "done" ? (dateOrNull(form.get("doneOn")) ?? tx`app.user_today()`) : null},
+        count_kind = ${form.has("countKind") ? oneOf(form.get("countKind"), COUNT_KINDS) : tx`count_kind`},
+        count = ${count},
+        note = ${text(form.get("note"), 5000)},
+        version = version + 1
+      where id = ${uuidOrNull(id)} and version = ${version} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null)
+      returning id`);
+    refresh();
+  });
+}
+
+/** One click: done (today) ↔ not started. */
+export async function toggleReviewStep(id: string, done: boolean) {
+  return run(async (tx) => {
+    const [row] = await tx`
+      update public.review_steps
+      set status = ${done ? "done" : "not_started"}, done_on = ${done ? tx`app.user_today()` : null}, version = version + 1
+      where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null) returning id`;
+    if (!row) throw new ValidationError("That step wasn't found.");
+    refresh();
+  });
+}
+
+export async function addReviewStep(projectId: string, form: FormData) {
+  return run(async (tx) => {
+    const title = required(form.get("title"), "Step", 200);
+    const [p] = await tx`select 1 from public.projects where id = ${uuidOrNull(projectId)} and deleted_at is null for update`;
+    if (!p) throw new ValidationError("That project wasn't found.");
+    const [{ next }] = await tx<{ next: number }[]>`
+      select coalesce(max(sort), 0) + 1 as next from public.review_steps where project_id = ${projectId}`;
+    await tx`insert into public.review_steps (project_id, sort, title) values (${projectId}, ${next}, ${title})`;
+    refresh();
+  });
+}
+
+/** Removing a step hides it (kept in the export, like everything else). */
+export async function removeReviewStep(id: string) {
+  return run(async (tx) => {
+    const [row] = await tx`update public.review_steps set removed_at = now(), version = version + 1 where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null) returning id`;
+    if (!row) throw new ValidationError("That step wasn't found.");
+    refresh();
+  });
+}
+
+/** Review or original article (sets which progress the Publications view shows). */
+export async function setArticleType(manuscriptId: string, type: string) {
+  return run(async (tx) => {
+    const t = oneOf(type, ["review", "original"] as const);
+    if (!t) throw new ValidationError("Choose review or original article.");
+    expectRow(await tx`update public.manuscripts set article_type = ${t}, version = version + 1 where id = ${uuidOrNull(manuscriptId)} and deleted_at is null returning id`);
+    refresh();
+  });
+}
+
+// ---------------------------------------------------------------- experiment trials
+
+const OUTCOMES = ["worked", "did_not_work", "inconclusive"] as const;
+
+/** A new trial, numbered after the last one; it starts with the previous trial's conditions to edit. */
+export async function addTrial(entryId: string) {
+  return run(async (tx) => {
+    const { id } = await insertTrial(tx, { entryId });
+    refresh();
+    return id;
+  });
+}
+
+export async function updateTrial(id: string, form: FormData) {
+  return run(async (tx) => {
+    const version = versionOf(form.get("version"));
+    expectRow(await tx`
+      update public.experiment_trials set
+        run_on = ${form.has("runOn") ? dateOrNull(form.get("runOn")) : tx`run_on`},
+        conditions = ${text(form.get("conditions"), 5000)},
+        result = ${text(form.get("result"), 10000)},
+        outcome = ${oneOf(form.get("outcome"), OUTCOMES)},
+        version = version + 1
+      where id = ${uuidOrNull(id)} and version = ${version} and removed_at is null and exists (select 1 from public.entries e where e.id = entry_id and e.deleted_at is null)
+      returning id`);
+    refresh();
+  });
+}
+
+/** Hidden, not erased: it stays in the export, with its files. */
+export async function removeTrial(id: string) {
+  return run(async (tx) => {
+    const [row] = await tx`update public.experiment_trials set removed_at = now(), version = version + 1 where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.entries e where e.id = entry_id and e.deleted_at is null) returning id`;
+    if (!row) throw new ValidationError("That trial wasn't found.");
     refresh();
   });
 }

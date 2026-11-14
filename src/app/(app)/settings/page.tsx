@@ -54,6 +54,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       union all select 'projects', id, title, deleted_at from public.projects where deleted_at is not null
       union all select 'courses', id, name, deleted_at from public.courses where deleted_at is not null
       union all select 'goals', id, title, deleted_at from public.goals where deleted_at is not null
+      union all select 'notes', id, title, deleted_at from public.notes where deleted_at is not null
       order by at desc limit ${trashLimit + 1}`;
     const archived = await tx<Row[]>`
       select 'entries' as table, id, title, archived_at as at from public.entries where archived_at is not null and deleted_at is null

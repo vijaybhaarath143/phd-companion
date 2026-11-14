@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { createExperiment, createManuscript, updateProject } from "@/server/actions/research";
 import { quickTask } from "@/server/actions/tasks";
@@ -83,9 +84,7 @@ export function ProjectActions(props: Props) {
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="p-status" className="text-sm font-medium">Status</label>
-            <NativeSelect id="p-status" name="status" defaultValue={p.status}>
-              {Object.entries(projectStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </NativeSelect>
+            <AppSelect id="p-status" name="status" defaultValue={p.status} options={toOptions(projectStatuses)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="p-obj" className="text-sm font-medium">Objective</label>

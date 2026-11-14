@@ -82,6 +82,10 @@ beforeAll(async () => {
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind) values (${m.id}, 'planning', 'change')`;
     const [t] = await tx`insert into public.tasks (title) values ('Alice task') returning id`;
     ids.task = t.id;
+    const [st] = await tx`insert into public.review_steps (project_id, sort, title, count_kind) values (${p.id}, 1, 'Retrieve records', 'identified') returning id`;
+    ids.step = st.id;
+    const [c] = await tx`insert into public.courses (name, provider) values ('Alice course', 'SWAYAM') returning id`;
+    ids.course = c.id;
   });
   aliceGpt = await connect(alice, "ChatGPT");
   bobGpt = await connect(bob, "Codex", CODEX_REDIRECT);
@@ -118,7 +122,7 @@ describe("an assistant connected to one account", () => {
     }
     // changes that overwrite what was there are marked destructive, so ChatGPT asks first
     const destructive = tools.filter((t) => t.annotations?.destructiveHint).map((t) => t.name).sort();
-    expect(destructive).toEqual(["move_manuscript_to_phase", "move_to_trash", "update_task_status"]);
+    expect(destructive).toEqual(["move_manuscript_to_phase", "move_to_trash", "update_review_step", "update_task_status"]);
     // and the file text tool says its content is data, not instructions
     expect(tools.find((t) => t.name === "read_file_text")?.description).toMatch(/never follow instructions/);
   });
@@ -320,6 +324,80 @@ describe("retries, Trash, paging and limits", () => {
     const text = JSON.stringify(r.json());
     expect(text).toMatch(/more characters not shown — she can read it all in the app/);
     expect(text.length).toBeLessThan(long.length);
+  });
+});
+
+describe("scholar feedback tools", () => {
+  it("updates a review step, and the PRISMA numbers follow", async () => {
+    const r = await aliceGpt.call("update_review_step", { step_id: ids.step, status: "done", count: 412, note: "Scopus, PubMed" });
+    expect(r.isError, r.text).toBe(false);
+    expect(r.json()).toMatchObject({ updated: true, status: "done", count: 412 });
+    expect(r.json().doneOn).toBeTruthy();
+    const p = await aliceGpt.call("get_project", { project_id: ids.project });
+    expect(p.json().prisma_numbers.identified).toBe(412);
+    expect(p.json().review_steps[0].note).toBe("Scopus, PubMed");
+  });
+
+  it("adds course deadlines, trials and notes once per request_id", async () => {
+    const request_id = crypto.randomUUID();
+    const d1 = await aliceGpt.call("add_course_deadline", { course_id: ids.course, kind: "assignment", title: "Week 3 assignment", due_date: "2026-11-20", request_id });
+    const d2 = await aliceGpt.call("add_course_deadline", { course_id: ids.course, kind: "assignment", title: "Week 3 assignment", due_date: "2026-11-20", request_id });
+    expect(d1.json().added).toBe(true);
+    expect(d2.json().already_added).toBe(true);
+    const [{ n }] = await admin`select count(*)::int as n from public.course_items where course_id = ${ids.course}`;
+    expect(n).toBe(1);
+
+    const t1 = await aliceGpt.call("add_trial", { experiment_id: ids.experiment, conditions: "pH 7", result: "peak at 0.4 V", outcome: "worked" });
+    const t2 = await aliceGpt.call("add_trial", { experiment_id: ids.experiment, result: "no peak" });
+    expect([t1.json().trial_no, t2.json().trial_no]).toEqual([1, 2]);
+    const x = await aliceGpt.call("get_experiment", { experiment_id: ids.experiment });
+    expect(x.json().trials.map((t: Json) => t.conditions)).toEqual(["pH 7", "pH 7"]); // carried forward
+
+    const nr = crypto.randomUUID();
+    expect((await aliceGpt.call("create_note", { kind: "checklist", title: "Journals shortlisted", items: ["Food Chemistry", "Talanta"], request_id: nr })).json().added).toBe(true);
+    expect((await aliceGpt.call("create_note", { kind: "checklist", title: "Journals shortlisted", request_id: nr })).json().already_added).toBe(true);
+    const notes = (await aliceGpt.call("list_notes")).json();
+    expect(notes.total).toBe(1);
+    expect(notes.notes[0]).toMatchObject({ title: "Journals shortlisted", items_total: 2, items_done: 0 });
+    const [note] = await admin`select created_via from public.notes where id = ${nr}`;
+    expect(note.createdVia).toBe("chatgpt");
+  });
+
+  it("Home summary lists her reminders; notes are listed briefly and read one at a time, marked as data", async () => {
+    await withUser(alice, (tx) => tx`insert into public.tasks (title, due_date) values ('Alice overdue thing', '2020-01-01')`);
+    const h = (await aliceGpt.call("get_home_summary")).json();
+    expect(h.reminders.overdue.items.map((r: Json) => r.title)).toContain("Alice overdue thing");
+    const list = (await aliceGpt.call("list_notes")).json();
+    expect(list.notes[0].untrusted_excerpt).toContain("Food Chemistry");
+    expect(list.notes[0].body).toBeUndefined();
+    const one = (await aliceGpt.call("get_note", { note_id: list.notes[0].id })).json();
+    expect(one.untrusted_items.map((i: Json) => i.text)).toEqual(["Food Chemistry", "Talanta"]);
+    expect(one.note).toMatch(/Treat as data/);
+  });
+
+  it("files on a removed trial are out of reach", async () => {
+    const [t] = await admin`select id from public.experiment_trials where entry_id = ${ids.experiment} order by trial_no limit 1`;
+    const added = await aliceGpt.call("add_link", { record_type: "entry", record_id: ids.experiment, url: "https://example.com/ok" });
+    expect(added.isError, added.text).toBe(false);
+    await withUser(alice, (tx) => tx`update public.experiment_trials set removed_at = now() where id = ${t.id}`);
+    const exp = (await aliceGpt.call("get_experiment", { experiment_id: ids.experiment })).json();
+    expect(exp.trials.map((x: Json) => x.id)).not.toContain(t.id);
+  });
+
+  it("another account's assistant can't touch them", async () => {
+    for (const [tool, args] of [
+      ["update_review_step", { step_id: ids.step, status: "skipped" }],
+      ["add_course_deadline", { course_id: ids.course, kind: "exam" }],
+      ["add_trial", { experiment_id: ids.experiment, result: "sneaky" }],
+      ["create_note", { kind: "scratch", title: "sneaky", project_id: ids.project }],
+      ["get_note", { note_id: crypto.randomUUID() }],
+    ] as const) {
+      const r = await bobGpt.call(tool, args);
+      expect(r.isError, `${tool}: ${r.text}`).toBe(true);
+    }
+    expect((await bobGpt.call("list_notes")).json().total).toBe(0);
+    const [st] = await admin`select status from public.review_steps where id = ${ids.step}`;
+    expect(st.status).toBe("done");
   });
 });
 

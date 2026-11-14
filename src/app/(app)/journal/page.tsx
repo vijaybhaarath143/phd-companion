@@ -9,7 +9,8 @@ import { formatDay, monthKey, monthLabel, todayIn } from "@/lib/dates";
 import { categories, entryStatuses, participation, registration, experimentStatuses } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Journal" };
@@ -88,18 +89,9 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           />
         </label>
         <div className="flex flex-wrap items-end gap-2">
-          <NativeSelect name="category" defaultValue={filters.category ?? ""} aria-label="Category" className="h-9 w-auto">
-            <option value="">Any category</option>
-            {Object.entries(categories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </NativeSelect>
-          <NativeSelect name="status" defaultValue={filters.status ?? ""} aria-label="Status" className="h-9 w-auto">
-            <option value="">Any status</option>
-            {Object.entries(entryStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </NativeSelect>
-          <NativeSelect name="project" defaultValue={filters.project ?? ""} aria-label="Project" className="h-9 w-auto max-w-56">
-            <option value="">All projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.title.split(":")[0]}</option>)}
-          </NativeSelect>
+          <AppSelect name="category" defaultValue={filters.category ?? ""} aria-label="Category" size="sm" className="w-auto" options={toOptions(categories, "Any category")} />
+          <AppSelect name="status" defaultValue={filters.status ?? ""} aria-label="Status" size="sm" className="w-auto" options={toOptions(entryStatuses, "Any status")} />
+          <AppSelect name="project" defaultValue={filters.project ?? ""} aria-label="Project" size="sm" className="w-auto max-w-56" options={rowOptions(projects, (p) => p.title.split(":")[0], "All projects")} />
           <MonthFilter key={`from-${filters.from ?? ""}`} name="from" label="From" edge="start" defaultValue={filters.from} today={today} />
           <MonthFilter key={`to-${filters.to ?? ""}`} name="to" label="to" edge="end" defaultValue={filters.to} today={today} />
           <Button type="submit" size="sm">Apply</Button>

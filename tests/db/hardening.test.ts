@@ -59,6 +59,38 @@ describe("nothing is erased with a person's own token", () => {
 });
 
 describe("Trash purge", () => {
+  it("isn't stopped by a note linked to a purged project — the note stays, unlinked", async () => {
+    const ids = await withUser(u, async (tx) => {
+      const [p] = await tx`insert into public.projects (title) values ('Old project') returning id`;
+      const [n] = await tx`insert into public.notes (title, project_id) values ('Linked note', ${p.id}) returning id`;
+      await tx`update public.projects set deleted_at = now() - interval '40 days' where id = ${p.id}`;
+      return { p: p.id, n: n.id };
+    });
+    await admin`select app.purge_trash()`;
+    expect(await admin`select 1 from public.projects where id = ${ids.p}`).toHaveLength(0);
+    const [n] = await admin`select project_id, deleted_at from public.notes where id = ${ids.n}`;
+    expect(n.projectId).toBeNull();
+    expect(n.deletedAt).toBeNull();
+  });
+
+  it("removes notes after 30 days in Trash, and the files of trials whose experiment was purged", async () => {
+    const ids = await withUser(u, async (tx) => {
+      const [n] = await tx`insert into public.notes (title, deleted_at) values ('Old note', now() - interval '40 days') returning id`;
+      const [x] = await tx`insert into public.entries (title, kind, entry_precision) values ('Old exp', 'experiment', 'none') returning id`;
+      const [t] = await tx`insert into public.experiment_trials (entry_id, trial_no) values (${x.id}, 1) returning id`;
+      const [a] = await tx`insert into public.attachments (parent_type, parent_id, kind, storage_path, filename, status)
+                           values ('trial', ${t.id}, 'file', ${`${u.id}/${crypto.randomUUID()}/run.csv`}, 'run.csv', 'verified') returning id, storage_path`;
+      await tx`update public.entries set deleted_at = now() - interval '40 days' where id = ${x.id}`;
+      return { n: n.id, x: x.id, a: a.id, path: a.storagePath as string };
+    });
+    await admin`select app.purge_trash()`;
+    await admin`select app.purge_notes_and_trials()`;
+    expect(await admin`select 1 from public.notes where id = ${ids.n}`).toHaveLength(0);
+    expect(await admin`select 1 from public.experiment_trials where entry_id = ${ids.x}`).toHaveLength(0);
+    expect(await admin`select 1 from public.attachments where id = ${ids.a}`).toHaveLength(0);
+    expect(await admin`select 1 from app.storage_removals where path = ${ids.path}`).toHaveLength(1);
+  });
+
   it("doesn't get stuck on a task waiting on a purged task", async () => {
     const ids = await withUser(u, async (tx) => {
       const [a] = await tx`insert into public.tasks (title, deleted_at) values ('Old trashed', now() - interval '40 days') returning id`;

@@ -1,12 +1,14 @@
 import "server-only";
 import type { Tx } from "@/server/db";
 import { isMonthKey, type Precision } from "@/lib/dates";
+import type { TaskPriority } from "@/lib/labels";
 
 export type TaskRow = {
   id: string;
   title: string;
   status: "todo" | "doing" | "waiting" | "done" | "cancelled";
-  priority: "normal" | "important";
+  priority: TaskPriority;
+  remindUntilDone: boolean;
   dueDate: string | null;
   notes: string | null;
   waitingReason: string | null;
@@ -25,7 +27,8 @@ export type TaskRow = {
 };
 
 /** `limit` rows at most (the Planner asks for one more than it shows, to offer "Show more"). */
-export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit = 300) {
+/** Overdue first, then High → Normal → Low, then by due date. */
+export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit = 300, today?: string) {
   const max = Math.min(Math.max(Math.trunc(limit) || 300, 1), 5001);
   const statusFilter =
     show === "done" ? tx`t.status in ('done', 'cancelled')` : show === "waiting" ? tx`t.status = 'waiting'` : tx`t.status in ('todo', 'doing', 'waiting')`;
@@ -37,7 +40,7 @@ export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit
     left join public.entries e on e.id = t.origin_entry_id
     left join public.courses c on c.id = t.course_id
     where t.deleted_at is null and ${statusFilter}
-    order by ${show === "done" ? tx`t.completed_at desc nulls last, t.updated_at desc` : tx`(t.status = 'waiting'), (t.priority = 'normal'), t.due_date nulls last, t.created_at`}
+    order by ${show === "done" ? tx`t.completed_at desc nulls last, t.updated_at desc` : tx`(t.status = 'waiting'), coalesce(t.due_date < ${today ?? '0001-01-01'}, false) desc, case t.priority when 'high' then 0 when 'normal' then 1 else 2 end, t.due_date nulls last, t.created_at`}
     limit ${max}`;
 }
 
@@ -49,7 +52,7 @@ export async function taskCounts(tx: Tx) {
   return c;
 }
 
-export type CalendarItem = { date: string; title: string; href: string; kind: "task" | "entry" | "milestone" | "follow-up" | "submission" };
+export type CalendarItem = { date: string; title: string; href: string; kind: "task" | "entry" | "milestone" | "follow-up" | "submission" | "deadline" };
 
 /** Items with an exact date in the month, plus month-only items (shown separately). Undated items are excluded. */
 export async function getCalendar(tx: Tx, monthKey: string, today?: string) {
@@ -70,6 +73,10 @@ export async function getCalendar(tx: Tx, monthKey: string, today?: string) {
     select q.follow_up_date, 'Follow up: ' || e.title, '/academics#enquiries', 'follow-up'
       from public.enquiries q join public.entries e on e.id = q.entry_id
       where q.status <> 'closed' and to_char(q.follow_up_date, 'YYYY-MM') = ${month}
+    union all
+    select i.due_date, c.name || ': ' || i.title, '/academics#courses', 'deadline'
+      from public.course_items i join public.courses c on c.id = i.course_id
+      where i.removed_at is null and c.deleted_at is null and c.status <> 'dropped' and to_char(i.due_date, 'YYYY-MM') = ${month}
     union all
     select s.planned_date, 'Planned submission: ' || s.journal_name, '/research/manuscripts/' || s.manuscript_id, 'submission'
       from public.submissions s where to_char(s.planned_date, 'YYYY-MM') = ${month}

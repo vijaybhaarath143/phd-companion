@@ -11,6 +11,7 @@ const TABLES = [
   "profiles", "projects", "entries", "experiments", "experiment_revisions", "feedback", "enquiries", "events",
   "manuscripts", "manuscript_phase_events", "submissions", "submission_events", "blockers", "tasks", "goals",
   "requirements", "courses", "credit_recognitions", "milestones", "attachments",
+  "review_steps", "course_items", "notes", "experiment_trials",
 ] as const;
 
 type Row = Record<string, unknown>;

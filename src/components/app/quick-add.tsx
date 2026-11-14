@@ -7,10 +7,13 @@ import { Paperclip, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from "@/components/ui/drawer";
 import { Segmented } from "@/components/app/segmented";
+import { PRIORITY_OPTIONS } from "@/components/app/priority";
+import type { TaskPriority } from "@/lib/labels";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { createEntry } from "@/server/actions/entries";
 import { createTask } from "@/server/actions/tasks";
@@ -22,7 +25,7 @@ import { callAction, copyToClipboard } from "@/components/app/call-action";
 import type { ProjectOption } from "@/server/profile";
 
 type Mode = "entry" | "task";
-type OpenOptions = { mode?: Mode; projectId?: string | null };
+type OpenOptions = { mode?: Mode; projectId?: string | null; category?: string };
 type Ctx = { open: (o?: OpenOptions) => void };
 
 const QuickAddContext = createContext<Ctx>({ open: () => {} });
@@ -115,14 +118,15 @@ function QuickAddForm({
   const [id, setId] = useState(() => crypto.randomUUID());
   const [title, setTitle] = useState("");
   const [date, setDate] = useState<PartialDate>(EMPTY_DATE(today));
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(initial.category ?? "");
   const [projectId, setProjectId] = useState(initial.projectId ?? "");
   const [details, setDetails] = useState(false);
   const [notes, setNotes] = useState("");
   const [people, setPeople] = useState("");
   const [planned, setPlanned] = useState(true);
   const [dueDate, setDueDate] = useState("");
-  const [priority, setPriority] = useState<"normal" | "important">("normal");
+  const [priority, setPriority] = useState<TaskPriority>("normal");
+  const [remind, setRemind] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -152,7 +156,7 @@ function QuickAddForm({
       const r = await callAction(() =>
         mode === "entry"
           ? createEntry({ id, title, date, category: category || null, projectId: projectId || null, notes, people, planned })
-          : createTask({ id, title, dueDate: dueDate || null, priority, projectId: projectId || null, notes }),
+          : createTask({ id, title, dueDate: dueDate || null, priority, projectId: projectId || null, notes, remindUntilDone: remind }),
       );
       if (!r) return;
       if (!r.ok) {
@@ -190,6 +194,7 @@ function QuickAddForm({
         setNotes("");
         setPeople("");
         setDueDate("");
+        setRemind(false);
         setFiles([]);
         // keep date, category and project — handy when backfilling several past entries
         document.getElementById("qa-title")?.focus();
@@ -258,8 +263,15 @@ function QuickAddForm({
             </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">Priority</span>
-              <Segmented name="priority" label="Priority" value={priority} onChange={setPriority} options={[{ value: "normal", label: "Normal" }, { value: "important", label: "Important" }]} />
+              <Segmented name="priority" label="Priority" value={priority} onChange={setPriority} options={PRIORITY_OPTIONS} />
             </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 sm:col-span-2 has-checked:bg-zinc-50">
+              <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} className="mt-0.5 size-[18px] shrink-0 accent-zinc-900" />
+              <span className="flex flex-col">
+                <span className="text-sm font-medium">Keep reminding me until it&apos;s done</span>
+                <span className="text-[13px] text-muted-foreground">Shows a reminder at the top of every page until you tick it off.</span>
+              </span>
+            </label>
           </div>
         )}
 
@@ -267,18 +279,12 @@ function QuickAddForm({
           {mode === "entry" && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="qa-cat" className="text-sm font-medium">Category <span className="font-normal text-muted-foreground">(optional)</span></label>
-              <NativeSelect id="qa-cat" value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">No category</option>
-                {Object.entries(categories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </NativeSelect>
+              <AppSelect id="qa-cat" value={category} onValueChange={setCategory} options={toOptions(categories, "No category")} />
             </div>
           )}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="qa-project" className="text-sm font-medium">Project <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <NativeSelect id="qa-project" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">No project</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-            </NativeSelect>
+            <AppSelect id="qa-project" value={projectId} onValueChange={setProjectId} options={rowOptions(projects, (p) => p.title, "No project")} />
           </div>
         </div>
 
@@ -354,10 +360,10 @@ function QuickAddForm({
   );
 }
 
-export function QuickAddButton({ mode, projectId, label, variant = "outline" }: { mode?: Mode; projectId?: string; label: string; variant?: "outline" | "default" }) {
+export function QuickAddButton({ mode, projectId, category, label, variant = "outline" }: { mode?: Mode; projectId?: string; category?: string; label: string; variant?: "outline" | "default" }) {
   const { open } = useQuickAdd();
   return (
-    <Button type="button" variant={variant} onClick={() => open({ mode, projectId })}>
+    <Button type="button" variant={variant} onClick={() => open({ mode, projectId, category })}>
       {label}
     </Button>
   );

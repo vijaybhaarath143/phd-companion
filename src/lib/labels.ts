@@ -97,6 +97,9 @@ export const blockerCategories = {
   other: "Other",
 } as const;
 
+export const taskPriorities = { high: "High", normal: "Normal", low: "Low" } as const;
+export type TaskPriority = keyof typeof taskPriorities;
+
 export const taskStatuses = {
   todo: "To do",
   doing: "Doing",
@@ -140,3 +143,38 @@ export function viaLabel(source: string | null | undefined): string | null {
   if (source === "codex") return "Codex";
   return "an assistant";
 }
+
+// ---------------------------------------------------------------- review milestones
+
+export const reviewStepStatuses = { not_started: "Not started", in_progress: "In progress", done: "Done", skipped: "Skipped" } as const;
+export type ReviewStepStatus = keyof typeof reviewStepStatuses;
+
+/** The numbers a PRISMA flow diagram is drawn from, in diagram order. */
+export const prismaCounts = {
+  identified: "Records identified",
+  duplicates_removed: "Duplicates removed",
+  screened: "Records screened",
+  excluded_screening: "Excluded at title / abstract",
+  full_text_retrieved: "Full-text reports retrieved",
+  excluded_eligibility: "Excluded at eligibility",
+  included: "Studies included",
+} as const;
+export type PrismaCount = keyof typeof prismaCounts;
+
+/** The steps of a systematic review, as the scholar listed them; each can record one PRISMA number. */
+export const DEFAULT_REVIEW_STEPS: { title: string; count: PrismaCount | null }[] = [
+  { title: "Protocol drafting", count: null },
+  { title: "Search versions (database search strategy)", count: null },
+  { title: "Retrieve records", count: "identified" },
+  { title: "Remove duplicates", count: "duplicates_removed" },
+  { title: "Screening (title, abstract)", count: "excluded_screening" },
+  { title: "Retrieve full-text reports", count: "full_text_retrieved" },
+  { title: "Eligibility assessment", count: "excluded_eligibility" },
+  { title: "Extract data", count: "included" },
+  { title: "Generate PRISMA diagram", count: null },
+  { title: "Draft manuscript", count: null },
+  { title: "Submit for feedback", count: null },
+];
+
+export const articleTypes = { review: "Review article", original: "Original article" } as const;
+export type ArticleType = keyof typeof articleTypes;

@@ -7,12 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
-import { addCourse, addEnquiry, addMilestone, recordRecognition, saveRequirement, trashCourse, updateCourse, updateEnquiry, updateMilestone } from "@/server/actions/academics";
-import { quickAction } from "@/components/app/call-action";
+import { addCourse, addCourseItem, addEnquiry, addMilestone, recordRecognition, removeCourseItem, saveAdminDetails, saveRequirement, toggleCourseItem, trashCourse, updateCourse, updateEnquiry, updateMilestone } from "@/server/actions/academics";
+import { trashWithUndo } from "@/components/app/call-action";
+import { QuickCheckbox } from "@/components/app/quick-checkbox";
+import type { CourseItem } from "@/server/academics";
+import { undoRemove, undoTrash } from "@/server/actions/settings";
 import { formatCredits } from "@/lib/credits";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
 import { courseStatuses, enquiryStatuses, milestoneStatuses, suggestedMilestones } from "@/lib/labels";
@@ -35,13 +39,14 @@ export function RequirementEditor({ requirement }: { requirement: { label: strin
 
 type Course = { id: string; name: string; provider: string | null; credits: number | null; status: string; completedOn: string | null; recognised: number; version: number };
 
-export function CoursesSection({ courses, today }: { courses: Course[]; today: string }) {
+export function CoursesSection({ courses, items, today }: { courses: Course[]; items: CourseItem[]; today: string }) {
   const [adding, setAdding] = useState(false);
+  const [deadlines, setDeadlines] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [recognising, setRecognising] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <section data-guide="courses" className="rounded-xl border bg-card">
+    <section id="courses" data-guide="courses" className="scroll-mt-6 rounded-xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-[15px] font-semibold">Courses</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}><Plus className="size-3.5" aria-hidden /> Add course</Button>
@@ -52,7 +57,7 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
           <div className="flex flex-col gap-1.5"><label htmlFor="c-p" className="text-sm font-medium">Provider</label><Input id="c-p" name="provider" className="w-44" placeholder="e.g. SWAYAM" /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="c-c" className="text-sm font-medium">Credits <span className="font-normal text-muted-foreground">(leave blank if unknown)</span></label><Input id="c-c" name="credits" inputMode="decimal" className="w-32" /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="c-s" className="text-sm font-medium">Status</label>
-            <NativeSelect id="c-s" name="status" defaultValue="enrolled" className="w-40">{Object.entries(courseStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
+            <AppSelect id="c-s" name="status" defaultValue="enrolled" className="w-40" options={toOptions(courseStatuses)} /></div>
           <Button type="submit">Add</Button>
         </ActionForm>
       )}
@@ -80,6 +85,15 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
                       {c.status === "completed" && c.credits !== null && c.recognised < c.credits && <span className="block text-[12px] text-muted-foreground">{formatCredits(c.credits - c.recognised)} not yet recognised</span>}
                     </TableCell>
                     <TableCell className="pr-5 text-right whitespace-nowrap">
+                      {(() => {
+                        const mine = items.filter((it) => it.courseId === c.id);
+                        const open = mine.filter((it) => !it.doneAt).length;
+                        return (
+                          <Button size="sm" variant="outline" className="mr-2" aria-expanded={deadlines === c.id} onClick={() => setDeadlines(deadlines === c.id ? null : c.id)}>
+                            Deadlines{open ? ` · ${open}` : ""}
+                          </Button>
+                        );
+                      })()}
                       {c.status === "completed" && <Button size="sm" variant="outline" className="mr-2" onClick={() => setRecognising(recognising === c.id ? null : c.id)}>Record recognition</Button>}
                       <Button size="sm" variant="outline" onClick={() => setEditing(editing === c.id ? null : c.id)}>Edit</Button>
                     </TableCell>
@@ -94,13 +108,13 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cp-${c.id}`} className="text-sm font-medium">Provider</label>
                             <Input id={`cp-${c.id}`} name="provider" maxLength={200} defaultValue={c.provider ?? ""} className="w-44" /></div>
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cs-${c.id}`} className="text-sm font-medium">Status</label>
-                            <NativeSelect id={`cs-${c.id}`} name="status" defaultValue={c.status} className="w-40">{Object.entries(courseStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
+                            <AppSelect id={`cs-${c.id}`} name="status" defaultValue={c.status} className="w-40" options={toOptions(courseStatuses)} /></div>
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cc-${c.id}`} className="text-sm font-medium">Credits <span className="font-normal text-muted-foreground">(blank = unknown)</span></label>
                             <Input id={`cc-${c.id}`} name="credits" inputMode="decimal" defaultValue={c.credits ?? ""} className="w-32" /></div>
                           <Button type="submit">Save</Button>
                           <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                           <Button type="button" variant="ghost" className="ml-auto" disabled={pending}
-                            onClick={() => start(async () => { if (confirm("Move this course to Trash? Its credits leave the totals. You can restore it from Settings for 30 days.")) await quickAction(() => trashCourse(c.id)); })}>
+                            onClick={() => start(async () => { await trashWithUndo({ what: "Course", note: "Its credits no longer count in your totals.", trash: () => trashCourse(c.id), undo: () => undoTrash("courses", c.id) }); })}>
                             Move to Trash
                           </Button>
                           <p className="w-full text-[13px] text-muted-foreground">Marking a course completed doesn&apos;t record any official recognition — that&apos;s a separate step.</p>
@@ -130,6 +144,19 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
           </Table>
         </div>
       )}
+      {(() => {
+        // below the table, not inside it: the table scrolls sideways on a phone, the panel shouldn't
+        const course = courses.find((c) => c.id === deadlines);
+        return course ? (
+          <div className="flex flex-col gap-2 border-t border-zinc-100 px-5 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold">Deadlines — {course.name}</h3>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setDeadlines(null)}>Close</Button>
+            </div>
+            <CourseDeadlines courseId={course.id} items={items.filter((it) => it.courseId === course.id)} today={today} />
+          </div>
+        ) : null;
+      })()}
       <p className="border-t border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Course status: Planned → Enrolled → Completed (or Dropped). After completion, use “Record recognition” — it can be partial.</p>
     </section>
   );
@@ -147,7 +174,7 @@ function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDo
         <Input id={`mt-${m.id}`} name="title" required maxLength={300} defaultValue={m.title} /></div>
       <PartialDateInput name="target" label="Target date" today={today} noneLabel="No date yet" defaultValue={{ date: m.targetDate, precision: m.targetPrecision }} />
       <div className="flex max-w-60 flex-col gap-1.5"><label htmlFor={`ms-${m.id}`} className="text-sm font-medium">Status</label>
-        <NativeSelect id={`ms-${m.id}`} name="status" value={status} onChange={(e) => setStatus(e.target.value)}>{Object.entries(milestoneStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
+        <AppSelect id={`ms-${m.id}`} name="status" value={status} onValueChange={setStatus} options={toOptions(milestoneStatuses)} /></div>
       {status === "done" && (
         <PartialDateInput
           name="done"
@@ -177,7 +204,7 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
           <div className="flex flex-col gap-1.5"><label htmlFor="m-t" className="text-sm font-medium">Milestone</label><Input id="m-t" name="title" required defaultValue={adding} /></div>
           <PartialDateInput name="target" label="Target date" today={today} noneLabel="No date yet" defaultValue={{ date: null, precision: "none" }} />
           <div className="flex flex-col gap-1.5"><label htmlFor="m-p" className="text-sm font-medium">Project <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <NativeSelect id="m-p" name="projectId" defaultValue=""><option value="">Not a project milestone</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</NativeSelect></div>
+            <AppSelect id="m-p" name="projectId" defaultValue="" options={rowOptions(projects, (p) => p.title, "Not a project milestone")} /></div>
           <Button type="submit" className="self-start">Add</Button>
         </ActionForm>
       )}
@@ -262,7 +289,7 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
                     <div className="flex flex-wrap gap-3">
                       <div className="flex flex-col gap-1.5"><label htmlFor={`qf-${q.entryId}`} className="text-sm font-medium">Follow up on</label><Input id={`qf-${q.entryId}`} type="date" name="followUp" defaultValue={q.followUpDate ?? ""} className="w-44" /></div>
                       <div className="flex flex-col gap-1.5"><label htmlFor={`qs-${q.entryId}`} className="text-sm font-medium">Status</label>
-                        <NativeSelect id={`qs-${q.entryId}`} name="status" defaultValue={q.status} className="w-48">{Object.entries(enquiryStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
+                        <AppSelect id={`qs-${q.entryId}`} name="status" defaultValue={q.status} className="w-48" options={toOptions(enquiryStatuses)} /></div>
                     </div>
                     <Button type="submit" className="self-start">Save</Button>
                   </ActionForm>
@@ -271,6 +298,111 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
             );
           })}
         </ul>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------- course deadlines
+
+const ITEM_KIND_LABELS = { assignment: "Assignment", exam_registration: "Exam registration", exam: "Exam" } as const;
+
+/** A course's assignments, exam registration and exam: tick off when done; dated ones show in Reminders. */
+function CourseDeadlines({ courseId, items, today }: { courseId: string; items: CourseItem[]; today: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4 whitespace-normal">
+      {items.length ? (
+        <ul className="flex flex-col divide-y divide-zinc-200/70">
+          {items.map((it) => {
+            const done = Boolean(it.doneAt);
+            const late = !done && it.dueDate !== null && it.dueDate < today;
+            return (
+              <li key={it.id} className="flex items-center gap-3 py-2">
+                <QuickCheckbox checked={done} label={`Done: ${it.title}`} disabled={pending} onToggle={(next) => toggleCourseItem(it.id, next)} />
+                <span className="min-w-0 flex-1">
+                  <span className={`block font-medium ${done ? "text-muted-foreground line-through" : ""}`}>{it.title}</span>
+                  <span className={`block text-[13px] ${late ? "text-overdue-foreground" : "text-muted-foreground"}`}>
+                    {ITEM_KIND_LABELS[it.kind]} · {it.dueDate ? `${late ? "was due" : "due"} ${formatFullDay(it.dueDate)}` : "no date"}
+                  </span>
+                </span>
+                {late && <Badge variant="overdue">Overdue</Badge>}
+                <Button type="button" size="sm" variant="ghost" disabled={pending} aria-label={`Remove ${it.title}`}
+                  onClick={() => start(async () => { await trashWithUndo({ what: it.title, removed: true, trash: () => removeCourseItem(it.id), undo: () => undoRemove("course_item", it.id) }); })}>
+                  Remove
+                </Button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">No deadlines yet. Add assignment due dates, the exam registration deadline and the exam date — they show up in Reminders and on the calendar.</p>
+      )}
+      <ActionForm action={addCourseItem.bind(null, courseId)} success="Deadline added" className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1.5"><label htmlFor={`ci-k-${courseId}`} className="text-sm font-medium">Kind</label>
+          <AppSelect id={`ci-k-${courseId}`} name="kind" defaultValue="assignment" className="w-48" options={toOptions(ITEM_KIND_LABELS)} /></div>
+        <div className="flex flex-col gap-1.5"><label htmlFor={`ci-t-${courseId}`} className="text-sm font-medium">Name</label>
+          <Input id={`ci-t-${courseId}`} name="title" maxLength={200} placeholder="e.g. Week 3 assignment" className="w-56" /></div>
+        <div className="flex flex-col gap-1.5"><label htmlFor={`ci-d-${courseId}`} className="text-sm font-medium">Due</label>
+          <Input id={`ci-d-${courseId}`} name="dueDate" type="date" className="w-44" /></div>
+        <Button type="submit" variant="outline">Add</Button>
+      </ActionForm>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- admin key details
+
+/** Details she keeps looking up — enrolment number, office contacts — as label / value pairs. */
+export function AdminDetailsSection({ details }: { details: { label: string; value: string }[] }) {
+  type Row = { id: string; label: string; value: string };
+  const withIds = (list: { label: string; value: string }[]): Row[] => list.map((d) => ({ id: crypto.randomUUID(), ...d }));
+  const [editing, setEditing] = useState(false);
+  const [rows, setRows] = useState<Row[]>([]);
+  // every Edit starts from what is saved now (never from an earlier, stale copy)
+  const startEditing = () => {
+    setRows(withIds(details.length ? details : [{ label: "Enrolment number", value: "" }, { label: "Research office contact", value: "" }]));
+    setEditing(true);
+  };
+  const change = (id: string, field: "label" | "value", v: string) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: v } : r)));
+  return (
+    <section id="admin" data-guide="admin-info" className="flex min-w-0 flex-[3_1_380px] scroll-mt-6 flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[15px] font-semibold">Admin info</h2>
+          <p className="text-[13px] text-muted-foreground">Details you keep looking up. Only you can see them.</p>
+        </div>
+        {!editing && <Button size="sm" variant="outline" onClick={startEditing}>{details.length ? "Edit" : "Add details"}</Button>}
+      </div>
+      {editing ? (
+        <ActionForm action={saveAdminDetails} success="Saved" reset={false} onDone={() => setEditing(false)} className="flex flex-col gap-2">
+          {rows.map((r, i) => (
+            <div key={r.id} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)_auto] items-center gap-2">
+              <label className="sr-only" htmlFor={`ad-l-${r.id}`}>Detail {i + 1}: label</label>
+              <Input id={`ad-l-${r.id}`} name="label" value={r.label} onChange={(e) => change(r.id, "label", e.target.value)} maxLength={120} placeholder="e.g. Enrolment number" />
+              <label className="sr-only" htmlFor={`ad-v-${r.id}`}>Detail {i + 1}: value</label>
+              <Input id={`ad-v-${r.id}`} name="value" value={r.value} onChange={(e) => change(r.id, "value", e.target.value)} maxLength={500} />
+              <Button type="button" size="sm" variant="ghost" aria-label={`Remove ${r.label || `detail ${i + 1}`}`} onClick={() => setRows((rs) => rs.filter((x) => x.id !== r.id))}>Remove</Button>
+            </div>
+          ))}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => setRows((rs) => [...rs, { id: crypto.randomUUID(), label: "", value: "" }])}><Plus className="size-3.5" aria-hidden /> Add a detail</Button>
+            <span className="flex-1" />
+            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button type="submit">Save</Button>
+          </div>
+        </ActionForm>
+      ) : details.length ? (
+        <dl className="text-[13px]">
+          {details.map((d, i) => (
+            <div key={i} className="flex justify-between gap-4 border-t border-zinc-100 py-2.5 first:border-t-0">
+              <dt className="text-muted-foreground">{d.label}</dt>
+              <dd className="text-right font-medium break-words">{d.value || <span className="font-normal text-muted-foreground">—</span>}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">Nothing yet — e.g. enrolment number, registration number, office contacts.</p>
       )}
     </section>
   );

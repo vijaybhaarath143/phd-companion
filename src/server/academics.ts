@@ -3,6 +3,8 @@ import type { Tx } from "@/server/db";
 import type { Precision } from "@/lib/dates";
 import { getCredits } from "@/server/home";
 
+export type CourseItem = { id: string; courseId: string; kind: "assignment" | "exam_registration" | "exam"; title: string; dueDate: string | null; doneAt: Date | null; note: string | null };
+
 export async function getAcademics(tx: Tx) {
   const [requirement] = await tx<{ id: string; label: string; periodLabel: string | null; requiredCredits: number | null; version: number }[]>`
     select id, label, period_label, required_credits, version from public.requirements order by created_at limit 1`;
@@ -21,5 +23,10 @@ export async function getAcademics(tx: Tx) {
     from public.enquiries q join public.entries e on e.id = q.entry_id
     where e.deleted_at is null
     order by (q.status = 'closed'), q.follow_up_date nulls last, e.created_at desc`;
-  return { requirement: requirement ?? null, credits, courses, milestones, enquiries };
+  const courseItems = await tx<CourseItem[]>`
+    select i.id, i.course_id, i.kind, i.title, i.due_date, i.done_at, i.note
+    from public.course_items i join public.courses c on c.id = i.course_id
+    where i.removed_at is null and c.deleted_at is null
+    order by (i.done_at is not null), i.due_date nulls last, i.created_at`;
+  return { requirement: requirement ?? null, credits, courses, milestones, enquiries, courseItems };
 }

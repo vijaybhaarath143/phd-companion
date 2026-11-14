@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "cn";
 import { asUser } from "@/server/auth";
-import { getProjectBundle, listProjects } from "@/server/research";
+import { getProjectBundle, isReviewProject, listProjects, prismaNumbers } from "@/server/research";
+import { ReviewSteps } from "./review-steps";
+import { ResearchTabs } from "../../research-tabs";
 import { requireProfile } from "@/server/profile";
 import { formatPartialDate } from "@/lib/dates";
 import { categories, experimentStatuses, phases, projectStatuses, projectTypes } from "@/lib/labels";
@@ -25,11 +27,12 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
     return { bundle: await getProjectBundle(tx, id), projects: await listProjects(tx) };
   });
   if (!data.bundle) notFound();
-  const { project, manuscripts, experiments, tasks, entries, evidence } = data.bundle;
+  const { project, manuscripts, experiments, tasks, entries, evidence, steps } = data.bundle;
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <RememberProject id={project.id} />
+      <ResearchTabs current="projects" projectHref={`/research/projects/${project.id}`} />
       <nav aria-label="Projects" data-guide="projects" className="flex flex-wrap gap-2">
         {data.projects.map((p) => (
           <Link
@@ -56,6 +59,8 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
         </div>
         <QuickAddButton projectId={project.id} label="Add entry to this project" />
       </div>
+
+      {(steps.length > 0 || isReviewProject(project.type)) && <ReviewSteps projectId={project.id} steps={steps} prisma={prismaNumbers(steps)} />}
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">

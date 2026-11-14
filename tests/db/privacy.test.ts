@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SessionUser } from "@/server/db";
 import { getJournal, getEntry } from "@/server/journal";
-import { getHome } from "@/server/home";
-import { getProjectBundle, getManuscriptBundle } from "@/server/research";
+import { getHome, getHomeCalendar, getReminders } from "@/server/home";
+import { getNote, listNotes } from "@/server/notes";
+import { getProjectBundle, getManuscriptBundle, getTrials } from "@/server/research";
 import { listTasks } from "@/server/planner";
 import { getAcademics } from "@/server/academics";
 import { admin, dropUser, makeUser, refused, withUser } from "./helpers";
@@ -15,6 +16,7 @@ const TABLES = [
   "profiles", "projects", "entries", "experiments", "experiment_revisions", "feedback", "enquiries", "events",
   "manuscripts", "manuscript_phase_events", "submissions", "submission_events", "blockers", "tasks", "goals", "requirements",
   "courses", "credit_recognitions", "milestones", "attachments",
+  "review_steps", "course_items", "notes", "experiment_trials",
 ];
 
 let alice: SessionUser;
@@ -55,6 +57,13 @@ beforeAll(async () => {
     await tx`insert into public.credit_recognitions (course_id, amount) values (${c.id}, 2)`;
     await tx`insert into public.milestones (title) values ('Alice milestone')`;
     await tx`insert into public.attachments (parent_type, parent_id, kind, url) values ('entry', ${e.id}, 'link', 'https://example.com/alice')`;
+    await tx`insert into public.review_steps (project_id, sort, title, count_kind, count) values (${p.id}, 1, 'Alice screening', 'identified', 412)`;
+    await tx`insert into public.course_items (course_id, kind, title, due_date) values (${c.id}, 'assignment', 'Alice assignment', '2026-11-01')`;
+    const [n] = await tx`insert into public.notes (kind, title, body) values ('scratch', 'Alice note', 'starch idea') returning id`;
+    ids.note = n.id;
+    const [tr] = await tx`insert into public.experiment_trials (entry_id, trial_no, result) values (${x.id}, 1, 'Alice trial result') returning id`;
+    ids.trial = tr.id;
+    await tx`insert into public.attachments (parent_type, parent_id, kind, url) values ('trial', ${tr.id}, 'link', 'https://example.com/alice-trial')`;
   });
 });
 
@@ -91,7 +100,14 @@ describe("another account sees none of Alice's records", () => {
       expect(home.recent).toHaveLength(0);
       const a = await getAcademics(tx);
       expect(a.courses).toHaveLength(0);
+      expect(a.courseItems).toHaveLength(0);
       expect(a.credits).toBeNull();
+      const r = await getReminders(tx, "2026-11-14");
+      expect(Object.values(r).flat()).toHaveLength(0);
+      expect(await listNotes(tx)).toHaveLength(0);
+      expect(await getNote(tx, ids.note)).toBeNull();
+      expect(await getTrials(tx, ids.experiment)).toHaveLength(0);
+      expect((await getHomeCalendar(tx, "2026-11-14")).overdueDays).toHaveLength(0);
     });
   });
 });
@@ -115,6 +131,10 @@ describe("another account can't change or borrow Alice's records", () => {
     expect(await refused(bob, (tx) => tx`insert into public.entries (title, project_id) values ('mine', ${ids.project})`)).toMatch(/foreign key/);
     expect(await refused(bob, (tx) => tx`insert into public.tasks (title, manuscript_id) values ('mine', ${ids.manuscript})`)).toMatch(/foreign key/);
     expect(await refused(bob, (tx) => tx`insert into public.credit_recognitions (course_id, amount) values (${ids.course}, 1)`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.review_steps (project_id, sort, title) values (${ids.project}, 1, 'mine')`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.course_items (course_id, kind, title) values (${ids.course}, 'exam', 'mine')`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.experiment_trials (entry_id, trial_no) values (${ids.experiment}, 9)`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.attachments (parent_type, parent_id, kind, url) values ('trial', ${ids.trial}, 'link', 'https://example.com/x')`)).toMatch(/wasn't found/);
   });
 
   it("Bob can't read or write files in Alice's storage folder", async () => {

@@ -114,9 +114,12 @@ export function useAutosave<P extends Record<string, unknown>, R extends { versi
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
 
+  // Leaving the page inside the app (another note, a link) doesn't fire beforeunload: send
+  // whatever is still queued instead of dropping it when the editor goes away.
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
-  }, []);
+    if (pending.current && !conflicted.current) void flush();
+  }, [flush]);
 
   const setVersion = useCallback((v: number) => {
     version.current = v;

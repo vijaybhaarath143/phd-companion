@@ -5,7 +5,8 @@ import { projectOptions, requireProfile } from "@/server/profile";
 import { formatPartialDate, todayIn } from "@/lib/dates";
 import { describeBucket, formatCredits } from "@/lib/credits";
 import { PageHeader } from "@/components/app/ui";
-import { CoursesSection, EnquiriesSection, MilestonesSection, RequirementEditor } from "./academics-client";
+import { AdminDetailsSection, CoursesSection, EnquiriesSection, MilestonesSection, RequirementEditor } from "./academics-client";
+import { CreditBar } from "@/components/app/credit-bar";
 
 export const metadata: Metadata = { title: "Academics" };
 
@@ -38,6 +39,7 @@ export default async function AcademicsPage() {
           <RequirementEditor requirement={a.requirement} />
         </div>
         <div className="flex flex-col gap-3 px-5 pb-5">
+          {c && <CreditBar summary={c} />}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
             {stat(c?.required != null ? formatCredits(c.required) : "—", "Required", c?.required == null ? "not set" : null)}
             {(() => { const b = c ? describeBucket(c.planned) : { value: "0", note: null }; return stat(b.value, "Planned", b.note); })()}
@@ -54,11 +56,15 @@ export default async function AcademicsPage() {
         </div>
       </section>
 
-      <CoursesSection courses={a.courses} today={data.today} />
+      <CoursesSection courses={a.courses} items={a.courseItems} today={data.today} />
 
       <div className="flex flex-wrap items-start gap-4">
         <MilestonesSection milestones={a.milestones} projects={data.projects} today={data.today} />
         <EnquiriesSection enquiries={a.enquiries} today={data.today} />
+      </div>
+
+      <div className="flex flex-wrap items-start gap-4">
+        <AdminDetailsSection details={profile.adminDetails} />
       </div>
     </div>
   );

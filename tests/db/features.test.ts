@@ -20,7 +20,7 @@ const { updateTask } = await import("@/server/actions/tasks");
 const { updateEnquiry, updateMilestone } = await import("@/server/actions/academics");
 const { addGoal, trashGoal, restoreFromTrash } = await import("@/server/actions/settings");
 const { getJournal } = await import("@/server/journal");
-const { getHome } = await import("@/server/home");
+const { getHome, getReminders } = await import("@/server/home");
 const { listGoals } = await import("@/server/planner");
 
 function form(fields: Record<string, string | number>) {
@@ -158,7 +158,9 @@ describe("goals and Home", () => {
       await withUser(other, (tx) => tx`insert into public.tasks (title, due_date) values ('Overdue thing', '2026-11-01')`);
       const home = await withUser(other, (tx) => getHome(tx, "2026-11-14"));
       expect(home.isEmpty).toBe(false);
-      expect(home.attention.map((a) => a.title)).toContain("Overdue thing");
+      // overdue tasks are listed in Home's Reminders (in red), not under Needs attention
+      const reminders = await withUser(other, (tx) => getReminders(tx, "2026-11-14"));
+      expect(reminders.overdue.map((r) => r.title)).toContain("Overdue thing");
     } finally {
       await dropUser(other);
     }

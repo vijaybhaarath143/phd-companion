@@ -1,53 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NativeSelect } from "@/components/ui/native-select";
+import { AppSelect } from "@/components/app/app-select";
+import { toOptions, rowOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { TaskCheckbox } from "@/components/app/task-checkbox";
-import { quickAction } from "@/components/app/call-action";
-import { createTask, trashTask, updateTask } from "@/server/actions/tasks";
-import { addGoal, setGoalOutcome, trashGoal, updateGoal } from "@/server/actions/settings";
+import { useQuickAdd } from "@/components/app/quick-add";
+import { quickAction, trashWithUndo } from "@/components/app/call-action";
+import { trashTask, updateTask } from "@/server/actions/tasks";
+import { addGoal, setGoalOutcome, trashGoal, undoTrash, updateGoal } from "@/server/actions/settings";
 import { formatFullDay } from "@/lib/dates";
-import { goalHorizons, goalOutcomes, taskStatuses, viaLabel } from "@/lib/labels";
+import { goalHorizons, goalOutcomes, taskPriorities, taskStatuses, viaLabel } from "@/lib/labels";
+import { PriorityMark } from "@/components/app/priority";
 import type { GoalRow, TaskRow } from "@/server/planner";
 import type { ProjectOption } from "@/server/profile";
 
-export function AddTask({ projects }: { projects: ProjectOption[] }) {
-  const [title, setTitle] = useState("");
-  const [due, setDue] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [pending, start] = useTransition();
-  const idRef = useRef<string | null>(null);
+/** Opens Quick Add on Task, like Add on the Timeline; the list refreshes once it's saved. */
+export function AddTaskButton() {
+  const { open } = useQuickAdd();
   return (
-    <form
-      data-guide="planner-add"
-      className="flex flex-wrap gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-        // the id is kept until it saves, so a retry after a dropped connection can't add the task twice
-        const id = (idRef.current ??= crypto.randomUUID());
-        start(async () => {
-          if (!(await quickAction(() => createTask({ id, title, dueDate: due || null, priority: "normal", projectId: projectId || null, notes: null })))) return;
-          idRef.current = null;
-          setTitle("");
-          setDue("");
-        });
-      }}
-    >
-      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a task…" aria-label="New task" className="min-w-0 flex-[1_1_260px]" />
-      <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} aria-label="Due date (optional)" className="w-44" />
-      <NativeSelect value={projectId} onChange={(e) => setProjectId(e.target.value)} aria-label="Project (optional)" className="w-48">
-        <option value="">No project</option>
-        {projects.map((p) => <option key={p.id} value={p.id}>{p.title.split(":")[0]}</option>)}
-      </NativeSelect>
-      <Button type="submit" disabled={pending || !title.trim()}>Add</Button>
-    </form>
+    <Button type="button" data-guide="planner-add" onClick={() => open({ mode: "task" })}>
+      <Plus className="size-4" aria-hidden /> Add task
+    </Button>
   );
 }
 
@@ -75,14 +55,14 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
               <div className="flex min-h-14 items-center gap-3 px-5 py-3">
                 <TaskCheckbox id={t.id} title={t.title} done={t.status === "done"} />
                 <button type="button" onClick={() => setEditing(editing === t.id ? null : t.id)} className="min-w-0 flex-1 text-left">
-                  <span className={`block font-medium ${done ? "text-muted-foreground line-through" : ""}`}>{t.title}{t.priority === "important" && <span className="ml-2 text-[12px] font-normal text-attention-foreground">Important</span>}</span>
+                  <span className={`block font-medium ${done ? "text-muted-foreground line-through" : ""}`}>{t.title}<PriorityMark priority={t.priority} className="ml-2 align-[1px]" /></span>
                   <span className="block text-[13px] text-muted-foreground">
                     {[...bits, t.dueDate ? `due ${formatFullDay(t.dueDate)}` : "no due date"].join(" · ")}
                     {t.status === "waiting" && (t.waitingReason || t.waitingOnTitle) ? ` · ${t.waitingOnTitle ? `waiting on “${t.waitingOnTitle}”` : t.waitingReason}` : ""}
                     {viaLabel(t.changedVia) ? ` · updated via ${viaLabel(t.changedVia)}` : viaLabel(t.createdVia) ? ` · added via ${viaLabel(t.createdVia)}` : ""}
                   </span>
                 </button>
-                {overdue && <Badge variant="attention">Overdue</Badge>}
+                {overdue && <Badge variant="overdue">Overdue</Badge>}
                 {t.status === "waiting" && <Badge variant="attention">Waiting</Badge>}
                 {t.status === "doing" && <Badge variant="outline">Doing</Badge>}
                 {t.status === "cancelled" && <Badge variant="muted">Cancelled</Badge>}
@@ -96,9 +76,7 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-status-${t.id}`}>Status</label>
-                    <NativeSelect id={`t-status-${t.id}`} name="status" defaultValue={t.status}>
-                      {Object.entries(taskStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                    </NativeSelect>
+                    <AppSelect id={`t-status-${t.id}`} name="status" defaultValue={t.status} options={toOptions(taskStatuses)} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-due-${t.id}`}>Due date</label>
@@ -106,17 +84,11 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-pri-${t.id}`}>Priority</label>
-                    <NativeSelect id={`t-pri-${t.id}`} name="priority" defaultValue={t.priority}>
-                      <option value="normal">Normal</option>
-                      <option value="important">Important</option>
-                    </NativeSelect>
+                    <AppSelect id={`t-pri-${t.id}`} name="priority" defaultValue={t.priority} options={toOptions(taskPriorities)} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-proj-${t.id}`}>Project</label>
-                    <NativeSelect id={`t-proj-${t.id}`} name="projectId" defaultValue={t.projectId ?? ""}>
-                      <option value="">No project</option>
-                      {projects.map((p) => <option key={p.id} value={p.id}>{p.title.split(":")[0]}</option>)}
-                    </NativeSelect>
+                    <AppSelect id={`t-proj-${t.id}`} name="projectId" defaultValue={t.projectId ?? ""} options={rowOptions(projects, (p) => p.title.split(":")[0], "No project")} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-wr-${t.id}`}>If waiting: why?</label>
@@ -124,11 +96,12 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-wo-${t.id}`}>If waiting: on which task?</label>
-                    <NativeSelect id={`t-wo-${t.id}`} name="waitingOnTaskId" defaultValue={t.waitingOnTaskId ?? ""}>
-                      <option value="">No task</option>
-                      {taskOptions.filter((o) => o.id !== t.id).map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-                    </NativeSelect>
+                    <AppSelect id={`t-wo-${t.id}`} name="waitingOnTaskId" defaultValue={t.waitingOnTaskId ?? ""} options={rowOptions(taskOptions.filter((o) => o.id !== t.id), (o) => o.title, "No task")} />
                   </div>
+                  <label className="flex cursor-pointer items-center gap-2.5 text-sm sm:col-span-2">
+                    <input type="checkbox" name="remindUntilDone" defaultChecked={t.remindUntilDone} className="size-[18px] accent-zinc-900" />
+                    Keep reminding me until it&apos;s done
+                  </label>
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
                     <label className="text-sm font-medium" htmlFor={`t-notes-${t.id}`}>Notes</label>
                     <Textarea id={`t-notes-${t.id}`} name="notes" rows={2} defaultValue={t.notes ?? ""} />
@@ -140,7 +113,7 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                     </div>
                     <div className="flex items-center gap-3">
                       {t.originEntryId && <Link href={`/journal/${t.originEntryId}`} className="text-[13px] underline-offset-4 hover:underline">Open source entry</Link>}
-                      <Button type="button" variant="ghost" disabled={pending} onClick={() => start(async () => { if (confirm("Move this task to Trash? You can restore it from Settings for 30 days.")) await quickAction(() => trashTask(t.id)); })}>Move to Trash</Button>
+                      <Button type="button" variant="ghost" disabled={pending} onClick={() => start(async () => { await trashWithUndo({ what: "Task", trash: () => trashTask(t.id), undo: () => undoTrash("tasks", t.id) }); })}>Move to Trash</Button>
                     </div>
                   </div>
                 </ActionForm>
@@ -165,9 +138,7 @@ function GoalFields({ goal, today }: { goal?: GoalRow; today: string }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`g-h-${p}`} className="text-sm font-medium">For</label>
-          <NativeSelect id={`g-h-${p}`} name="horizon" defaultValue={goal?.horizon ?? "month"}>
-            {Object.entries(goalHorizons).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </NativeSelect>
+          <AppSelect id={`g-h-${p}`} name="horizon" defaultValue={goal?.horizon ?? "month"} options={toOptions(goalHorizons)} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor={`g-s-${p}`} className="text-sm font-medium">From <span className="font-normal text-muted-foreground">(optional)</span></label>
@@ -220,7 +191,7 @@ export function Goals({ goals, today }: { goals: GoalRow[]; today: string }) {
                         <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
                       </div>
                       <Button type="button" variant="ghost" disabled={pending}
-                        onClick={() => start(async () => { if (confirm("Move this goal to Trash? You can restore it from Settings for 30 days.")) await quickAction(() => trashGoal(g.id)); })}>
+                        onClick={() => start(async () => { await trashWithUndo({ what: "Goal", trash: () => trashGoal(g.id), undo: () => undoTrash("goals", g.id) }); })}>
                         Move to Trash
                       </Button>
                     </div>

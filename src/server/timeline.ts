@@ -60,6 +60,8 @@ export type TimelineFilters = {
    * first page. Not set by the app's own Timeline page.
    */
   before?: string;
+  /** End a page on a whole month (the Timeline page's default). Home's short list turns it off. */
+  wholeMonths?: boolean;
 };
 
 export type TimelineItem = {
@@ -254,6 +256,27 @@ function feed(tx: Tx, tz: string) {
     from public.projects p
     where p.deleted_at is null and p.archived_at is null and p.target_precision <> 'none' and p.status <> 'completed'
 
+    union all -- experiment trial run (its files are shown on it)
+    select 'trial:' || t.id, 'experiment', 'trial', t.run_on, case when t.run_on is null then 'none' else 'day' end, t.created_at,
+           e.title, e.project_id, t.outcome, t.trial_no::text, '/research/experiments/' || e.id, 'trial', t.id, null
+    from public.experiment_trials t join public.entries e on e.id = t.entry_id
+    where t.removed_at is null and e.deleted_at is null and e.archived_at is null
+
+    union all -- review step done
+    select 'review-step:' || s.id, 'project', 'step', s.done_on, 'day', s.updated_at,
+           s.title, p.id, s.status, null, '/research/projects/' || p.id || '#progress', null, null, null
+    from public.review_steps s join public.projects p on p.id = s.project_id
+    where s.removed_at is null and s.status = 'done' and s.done_on is not null
+      and p.deleted_at is null and p.archived_at is null
+
+    union all -- course deadline: when it's due (open), or when it was done
+    select 'deadline:' || i.id, 'course', case when i.done_at is null then 'deadline' else 'deadline_done' end,
+           case when i.done_at is null then i.due_date else ${local("i.done_at")} end,
+           case when i.done_at is null and i.due_date is null then 'none' else 'day' end, i.created_at,
+           i.title, null, i.kind, c.name, '/academics#courses', null, null, null
+    from public.course_items i join public.courses c on c.id = i.course_id
+    where i.removed_at is null and c.deleted_at is null and c.archived_at is null
+
     union all -- files and links added later (ones added with the record are shown on the record itself)
     select 'file:' || a.id, 'file', a.kind, ${local("a.created_at")}, 'day', a.created_at,
            coalesce(a.label, a.filename, a.url, 'File'),
@@ -308,7 +331,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
 
   let dated: Raw[] = await select(true);
   const hasOlder = dated.length > limit;
-  if (hasOlder) {
+  if (hasOlder && f.wholeMonths !== false) {
     dated = dated.slice(0, limit);
     // Don't show half a month: end the page at the last complete month, when there is one.
     const lastMonth = monthKey(dated[dated.length - 1].date!);
@@ -384,6 +407,10 @@ function pick<T extends Record<string, string>>(labels: T, key: string | null) {
   return key && key in labels ? labels[key as keyof T] : null;
 }
 
+const TRIAL_OUTCOMES = { worked: "Worked", did_not_work: "Didn't work", inconclusive: "Inconclusive" };
+const DEADLINE_DUE = { assignment: "Assignment due", exam_registration: "Exam registration closes", exam: "Exam" };
+const DEADLINE_DONE = { assignment: "Assignment submitted", exam_registration: "Registered for the exam", exam: "Exam done" };
+
 const join = (...parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(" · ");
 
 function credits(n: string | null) {
@@ -401,6 +428,7 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
         detail: join(pick(categories, r.info), project, pick(entryStatuses, r.status) ?? pick(participation, r.status)),
       };
     case "experiment":
+      if (r.event === "trial") return { label: `Trial ${r.info}`, detail: join(project, pick(TRIAL_OUTCOMES, r.status)) };
       return { label: "Experiment", detail: join(project, pick(experimentStatuses, r.status)) };
     case "feedback":
       if (r.event === "resolved") return { label: "Feedback addressed", detail: join(r.info, project) };
@@ -424,6 +452,8 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
     case "course":
       if (r.event === "completed") return { label: "Course completed", detail: join(r.info) };
       if (r.event === "recognised") return { label: "Credits recognised", detail: `${credits(r.info)} officially recognised` };
+      if (r.event === "deadline") return { label: pick(DEADLINE_DUE, r.status) ?? "Course deadline", detail: join(r.info) };
+      if (r.event === "deadline_done") return { label: pick(DEADLINE_DONE, r.status) ?? "Course deadline done", detail: join(r.info) };
       return { label: "Course added", detail: join(r.info, pick(courseStatuses, r.status)) };
     case "milestone":
       return r.event === "reached"
@@ -433,6 +463,7 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
       return { label: "Goal", detail: join(pick(goalHorizons, r.info), pick(goalOutcomes, r.status)) };
     case "project":
       if (r.event === "target") return { label: "Project target", detail: join(pick(projectStatuses, r.status)) };
+      if (r.event === "step") return { label: "Review step done", detail: join(project) };
       return { label: r.event === "started" ? "Project started" : "Project added", detail: join(pick(projectTypes, r.info), pick(projectStatuses, r.status)) };
     case "file":
       return { label: r.event === "link" ? "Link added" : "File added", detail: r.info ? `On ${r.info}` : "" };

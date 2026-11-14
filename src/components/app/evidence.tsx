@@ -16,7 +16,7 @@ import { quickAction } from "@/components/app/call-action";
 import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
 import type { EvidenceItem } from "@/server/evidence";
 
-type Parent = "entry" | "project" | "manuscript";
+type Parent = "entry" | "project" | "manuscript" | "trial";
 
 /**
  * Evidence on a record: private file uploads and links, in one list.

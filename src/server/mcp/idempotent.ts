@@ -14,7 +14,14 @@ import type { PartialDate } from "@/lib/dates";
  */
 
 /** Which table a request_id lives in, for finding an earlier add. */
-const TABLE = { entry: "public.entries", task: "public.tasks", attachment: "public.attachments" } as const;
+const TABLE = {
+  entry: "public.entries",
+  task: "public.tasks",
+  attachment: "public.attachments",
+  course_item: "public.course_items",
+  trial: "public.experiment_trials",
+  note: "public.notes",
+} as const;
 
 /** Is there already a record with this id that she can see? */
 export async function alreadyAdded(tx: Tx, table: keyof typeof TABLE, id: string | undefined): Promise<boolean> {

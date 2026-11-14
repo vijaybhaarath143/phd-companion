@@ -5,12 +5,13 @@ import { refresh } from "next/cache";
 import { after } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { run, ValidationError, oneOf, uuidOrNull } from "@/server/actions/run";
+import { parentExists } from "@/server/writes";
 import { fail, ok } from "@/lib/result";
 import { removeQueuedFiles, storageAsUser } from "@/server/storage";
 import { MAX_FILE_BYTES, isAllowedName, safeFileName, sniff, ALLOWED_DESCRIPTION } from "@/lib/files";
 
 const BUCKET = "evidence";
-const PARENTS = ["entry", "project", "manuscript", "course", "milestone"] as const;
+const PARENTS = ["entry", "project", "manuscript", "course", "milestone", "trial"] as const;
 
 /**
  * Step 1 of an upload: record the file as "pending" and get a one-time upload link
@@ -21,6 +22,7 @@ export async function startUpload(parentType: string, parentId: string, file: { 
     const parent = oneOf(parentType, PARENTS);
     const pid = uuidOrNull(parentId);
     if (!parent || !pid) throw new ValidationError("Something went wrong — please try again.");
+    if (!(await parentExists(tx, parent, pid))) throw new ValidationError("That record wasn't found — it may have been moved to Trash.");
     if (!isAllowedName(file.name)) throw new ValidationError(`That type of file isn't supported. You can add ${ALLOWED_DESCRIPTION}.`);
     if (!(file.size > 0)) throw new ValidationError("That file is empty.");
     if (file.size > MAX_FILE_BYTES) throw new ValidationError("That file is larger than 20 MB. Add a link to it instead.");

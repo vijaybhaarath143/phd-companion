@@ -17,6 +17,8 @@ const badgeVariants = cva(
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         attention:
           "border-attention-border bg-attention text-attention-foreground",
+        overdue:
+          "border-overdue-border bg-overdue text-overdue-foreground",
         muted: "bg-muted text-muted-foreground",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
