@@ -93,11 +93,11 @@ Free has no backups, so:
 - **Pausing:** daily use keeps it awake. If it ever pauses, Supabase → *Restore project* — nothing is lost.
 - **Health:** `/api/health` also says whether the nightly Trash job last succeeded (`trashJob`).
 
-### 7a. Hardening to apply on the live project (after the Nov 2026 audit)
-1. `npx supabase db push` — applies `20261116000001_hardening.sql` (no hard deletes, Trash purge fix, storage clean-up, submission history, export date). Push it **before** deploying the code that reads `submission_events` / `last_export_at`.
-2. Turn the **Data API off**: Dashboard → Project Settings → Data API → disable (or `npx supabase config push`, which sends `[api] enabled = false`). The app doesn't use it.
+### 7a. Hardening on the live project (after the Nov 2026 audit) — ✅ steps 1, 2 and 4 done 14 Nov 2026; CAPTCHA (3) not set up
+1. ✅ `npx supabase db push` — applies `20261116000001_hardening.sql` (no hard deletes, Trash purge fix, storage clean-up, submission history, export date). Push it **before** deploying the code that reads `submission_events` / `last_export_at`.
+2. ✅ Turn the **Data API off**: Dashboard → Project Settings → Data API → disable (or `npx supabase config push`, which sends `[api] enabled = false`). The app doesn't use it.
 3. Optional, recommended: **CAPTCHA on sign-in** — create a free Cloudflare Turnstile widget for the site's domain, put its secret in Supabase → Authentication → Attack Protection → CAPTCHA (Turnstile), and set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` on Vercel.
-4. Check: Authentication → Sign-ups off; Database → Cron → `purge-trash` runs nightly.
+4. ✅ Checked: no DELETE grants for signed-in users; `purge-trash` scheduled nightly (first run 15 Nov 03:30 UTC — `/api/health` shows `trashJob`).
 
 ### 8. When to upgrade
 Move Supabase to **Pro (US$25/month)** when any of these is true:

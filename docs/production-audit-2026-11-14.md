@@ -2,7 +2,7 @@
 
 **Date:** 14 Nov 2026 · **Code:** `master` @ `1ef0364` · **Scope:** every feature built so far: sign-in, Home, Timeline, Journal, Research, Planner, Academics, Settings, onboarding, Quick add, Guide me, file preview, files and export, the Trash job, and the ChatGPT / Codex connector.
 
-> ## Fix status — 14 Nov 2026 (branch `claude/phd-companion-audit-dfce9c`, not yet merged)
+> ## Fix status — 14 Nov 2026: live (PR #3, deployed from `master` @ `2f4e50b`)
 >
 > **Every finding below is fixed in code**, except the two plan features ruled out of scope: `regulations` and `goal_tasks`.
 >
@@ -35,11 +35,11 @@
 > - the Trash job's status in `/api/health`;
 > - optional Turnstile CAPTCHA on sign-in.
 >
-> **Still to do on the live project (see [hosting-plan-free.md §7a](hosting-plan-free.md)):**
-> 1. Push the migration.
-> 2. Turn off the Data API.
-> 3. Optionally set up CAPTCHA.
-> 4. Set up the weekly backup on your Mac.
+> **Live project:** the migration is applied and the Data API is off (14 Nov 2026).
+>
+> **Still to do (see [hosting-plan-free.md §7a](hosting-plan-free.md)):**
+> - Optionally set up CAPTCHA.
+> - Set up the weekly backup on your Mac.
 
 **Previous reviews:** none. Neither merged PR (#1 Timeline, #2 Connector) had a review, so this is the first one.
 
