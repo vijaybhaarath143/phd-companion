@@ -428,3 +428,11 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Settings for the hosted project only (`supabase config push`); local dev keeps the values above.
+[remotes.production]
+project_id = "ezdkpiepuzgsbtjqmpyi"
+
+[remotes.production.auth]
+site_url = "https://phd-companion-lac.vercel.app"
+additional_redirect_urls = ["https://phd-companion-lac.vercel.app/**"]

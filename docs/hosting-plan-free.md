@@ -43,7 +43,7 @@ The two gaps that matter — no backups and the email limit — are handled in s
 - `npx supabase link --project-ref <ref>` (asks you for the database password once)
 - `npx supabase db push` — creates every table, access rule, history rule, the private file bucket and the nightly Trash job.
 - `npx supabase config push` — sign-in settings and email template (sign-up off, 6-digit code, 10-minute expiry).
-  *Note:* this also sends the local Site URL (`localhost`), so it runs **before** step 5.5 sets the real Site URL — and must not be re-run afterwards without updating `site_url` in `supabase/config.toml` first.
+  *Note:* the hosted project's Site URL and allowed return addresses live in `[remotes.production]` at the end of `supabase/config.toml`, so re-running `config push` keeps the live address (local dev still uses localhost).
 - **No seed data** — the test accounts and examples stay local.
 - Quick check with two temporary accounts that neither can see the other's data, then delete them.
 
@@ -77,7 +77,7 @@ Sign-up is off, so: Supabase → Authentication → Users → **Invite user** wi
    - The **secret key is not added** — the live app never needs it.
 3. **Turn off preview deployments** for other branches (Settings → Git), so test branches never touch her real database.
 4. Deploy. You get an address like `phd-companion.vercel.app` (a custom domain can be added later).
-5. Supabase → Authentication → URL configuration → set **Site URL** to that address, and add `https://<that address>/**` under **Redirect URLs** (sign-in links can only return to listed addresses).
+5. Supabase → Authentication → URL configuration → set **Site URL** to that address, and add `https://<that address>/**` under **Redirect URLs** (sign-in links can only return to listed addresses). ✅ done via `config push`: only `https://phd-companion-lac.vercel.app/**` is allowed.
 
 ### 6. Live check before she uses it (me + you, ~15 min)
 - Sign in with a code; record an entry; upload a file; open it; export.

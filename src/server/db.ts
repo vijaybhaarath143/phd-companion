@@ -62,7 +62,11 @@ export async function ping(): Promise<boolean> {
   try {
     await sql`select 1`;
     return true;
-  } catch {
+  } catch (e) {
+    // Log only the error code and message (never the connection string) so a bad
+    // DATABASE_URL on the host can be diagnosed from its logs.
+    const err = e as { code?: string; message?: string };
+    console.error("db ping failed:", err.code ?? "", err.message ?? "");
     return false;
   }
 }
