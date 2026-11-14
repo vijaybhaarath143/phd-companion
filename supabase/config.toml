@@ -445,3 +445,8 @@ additional_redirect_urls = ["https://phd-companion-lac.vercel.app/**"]
 enabled = true
 authorization_url_path = "/oauth/consent"
 allow_dynamic_registration = true
+
+# The hosted connection pooler keeps Supabase's sizes for this plan (not the local defaults).
+[remotes.production.db.pooler]
+default_pool_size = 15
+max_client_conn = 200
