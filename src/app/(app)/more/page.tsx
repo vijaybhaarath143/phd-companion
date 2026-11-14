@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, Compass, FlaskConical, GraduationCap, SlidersHorizontal } from "lucide-react";
+import { BookOpen, ChevronRight, Compass, FlaskConical, GraduationCap, SlidersHorizontal } from "lucide-react";
 import { GuideMeButton } from "@/components/app/guide";
 import { PageHeader } from "@/components/app/ui";
 
@@ -9,6 +9,7 @@ export const metadata: Metadata = { title: "More" };
 /** Phone-only menu for the areas that don't fit in the bottom bar. */
 export default function MorePage() {
   const items = [
+    { href: "/journal", label: "Journal", hint: "Your entries, search and dates to fill in", icon: BookOpen },
     { href: "/research", label: "Research", hint: "Projects, manuscripts, experiments", icon: FlaskConical },
     { href: "/academics", label: "Academics", hint: "Credits, courses, milestones, office enquiries", icon: GraduationCap },
     { href: "/settings", label: "Settings", hint: "Profile, export, trash, sign out", icon: SlidersHorizontal },

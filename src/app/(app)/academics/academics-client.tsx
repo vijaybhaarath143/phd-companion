@@ -129,7 +129,7 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
   const [marking, setMarking] = useState<string | null>(null);
   const existing = new Set(milestones.map((m) => m.title.toLowerCase()));
   return (
-    <section data-guide="milestones" className="min-w-0 flex-[3_1_420px] rounded-xl border bg-card">
+    <section id="milestones" data-guide="milestones" className="min-w-0 scroll-mt-6 flex-[3_1_420px] rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-[15px] font-semibold">Milestones</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(adding === null ? "" : null)}>Add milestone</Button>

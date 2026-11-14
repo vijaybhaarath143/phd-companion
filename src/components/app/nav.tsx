@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
-import { BookOpen, CalendarDays, FlaskConical, GraduationCap, Home, Menu, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { BookOpen, CalendarDays, FlaskConical, GraduationCap, History, Home, Menu, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useQuickAdd } from "@/components/app/quick-add";
 import { GuideMeButton } from "@/components/app/guide";
 
 const items = [
   { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
+  { href: "/timeline", label: "Timeline", icon: History, match: (p: string) => p.startsWith("/timeline") },
   { href: "/journal", label: "Journal", icon: BookOpen, match: (p: string) => p.startsWith("/journal") },
   { href: "/research", label: "Research", icon: FlaskConical, match: (p: string) => p.startsWith("/research") },
   { href: "/planner", label: "Planner", icon: CalendarDays, match: (p: string) => p.startsWith("/planner") },
@@ -92,11 +93,11 @@ export function MobileNav() {
       {label}
     </Link>
   );
-  const moreActive = ["/research", "/academics", "/settings", "/more"].some((p) => path.startsWith(p));
+  const moreActive = ["/journal", "/research", "/academics", "/settings", "/more"].some((p) => path.startsWith(p));
   return (
     <nav aria-label="Main" data-guide="nav" className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t bg-background px-2 pb-[max(env(safe-area-inset-bottom),8px)] md:hidden">
       {tab("/", "Home", Home, path === "/")}
-      {tab("/journal", "Journal", BookOpen, path.startsWith("/journal"))}
+      {tab("/timeline", "Timeline", History, path.startsWith("/timeline"))}
       <button
         type="button"
         aria-label="Quick Add"

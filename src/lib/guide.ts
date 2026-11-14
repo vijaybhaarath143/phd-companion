@@ -21,7 +21,7 @@ export type GuideStep = {
 };
 
 export const GUIDE_CHAPTERS: { id: GuideChapterId; title: string; summary: string }[] = [
-  { id: "basics", title: "The basics", summary: "Quick Add, Home and finding your way around" },
+  { id: "basics", title: "The basics", summary: "Quick Add, Home, Timeline and finding your way around" },
   { id: "journal", title: "Journal and dates", summary: "Your record of what happened — even when you don't know the exact date" },
   { id: "research", title: "Research", summary: "Projects, manuscripts and experiments" },
   { id: "files", title: "Files and proof", summary: "Certificates, figures and drafts, kept private" },
@@ -44,9 +44,9 @@ export const GUIDE_STEPS: GuideStep[] = [
   },
   {
     id: "nav", chapter: "basics", path: "/", target: "nav",
-    title: "Five places",
-    body: "Home is your summary. Journal is everything you've recorded. Research holds your projects, papers and experiments. Planner holds tasks and goals. Academics tracks credits and milestones.",
-    phoneBody: "Home is your summary and Journal is everything you've recorded. Planner holds tasks and goals. Research, Academics and Settings are under More.",
+    title: "Six places",
+    body: "Home is your summary. Timeline is the whole story in date order. Journal holds your entries. Research holds your projects, papers and experiments. Planner holds tasks and goals. Academics tracks credits and milestones.",
+    phoneBody: "Home is your summary and Timeline is the whole story in date order. Planner holds tasks and goals. Journal, Research, Academics and Settings are under More.",
   },
   {
     id: "attention", chapter: "basics", path: "/", target: "attention",
@@ -62,6 +62,16 @@ export const GUIDE_STEPS: GuideStep[] = [
     id: "search", chapter: "basics", path: "/", target: "search",
     title: "Search everything",
     body: "Finds words in titles, notes, people, observations and journal names — across everything you've recorded.",
+  },
+  {
+    id: "timeline", chapter: "basics", path: "/timeline", target: "timeline",
+    title: "Your timeline",
+    body: "Everything in one line, newest first: entries, experiments, tasks, papers, courses, milestones and files. Tap a title to open it. Files open right here and links open in a new tab. Planned things are marked; things without a date wait at the bottom.",
+  },
+  {
+    id: "timeline-filters", chapter: "basics", path: "/timeline", target: "timeline-filters",
+    title: "Narrow it down, or add",
+    body: "Show one kind of thing, one project, or just this month or year. Add records something new — it appears on the timeline as soon as you save it.",
   },
 
   // Journal and dates
