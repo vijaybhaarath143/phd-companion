@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
-import { bearerToken, ConnectorAuthError, verifyAccessToken } from "@/server/mcp/auth";
+import { createLocalJWKSet, errors, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
+import { AuthUnavailableError, bearerToken, ConnectorAuthError, verifyAccessToken, verifyWithAuthServer } from "@/server/mcp/auth";
 import { safeReturnTo } from "@/lib/return-to";
 
 const ISSUER = "https://example.supabase.co/auth/v1";
@@ -104,6 +104,42 @@ describe("checking a connector access token", () => {
     const { client_id: _c, ...browser } = good;
     await expect(verifyAccessToken(await hs(browser), { keys, issuer: ISSUER, verifyRemotely: async (tok) => (await import("jose")).decodeJwt(tok) }))
       .rejects.toThrow(/connected app/);
+  });
+});
+
+describe("when Supabase Auth can't be reached", () => {
+  const failingKeys = (e: unknown): JWTVerifyGetKey => async () => {
+    throw e;
+  };
+
+  it("answers 'try again' (not 'invalid token') when the published keys can't be fetched", async () => {
+    const t = await token();
+    for (const e of [new errors.JWKSTimeout(), new TypeError("fetch failed"), new errors.JOSEError("Expected 200 OK from the JSON Web Key Set HTTP response")]) {
+      await expect(verifyAccessToken(t, { keys: failingKeys(e), issuer: ISSUER })).rejects.toBeInstanceOf(AuthUnavailableError);
+    }
+  });
+
+  it("still says 'invalid' for a token no published key matches", async () => {
+    const t = await token();
+    await expect(verifyAccessToken(t, { keys: failingKeys(new errors.JWKSNoMatchingKey()), issuer: ISSUER })).rejects.toBeInstanceOf(ConnectorAuthError);
+  });
+
+  it("checks shared-secret tokens with Supabase Auth: an outage or 5xx is 'try again', a refusal is 'invalid'", async () => {
+    const answer = (status: number): typeof fetch => async () => new Response("{}", { status });
+    const down: typeof fetch = async () => {
+      throw new TypeError("fetch failed");
+    };
+    await expect(verifyWithAuthServer("a.b.c", ISSUER, down)).rejects.toBeInstanceOf(AuthUnavailableError);
+    await expect(verifyWithAuthServer("a.b.c", ISSUER, answer(503))).rejects.toBeInstanceOf(AuthUnavailableError);
+    await expect(verifyWithAuthServer("a.b.c", ISSUER, answer(500))).rejects.toBeInstanceOf(AuthUnavailableError);
+    await expect(verifyWithAuthServer("a.b.c", ISSUER, answer(401))).rejects.toBeInstanceOf(ConnectorAuthError);
+    await expect(verifyWithAuthServer("a.b.c", ISSUER, answer(403))).rejects.toBeInstanceOf(ConnectorAuthError);
+
+    // …and verifyAccessToken passes the outage on unchanged
+    const secret = new TextEncoder().encode("x".repeat(32));
+    const hs = await new SignJWT({ ...good }).setProtectedHeader({ alg: "HS256" }).setIssuer(ISSUER).setExpirationTime("1h").sign(secret);
+    await expect(verifyAccessToken(hs, { keys, issuer: ISSUER, verifyRemotely: (t) => verifyWithAuthServer(t, ISSUER, answer(502)) }))
+      .rejects.toBeInstanceOf(AuthUnavailableError);
   });
 });
 

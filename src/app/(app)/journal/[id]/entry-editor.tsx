@@ -14,7 +14,9 @@ import { ActionForm } from "@/components/app/action-form";
 import { Breadcrumb } from "@/components/app/ui";
 import { archiveEntry, setEntryDate, trashEntry, updateEntry } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
-import { quickTask, toggleTask } from "@/server/actions/tasks";
+import { quickTask } from "@/server/actions/tasks";
+import { TaskCheckbox } from "@/components/app/task-checkbox";
+import { callAction, quickAction } from "@/components/app/call-action";
 import { categories, entryStatuses, participation, registration, enquiryStatuses, viaLabel } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
 import type { EntryDetail } from "@/server/journal";
@@ -64,7 +66,17 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
     followUpDate: entry.enquiry?.followUpDate ?? "",
     enquiryStatus: entry.enquiry?.status ?? "open",
   });
-  const auto = useAutosave<Patch>(entry.version, (version, patch) => updateEntry(entry.id, version, patch), merge);
+  // The kind follows the category (e.g. "Conference" brings the event details), as the server decides.
+  const [kind, setKind] = useState(entry.kind);
+  const auto = useAutosave<Patch, { version: number; kind: string }>(
+    entry.version,
+    async (version, patch) => {
+      const r = await updateEntry(entry.id, version, patch);
+      if (r.ok) setKind(r.data.kind);
+      return r;
+    },
+    merge,
+  );
   const [date, setDate] = useState<PartialDate>({ date: entry.entryDate, precision: entry.entryPrecision });
   const [editingDate, setEditingDate] = useState(openDate);
   const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
@@ -75,14 +87,41 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
     auto.schedule({ [section]: { [column]: value } } as Patch, delay);
   };
 
-  const isEvent = entry.kind === "event" || Boolean(entry.event);
-  const copyText = () => [v.title, v.description, v.outcome].filter(Boolean).join("\n\n");
+  const isEvent = kind === "event" || Boolean(entry.event);
+  // Everything typed on this page, so nothing is lost if saving fails.
+  const copyText = () =>
+    [
+      v.title,
+      formatPartialDate(date.date, date.precision),
+      v.description && `Notes:\n${v.description}`,
+      v.outcome && `Outcome: ${v.outcome}`,
+      v.people && `People: ${v.people}`,
+      v.skillsLearned && `Skills learned:\n${v.skillsLearned}`,
+      v.award && `Award: ${v.award}`,
+      v.submissionOutcome && `Submission outcome: ${v.submissionOutcome}`,
+      v.source && `From: ${v.source}`,
+      v.requestedChanges && `Requested changes:\n${v.requestedChanges}`,
+      v.office && `Office: ${v.office}`,
+      v.contact && `Contact: ${v.contact}`,
+      v.response && `Response:\n${v.response}`,
+      v.followUpDate && `Follow up on: ${v.followUpDate}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+  /** Archive / Trash: only after everything typed has saved. */
+  const leave = (how: "archive" | "trash") =>
+    start(async () => {
+      if (how === "trash" && !confirm("Move this entry to Trash? You can restore it from Settings for 30 days.")) return;
+      if (!(await auto.flush())) return void toast.error("Your latest changes haven't saved yet — copy your text or try again first.");
+      await quickAction(() => (how === "archive" ? archiveEntry(entry.id) : trashEntry(entry.id)));
+    });
 
   return (
     <div className="mx-auto flex max-w-[820px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Breadcrumb items={[{ href: "/journal", label: "Journal" }, { label: "Entry" }]} />
-        <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.flush()} copyText={copyText} />
+        <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
       </div>
 
       <div>
@@ -111,8 +150,10 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
                     disabled={pending}
                     onClick={() =>
                       start(async () => {
-                        await auto.flush();
-                        const r = await setEntryDate(entry.id, auto.version.current, draftDate);
+                        // waits for any save already on its way, so the date goes with the fresh version
+                        if (!(await auto.flush())) return void toast.error("Your latest changes haven't saved yet — try again in a moment.");
+                        const r = await callAction(() => setEntryDate(entry.id, auto.version.current, draftDate));
+                        if (!r) return;
                         if (!r.ok) return void toast.error(r.error.message);
                         auto.setVersion(r.data.version);
                         setDate(draftDate);
@@ -166,7 +207,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
               <Row label="Award" htmlFor="award">
                 <Input id="award" value={v.award} onChange={(e) => set("award", "event", "award", e.target.value)} placeholder="e.g. Third prize (optional)" className="max-w-72" />
               </Row>
-              {entry.category === "competition" && (
+              {(v.category === "competition" || v.submissionOutcome) && (
                 <Row label="Submission outcome" htmlFor="sub-outcome">
                   <Input id="sub-outcome" value={v.submissionOutcome} onChange={(e) => set("submissionOutcome", "event", "submissionOutcome", e.target.value)} placeholder="e.g. Idea submitted" className="max-w-72" />
                 </Row>
@@ -205,7 +246,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
             </>
           )}
 
-          {!isEvent && !entry.feedback && !entry.enquiry && (
+          {((!isEvent && !entry.feedback && !entry.enquiry) || v.outcome) && (
             <Row label="Outcome" htmlFor="outcome">
               <Input id="outcome" value={v.outcome} onChange={(e) => set("outcome", "entry", "outcome", e.target.value)} placeholder="What came of it (optional)" />
             </Row>
@@ -226,7 +267,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
             <Textarea id="notes" rows={5} value={v.description} onChange={(e) => set("description", "entry", "description", e.target.value)} placeholder="What happened, what you decided, what’s next" />
           </Row>
 
-          {(entry.category === "training" || entry.category === "conference" || v.skillsLearned) && (
+          {(v.category === "training" || v.category === "conference" || v.skillsLearned) && (
             <Row label="Skills learned" htmlFor="skills" top>
               <Textarea id="skills" rows={2} value={v.skillsLearned} onChange={(e) => set("skillsLearned", "entry", "skillsLearned", e.target.value)} placeholder="Techniques or skills you picked up (optional)" />
             </Row>
@@ -244,8 +285,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
           <ul className="mt-2 flex flex-col gap-1">
             {entry.tasks.map((t) => (
               <li key={t.id} className="flex items-center gap-3 py-1.5">
-                <input type="checkbox" className="size-[18px] accent-zinc-900" aria-label={`Done: ${t.title}`} defaultChecked={t.status === "done"}
-                  onChange={(e) => start(async () => void (await toggleTask(t.id, e.target.checked)))} />
+                <TaskCheckbox id={t.id} title={t.title} done={t.status === "done"} />
                 <span className={t.status === "done" ? "text-muted-foreground line-through" : ""}>{t.title}</span>
               </li>
             ))}
@@ -264,8 +304,8 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[13px] text-muted-foreground">Changes save automatically.</p>
         <div className="flex gap-1">
-          <Button variant="ghost" disabled={pending} onClick={() => start(async () => { await auto.flush(); await archiveEntry(entry.id); })}>Archive</Button>
-          <Button variant="ghost" disabled={pending} onClick={() => start(async () => { if (confirm("Move this entry to Trash? You can restore it from Settings for 30 days.")) { await auto.flush(); await trashEntry(entry.id); } })}>Move to Trash</Button>
+          <Button variant="ghost" disabled={pending} onClick={() => leave("archive")}>Archive</Button>
+          <Button variant="ghost" disabled={pending} onClick={() => leave("trash")}>Move to Trash</Button>
         </div>
       </div>
     </div>

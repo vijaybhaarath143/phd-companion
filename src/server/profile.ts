@@ -14,6 +14,8 @@ export type Profile = {
   timezone: string;
   remindersEnabled: boolean;
   onboardedAt: Date | null;
+  /** When she last downloaded "Export everything" (Free hosting keeps no backups). */
+  lastExportAt: Date | null;
   version: number;
 };
 

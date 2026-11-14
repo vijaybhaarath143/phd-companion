@@ -10,7 +10,8 @@
     "db:start": "npx supabase start",
     "db:reset": "npx supabase db reset && npm run db:seed",
     "db:seed": "node --env-file=.env.local scripts/seed.mjs",
-    "typecheck": "tsc --noEmit",
+    "backup": "node --env-file=.env.backup scripts/backup.mjs",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

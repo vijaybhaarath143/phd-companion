@@ -38,7 +38,10 @@ describe("CSV export is safe to open in a spreadsheet", () => {
   it("neutralises values that look like formulas", () => {
     expect(csvCell("=HYPERLINK(\"x\")")).toBe("\"'=HYPERLINK(\"\"x\"\")\"");
     expect(csvCell("+1")).toBe("'+1");
-    expect(csvCell("-2")).toBe("'-2");
+    expect(csvCell("-2+cmd|' /C calc'!A0")).toBe("'-2+cmd|' /C calc'!A0");
+    // plain negative numbers stay numbers
+    expect(csvCell("-2")).toBe("-2");
+    expect(csvCell(-0.25)).toBe("-0.25");
     expect(csvCell("@sum")).toBe("'@sum");
   });
 

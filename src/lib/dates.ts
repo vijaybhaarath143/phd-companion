@@ -60,6 +60,28 @@ export function greeting(timeZone: string, now = new Date()) {
 }
 
 /**
+ * A stored moment (created, recorded, deleted…) as she'd read it on her own clock:
+ * "14 Nov 2026" or "14 Nov 2026, 09:30". Format on the server and pass the text to
+ * client components, so the page reads the same before and after it loads.
+ */
+export function formatTimestamp(ts: Date | string, timeZone: string, opts: { time?: boolean; year?: boolean } = {}) {
+  const d = typeof ts === "string" ? new Date(ts) : ts;
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    day: "numeric",
+    month: "short",
+    ...(opts.year === false ? {} : { year: "numeric" }),
+    ...(opts.time ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" } : {}),
+  }).format(d);
+}
+
+/** "2026-11" — a real month (01–12), as used in links and filters. */
+export function isMonthKey(v: unknown): v is string {
+  return typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+}
+
+/**
  * Read a partial date from form fields named `${prefix}Precision`, `${prefix}Date` (YYYY-MM-DD)
  * and `${prefix}Month` (YYYY-MM). Never invents a day.
  */
@@ -71,7 +93,7 @@ export function readPartialDate(form: FormData, prefix: string): PartialDate {
   }
   if (precision === "month") {
     const month = String(form.get(`${prefix}Month`) || "");
-    return /^\d{4}-\d{2}$/.test(month) ? { date: `${month}-01`, precision } : { date: null, precision: "none" };
+    return isMonthKey(month) ? { date: `${month}-01`, precision } : { date: null, precision: "none" };
   }
   return { date: null, precision: "none" };
 }

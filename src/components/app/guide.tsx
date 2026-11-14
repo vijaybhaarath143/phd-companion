@@ -77,13 +77,39 @@ export const useGuide = () => useContext(GuideContext);
 export function GuideProvider({ children }: { children: ReactNode }) {
   const [menu, setMenu] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
+  // Where focus was before the guide opened, so closing the tour puts it back there.
+  const opener = useRef<HTMLElement | null>(null);
 
-  const start = useCallback((chapter: GuideChapterId | null, index = 0) => {
-    setMenu(false);
-    setRun({ chapter, index });
-    save((s) => ({ ...s, dismissed: true, resume: { chapter, index } }));
+  const openMenu = useCallback(() => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setMenu(true);
   }, []);
-  const value = useMemo(() => ({ openMenu: () => setMenu(true), start, running: run !== null }), [start, run]);
+  const start = useCallback(
+    (chapter: GuideChapterId | null, index = 0) => {
+      // started straight from a button (not the topic list): that button is where focus returns
+      if (!menu) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setMenu(false);
+      setRun({ chapter, index });
+      save((s) => ({ ...s, dismissed: true, resume: { chapter, index } }));
+    },
+    [menu],
+  );
+  const value = useMemo(() => ({ openMenu, start, running: run !== null }), [openMenu, start, run]);
+
+  const running = run !== null;
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !running) {
+      const el = opener.current;
+      // after the page settles (the tour may have moved to another page); a dialog the
+      // tour opened (Quick Add) keeps its own focus
+      window.setTimeout(() => {
+        if (document.activeElement?.closest("[role=dialog]")) return;
+        (el && el.isConnected ? el : document.querySelector<HTMLElement>("main"))?.focus({ preventScroll: true });
+      }, 0);
+    }
+    wasRunning.current = running;
+  }, [running]);
 
   return (
     <GuideContext value={value}>
@@ -302,9 +328,35 @@ function StepView({
       if (e.key === "Escape") onClose();
       else if (e.key === "ArrowRight") onNext();
       else if (e.key === "ArrowLeft") onBack();
+      else if (e.key === "Tab") {
+        // keep keyboard focus inside the explanation while the tour is open
+        const el = card.current;
+        if (!el) return e.preventDefault();
+        const focusable = [...el.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")];
+        if (!focusable.length) return e.preventDefault();
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const inside = el.contains(document.activeElement);
+        if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === heading.current)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    // focus that lands outside (a click on the page behind, a screen reader jump) comes back
+    const onFocusIn = (e: FocusEvent) => {
+      const el = card.current;
+      if (el && e.target instanceof Node && !el.contains(e.target)) heading.current?.focus({ preventScroll: true });
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocusIn);
+    };
   }, [onClose, onNext, onBack]);
 
   const style = placeCard(rect, size, phone);

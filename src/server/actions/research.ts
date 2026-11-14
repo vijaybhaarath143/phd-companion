@@ -3,11 +3,12 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/db";
-import { run, ValidationError, oneOf, required, text, uuidOrNull } from "@/server/actions/run";
+import { run, ValidationError, oneOf, required, text, uuidOrNull, dateOrNull, versionOf, expectRow } from "@/server/actions/run";
 import { readPartialDate } from "@/lib/dates";
-import { insertFeedback, insertPhaseEvent } from "@/server/writes";
+import { cleanTitle, insertFeedback, insertPhaseEvent } from "@/server/writes";
 const PROJECT_TYPES = ["systematic_review", "narrative_review", "experimental", "method_development",
   "instrument_development", "collaboration", "other"] as const;
+const EXPERIMENT_STATUSES = ["planned", "in_progress", "completed", "inconclusive", "unsuccessful", "paused"] as const;
 
 // ---------------------------------------------------------------- projects
 
@@ -24,13 +25,15 @@ export async function createProject(form: FormData) {
 
 export async function updateProject(id: string, form: FormData) {
   return run(async (tx) => {
+    const version = versionOf(form.get("version"));
     const fields: Record<string, unknown> = {};
     if (form.has("status")) fields.status = oneOf(form.get("status"), ["proposed", "planning", "in_progress", "paused", "completed"] as const, "in_progress");
     if (form.has("objective")) fields.objective = text(form.get("objective"), 5000);
     if (form.has("title")) fields.title = required(form.get("title"), "Project title");
     if (form.has("type")) fields.type = oneOf(form.get("type"), PROJECT_TYPES);
     if (!Object.keys(fields).length) return;
-    await tx`update public.projects set ${tx(fields)}, version = version + 1 where id = ${id}`;
+    expectRow(await tx`update public.projects set ${tx(fields)}, version = version + 1
+                       where id = ${id} and version = ${version} and deleted_at is null returning id`);
     refresh();
   });
 }
@@ -84,19 +87,29 @@ export async function addSubmission(manuscriptId: string, form: FormData) {
   });
 }
 
+/**
+ * The journal's latest decision. An empty date keeps the decision date already recorded
+ * (only "Clear the decision date" removes it), and every change is kept in the
+ * submission's history by the database.
+ */
 export async function recordDecision(submissionId: string, form: FormData) {
   return run(async (tx) => {
+    const version = versionOf(form.get("version"));
     const status = oneOf(form.get("status"), ["submitted", "under_review", "revise", "rejected", "accepted", "withdrawn"] as const);
     if (!status) throw new ValidationError("Choose the journal's decision.");
     const closes = ["rejected", "accepted", "withdrawn"].includes(status);
-    const decisionDate = String(form.get("decisionDate") ?? "") || null;
-    await tx`
+    const raw = String(form.get("decisionDate") ?? "").trim();
+    const decisionDate = dateOrNull(raw);
+    if (raw && !decisionDate) throw new ValidationError("That decision date isn't valid.");
+    const clear = form.get("clearDecisionDate") === "on";
+    expectRow(await tx`
       update public.submissions set status = ${status},
-        decision_date = ${decisionDate && /^\d{4}-\d{2}-\d{2}$/.test(decisionDate) ? decisionDate : null},
+        decision_date = ${clear ? null : tx`coalesce(${decisionDate}::date, decision_date)`},
         closed_at = ${closes ? tx`coalesce(closed_at, now())` : null},
         notes = coalesce(${text(form.get("notes"), 2000)}, notes),
         version = version + 1
-      where id = ${submissionId}`;
+      where id = ${submissionId} and version = ${version}
+      returning id`);
     refresh();
   });
 }
@@ -115,17 +128,22 @@ export async function recordFeedback(manuscriptId: string, form: FormData) {
   });
 }
 
+// Resolving / reopening feedback also moves its entry's version on, so an Entry page open
+// elsewhere can't then save over it without noticing.
 export async function resolveFeedback(entryId: string, form: FormData) {
   return run(async (tx) => {
-    await tx`update public.feedback set resolution_status = 'resolved', resolved_at = now(),
-             resolution_note = ${text(form.get("note"), 2000)} where entry_id = ${entryId}`;
+    expectRow(await tx`update public.feedback set resolution_status = 'resolved', resolved_at = now(),
+             resolution_note = ${text(form.get("note"), 2000)}, version = version + 1 where entry_id = ${entryId} returning entry_id`);
+    await tx`update public.entries set version = version + 1 where id = ${entryId}`;
     refresh();
   });
 }
 
 export async function reopenFeedback(entryId: string) {
   return run(async (tx) => {
-    await tx`update public.feedback set resolution_status = 'open', resolved_at = null where entry_id = ${entryId}`;
+    expectRow(await tx`update public.feedback set resolution_status = 'open', resolved_at = null, version = version + 1
+                       where entry_id = ${entryId} returning entry_id`);
+    await tx`update public.entries set version = version + 1 where id = ${entryId}`;
     refresh();
   });
 }
@@ -148,10 +166,16 @@ export async function createExperiment(projectId: string | null, form: FormData)
 const EXP_FIELDS = ["objective", "materials", "procedure", "observations", "interpretation", "outcome", "nextSteps"] as const;
 
 /**
- * Autosave for experiments. A new edit session that changes the record makes the
+ * Autosave for experiments, including the status chips (so a status change never leaves the
+ * page holding an old version). A new edit session that changes the record makes the
  * database keep the previous values as a read-only earlier version.
  */
-export async function updateExperiment(entryId: string, expectedVersion: number, sessionId: string, fields: Partial<Record<(typeof EXP_FIELDS)[number], string>>) {
+export async function updateExperiment(
+  entryId: string,
+  expectedVersion: number,
+  sessionId: string,
+  fields: Partial<Record<(typeof EXP_FIELDS)[number], string>> & { status?: string | null },
+) {
   return run(async (tx) => {
     const values: Record<string, string | null> = {};
     for (const k of EXP_FIELDS) {
@@ -161,39 +185,76 @@ export async function updateExperiment(entryId: string, expectedVersion: number,
         values[k] = v || null;
       }
     }
+    if ("status" in fields) values.status = oneOf(fields.status, EXPERIMENT_STATUSES);
     const session = uuidOrNull(sessionId);
-    const [row] = await tx<{ version: number }[]>`
-      update public.experiments set ${tx(values)}, last_edit_session = ${session}, version = version + 1
-      where entry_id = ${entryId} and version = ${expectedVersion}
-      returning version`;
+    const [row] = Object.keys(values).length
+      ? await tx<{ version: number }[]>`
+          update public.experiments set ${tx(values)}, last_edit_session = ${session}, version = version + 1
+          where entry_id = ${entryId} and version = ${expectedVersion}
+          returning version`
+      : await tx<{ version: number }[]>`
+          update public.experiments set version = version + 1
+          where entry_id = ${entryId} and version = ${expectedVersion}
+          returning version`;
     if (!row) throw new ConflictError();
     return { version: row.version };
   });
 }
 
-export async function setExperimentStatus(entryId: string, status: string) {
+/** Rename an experiment, or move it to another project (or none). */
+export async function updateExperimentDetails(entryId: string, expectedVersion: number, details: { title: string; projectId: string | null }) {
   return run(async (tx) => {
-    const s = oneOf(status, ["planned", "in_progress", "completed", "inconclusive", "unsuccessful", "paused"] as const);
-    await tx`update public.experiments set status = ${s}, version = version + 1 where entry_id = ${entryId}`;
+    const title = cleanTitle(details.title);
+    const [row] = await tx<{ version: number }[]>`
+      update public.entries set title = ${title}, project_id = ${uuidOrNull(details.projectId)}, version = version + 1
+      where id = ${entryId} and kind = 'experiment' and version = ${expectedVersion} and deleted_at is null
+      returning version`;
+    if (!row) throw new ConflictError();
     refresh();
+    return { version: row.version };
   });
+}
+
+async function leaveExperiment(entryId: string, how: "archive" | "trash") {
+  const r = await run(async (tx) => {
+    const [e] = await tx<{ projectId: string | null }[]>`
+      update public.entries
+      set ${how === "archive" ? tx`archived_at = now()` : tx`deleted_at = now()`}, version = version + 1
+      where id = ${entryId} and kind = 'experiment' and deleted_at is null
+      returning project_id`;
+    if (!e) throw new ValidationError("That experiment wasn't found — it may already be in Trash.");
+    return e.projectId;
+  });
+  if (r.ok) redirect(r.data ? `/research/projects/${r.data}` : "/research");
+  return r;
+}
+
+/** Hidden from the project and the Journal, kept (Settings → Archive restores it). */
+export async function archiveExperiment(entryId: string) {
+  return leaveExperiment(entryId, "archive");
+}
+
+/** Soft delete, like entries: restorable from Settings → Trash for 30 days. */
+export async function trashExperiment(entryId: string) {
+  return leaveExperiment(entryId, "trash");
 }
 
 export async function addBlocker(entryId: string, form: FormData) {
   return run(async (tx) => {
     const description = required(form.get("description"), "What's blocking", 1000);
     const [e] = await tx<{ projectId: string | null }[]>`select project_id from public.entries where id = ${entryId}`;
-    await tx`insert into public.blockers (entry_id, project_id, category, description)
+    await tx`insert into public.blockers (entry_id, project_id, category, description, opened_on)
              values (${entryId}, ${e?.projectId ?? null},
                      ${oneOf(form.get("category"), ["equipment", "procurement", "protocol", "sample_preparation", "inconsistency", "other"] as const, "other")},
-                     ${description})`;
+                     ${description}, app.user_today())`;
     refresh();
   });
 }
 
 export async function resolveBlocker(id: string) {
   return run(async (tx) => {
-    await tx`update public.blockers set resolved_on = current_date where id = ${id}`;
+    // "today" on her own clock, not the database's (UTC)
+    expectRow(await tx`update public.blockers set resolved_on = app.user_today() where id = ${id} and resolved_on is null returning id`);
     refresh();
   });
 }

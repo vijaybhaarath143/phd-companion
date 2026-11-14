@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ActionForm } from "@/components/app/action-form";
 import { createExperiment, createManuscript, updateProject } from "@/server/actions/research";
-import { quickTask, toggleTask } from "@/server/actions/tasks";
+import { quickTask } from "@/server/actions/tasks";
+import { TaskCheckbox } from "@/components/app/task-checkbox";
 import { projectStatuses } from "@/lib/labels";
 import type { ProjectRow } from "@/server/research";
 
@@ -18,9 +19,16 @@ type Props =
   | { kind: "tasks"; projectId: string; tasks: { id: string; title: string; status: string; waitingReason: string | null }[] }
   | { kind: "about"; projectId: string; project: ProjectRow };
 
+/** Remembers this project on this device, so Research opens it next time (read in research/page.tsx). */
+export function RememberProject({ id }: { id: string }) {
+  useEffect(() => {
+    document.cookie = `last_project=${id}; path=/research; max-age=${60 * 60 * 24 * 365}; samesite=lax${location.protocol === "https:" ? "; secure" : ""}`;
+  }, [id]);
+  return null;
+}
+
 export function ProjectActions(props: Props) {
   const [open, setOpen] = useState(false);
-  const [pending, start] = useTransition();
 
   if (props.kind === "manuscript" || props.kind === "experiment") {
     const label = props.kind === "manuscript" ? "Add manuscript" : "Add experiment";
@@ -46,8 +54,7 @@ export function ProjectActions(props: Props) {
           <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
             {props.tasks.map((t) => (
               <li key={t.id} className="flex min-h-12 items-center gap-3 px-5 py-2.5">
-                <input type="checkbox" className="size-[18px] shrink-0 accent-zinc-900" aria-label={`Done: ${t.title}`}
-                  onChange={(e) => start(async () => void (await toggleTask(t.id, e.target.checked)))} disabled={pending} />
+                <TaskCheckbox id={t.id} title={t.title} done={t.status === "done"} />
                 <span className="min-w-0 flex-1">{t.title}</span>
                 {t.status === "waiting" && <Badge variant="attention">{t.waitingReason ? "Waiting" : "Waiting"}</Badge>}
               </li>
@@ -69,6 +76,11 @@ export function ProjectActions(props: Props) {
       <section className="rounded-xl border bg-card px-5 py-4">
         <h2 className="mb-3 text-[15px] font-semibold">About</h2>
         <ActionForm action={updateProject.bind(null, p.id)} reset={false} success="Saved" className="flex flex-col gap-3">
+          <input type="hidden" name="version" value={p.version} />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="p-title" className="text-sm font-medium">Title</label>
+            <Input id="p-title" name="title" required maxLength={300} defaultValue={p.title} />
+          </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="p-status" className="text-sm font-medium">Status</label>
             <NativeSelect id="p-status" name="status" defaultValue={p.status}>

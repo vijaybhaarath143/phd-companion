@@ -1,6 +1,6 @@
 import "server-only";
 import type { Tx } from "@/server/db";
-import type { Precision } from "@/lib/dates";
+import { isMonthKey, type Precision } from "@/lib/dates";
 
 export type TaskRow = {
   id: string;
@@ -24,7 +24,9 @@ export type TaskRow = {
   version: number;
 };
 
-export async function listTasks(tx: Tx, show: "open" | "waiting" | "done") {
+/** `limit` rows at most (the Planner asks for one more than it shows, to offer "Show more"). */
+export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit = 300) {
+  const max = Math.min(Math.max(Math.trunc(limit) || 300, 1), 5001);
   const statusFilter =
     show === "done" ? tx`t.status in ('done', 'cancelled')` : show === "waiting" ? tx`t.status = 'waiting'` : tx`t.status in ('todo', 'doing', 'waiting')`;
   return tx<TaskRow[]>`
@@ -36,7 +38,7 @@ export async function listTasks(tx: Tx, show: "open" | "waiting" | "done") {
     left join public.courses c on c.id = t.course_id
     where t.deleted_at is null and ${statusFilter}
     order by ${show === "done" ? tx`t.completed_at desc nulls last, t.updated_at desc` : tx`(t.status = 'waiting'), (t.priority = 'normal'), t.due_date nulls last, t.created_at`}
-    limit 300`;
+    limit ${max}`;
 }
 
 export async function taskCounts(tx: Tx) {
@@ -50,7 +52,9 @@ export async function taskCounts(tx: Tx) {
 export type CalendarItem = { date: string; title: string; href: string; kind: "task" | "entry" | "milestone" | "follow-up" | "submission" };
 
 /** Items with an exact date in the month, plus month-only items (shown separately). Undated items are excluded. */
-export async function getCalendar(tx: Tx, month: string) {
+export async function getCalendar(tx: Tx, monthKey: string, today?: string) {
+  // a bad month in the URL shows this month, never an error page
+  const month = isMonthKey(monthKey) ? monthKey : (today ?? new Date().toISOString()).slice(0, 7);
   const start = `${month}-01`;
   const exact = await tx<CalendarItem[]>`
     select due_date as date, title, '/planner' as href, 'task' as kind from public.tasks
@@ -87,7 +91,10 @@ export async function getCalendar(tx: Tx, month: string) {
 export type GoalRow = { id: string; title: string; horizon: string; periodStart: string | null; periodEnd: string | null; outcome: string; version: number };
 
 export async function listGoals(tx: Tx) {
-  return tx<GoalRow[]>`select * from public.goals order by (outcome <> 'open'), period_start desc nulls last, created_at desc`;
+  return tx<GoalRow[]>`
+    select * from public.goals
+    where deleted_at is null
+    order by (outcome <> 'open'), period_start desc nulls last, created_at desc`;
 }
 
 export async function openTaskOptions(tx: Tx) {

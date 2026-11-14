@@ -17,4 +17,10 @@ export async function run<T>(fn: (tx: Tx, user: SessionUser) => Promise<T>): Pro
   }
 }
 
-export { ValidationError, text, required, uuidOrNull, oneOf, dateOrNull, creditsOrNull } from "@/server/validate";
+export { ValidationError, text, required, uuidOrNull, oneOf, dateOrNull, creditsOrNull, versionOf } from "@/server/validate";
+
+/** An update that matched no row: changed (or removed) somewhere else since the page was loaded. */
+export function expectRow<T>(rows: readonly T[]): T {
+  if (!rows[0]) throw new ConflictError();
+  return rows[0];
+}

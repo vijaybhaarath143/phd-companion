@@ -86,11 +86,18 @@ Sign-up is off, so: Supabase → Authentication → Users → **Invite user** wi
 - Check pages load quickly from India.
 - Then hand over: she signs in on her phone and laptop, and adds it to her phone's home screen.
 
-### 7. Protect her data on the free tier (me, ~30 min, then 1 min a week)
+### 7. Protect her data on the free tier — 🔧 built (Nov 2026 audit), the weekly Mac job still needs setting up
 Free has no backups, so:
-- **Her habit:** Settings → *Download export* once a week (records + files in one ZIP). I'll add a gentle in-app reminder if it's been more than 7 days.
-- **Your safety net:** a `scripts/backup.sh` that copies the whole database and all files from Supabase to your Mac, run weekly (or automatically via a scheduled job on your Mac). Encrypted, kept for 8 weeks.
+- **Her habit:** Settings → *Download export* (records + files in one ZIP, streamed so it works with any amount of files). Home shows a gentle reminder when the last export is more than 7 days old.
+- **Your safety net:** `npm run backup` (`scripts/backup.mjs`) copies the whole database (accounts included) and all files from Supabase to your Mac, encrypted with `BACKUP_PASSPHRASE`, keeping the last 8. Set up `.env.backup` once (instructions at the top of the script), then run it weekly — e.g. a Calendar reminder or a `launchd` job. Needs Docker Desktop running.
 - **Pausing:** daily use keeps it awake. If it ever pauses, Supabase → *Restore project* — nothing is lost.
+- **Health:** `/api/health` also says whether the nightly Trash job last succeeded (`trashJob`).
+
+### 7a. Hardening to apply on the live project (after the Nov 2026 audit)
+1. `npx supabase db push` — applies `20261116000001_hardening.sql` (no hard deletes, Trash purge fix, storage clean-up, submission history, export date). Push it **before** deploying the code that reads `submission_events` / `last_export_at`.
+2. Turn the **Data API off**: Dashboard → Project Settings → Data API → disable (or `npx supabase config push`, which sends `[api] enabled = false`). The app doesn't use it.
+3. Optional, recommended: **CAPTCHA on sign-in** — create a free Cloudflare Turnstile widget for the site's domain, put its secret in Supabase → Authentication → Attack Protection → CAPTCHA (Turnstile), and set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` on Vercel.
+4. Check: Authentication → Sign-ups off; Database → Cron → `purge-trash` runs nightly.
 
 ### 8. When to upgrade
 Move Supabase to **Pro (US$25/month)** when any of these is true:

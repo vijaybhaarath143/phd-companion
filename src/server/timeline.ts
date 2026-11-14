@@ -54,6 +54,12 @@ export type TimelineFilters = {
   period?: string;
   /** Dated items to show; older ones come with "Show older". */
   limit?: number;
+  /**
+   * Only dated items before this day (YYYY-MM-DD), for reading further back page by page
+   * (the connector's `before`). Undated items aren't returned with it — they came on the
+   * first page. Not set by the app's own Timeline page.
+   */
+  before?: string;
 };
 
 export type TimelineItem = {
@@ -233,7 +239,7 @@ function feed(tx: Tx, tz: string) {
     union all -- goals, from the start of their period
     select 'goal:' || g.id, 'goal', 'set', coalesce(g.period_start, ${local("g.created_at")}), 'day', g.created_at,
            g.title, null, g.outcome, g.horizon, '/planner?view=goals', null, null, null
-    from public.goals g
+    from public.goals g where g.deleted_at is null
 
     union all -- project started (its own start date) or added
     select 'project:' || p.id, 'project', case when p.start_precision = 'none' then 'added' else 'started' end,
@@ -285,6 +291,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
   const period: TimelinePeriod = f.period === "month" || f.period === "year" ? f.period : "all";
   const { from, to } = periodRange(period, f.today);
   const limit = Math.min(Math.max(f.limit ?? 150, 50), 5000);
+  const before = f.before && /^\d{4}-\d{2}-\d{2}$/.test(f.before) ? f.before : null;
 
   const select = (dated: boolean) => tx<Raw[]>`
     select i.*, p.title as project_title
@@ -295,6 +302,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
       and (${project}::uuid is null or i.project_id = ${project})
       and (${from}::date is null or i.date >= ${from})
       and (${to}::date is null or i.date <= ${to})
+      and (${before}::date is null or i.date < ${before})
     order by ${dated ? tx`i.date desc, (i.precision = 'month'), i.at desc, i.key` : tx`i.at desc, i.key`}
     limit ${dated ? limit + 1 : 500}`;
 
@@ -308,7 +316,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
     if (complete.length > 0) dated = complete;
   }
   // Undated things can't fall inside a period, so they're only shown for "everything".
-  const undated = period === "all" ? await select(false) : [];
+  const undated = period === "all" && !before ? await select(false) : [];
 
   const attachments = await attachmentsFor(tx, [...dated, ...undated]);
   const toItem = (r: Raw): TimelineItem => {

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sendCode } from "@/server/actions/auth";
 
-export function SignInForm({ mode, linkFailed }: { mode: "link" | "code"; linkFailed: boolean }) {
+export function SignInForm({ mode, linkFailed, captchaSiteKey }: { mode: "link" | "code"; linkFailed: boolean; captchaSiteKey: string | null }) {
   const [state, action, pending] = useActionState(sendCode, undefined);
   return (
     <form action={action} className="flex w-full max-w-[400px] flex-col gap-5 rounded-xl border bg-card p-8">
@@ -26,6 +26,7 @@ export function SignInForm({ mode, linkFailed }: { mode: "link" | "code"; linkFa
           aria-invalid={Boolean(state?.error)} aria-describedby={state?.error ? "email-error" : undefined} />
         {state?.error && <p id="email-error" role="alert" className="text-[13px] text-red-700">{state.error}</p>}
       </div>
+      {captchaSiteKey && <div className="cf-turnstile" data-sitekey={captchaSiteKey} data-size="flexible" />}
       <Button type="submit" disabled={pending} className="w-full">{pending ? "Sending…" : mode === "link" ? "Email me a sign-in link" : "Send code"}</Button>
       <p className="text-center text-[13px] text-muted-foreground">Your records are private. Nothing is shared unless you choose to share it.</p>
     </form>

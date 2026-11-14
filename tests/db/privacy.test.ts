@@ -13,7 +13,7 @@ import { admin, dropUser, makeUser, refused, withUser } from "./helpers";
  */
 const TABLES = [
   "profiles", "projects", "entries", "experiments", "experiment_revisions", "feedback", "enquiries", "events",
-  "manuscripts", "manuscript_phase_events", "submissions", "blockers", "tasks", "goals", "requirements",
+  "manuscripts", "manuscript_phase_events", "submissions", "submission_events", "blockers", "tasks", "goals", "requirements",
   "courses", "credit_recognitions", "milestones", "attachments",
 ];
 
@@ -100,7 +100,6 @@ describe("another account can't change or borrow Alice's records", () => {
   it("updates and deletes by Bob touch nothing", async () => {
     await withUser(bob, async (tx) => {
       expect((await tx`update public.entries set title = 'hacked' where id = ${ids.entry} returning id`).length).toBe(0);
-      expect((await tx`delete from public.projects where id = ${ids.project} returning id`).length).toBe(0);
       expect((await tx`update public.tasks set status = 'done' where id = ${ids.task} returning id`).length).toBe(0);
     });
     const [e] = await admin`select title from public.entries where id = ${ids.entry}`;

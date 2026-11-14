@@ -1,0 +1,48 @@
+# Checks every pull request and every push to master: types, lint, unit and database
+# tests (against a throwaway local Supabase), and a production build.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.1.0
+
+      - name: Start local Supabase (database, auth, storage only)
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,postgres-meta,mailpit,supavisor
+
+      - name: Write .env.local from the local Supabase
+        run: |
+          supabase status -o json > /tmp/sb.json
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(jq -r .API_URL /tmp/sb.json)"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(jq -r .PUBLISHABLE_KEY /tmp/sb.json)"
+            echo "SUPABASE_SECRET_KEY=$(jq -r .SECRET_KEY /tmp/sb.json)"
+            echo "DATABASE_URL=$(jq -r .DB_URL /tmp/sb.json)"
+          } > .env.local
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

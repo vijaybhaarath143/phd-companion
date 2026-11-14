@@ -5,7 +5,7 @@ import { cn } from "cn";
 import { asUser } from "@/server/auth";
 import { getCalendar, listGoals, listTasks, openTaskOptions, taskCounts } from "@/server/planner";
 import { projectOptions, requireProfile } from "@/server/profile";
-import { formatPartialDate, monthLabel, todayIn } from "@/lib/dates";
+import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
 import { TaskList, AddTask, Goals } from "./planner-client";
@@ -23,18 +23,23 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
   const view = sp.view === "calendar" || sp.view === "goals" ? sp.view : "tasks";
   const show = sp.show === "waiting" || sp.show === "done" ? sp.show : "open";
 
+  // how many tasks to show ("Show more" adds 300); anything odd in the address falls back to 300
+  const limit = Math.min(Math.max(Math.trunc(Number(sp.limit)) || 300, 300), 5000);
+
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
     const today = todayIn(profile.timezone);
-    const month = typeof sp.month === "string" && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : today.slice(0, 7);
+    const month = isMonthKey(sp.month) ? sp.month : today.slice(0, 7);
+    const tasks = view === "tasks" ? await listTasks(tx, show, limit + 1) : [];
     return {
       today,
       month,
       counts: await taskCounts(tx),
-      tasks: view === "tasks" ? await listTasks(tx, show) : [],
+      tasks: tasks.slice(0, limit),
+      moreTasks: tasks.length > limit,
       projects: await projectOptions(tx),
       taskOptions: view === "tasks" ? await openTaskOptions(tx) : [],
-      calendar: view === "calendar" ? await getCalendar(tx, month) : null,
+      calendar: view === "calendar" ? await getCalendar(tx, month, today) : null,
       goals: view === "goals" ? await listGoals(tx) : [],
     };
   });
@@ -71,6 +76,15 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
             ))}
           </div>
           <TaskList tasks={data.tasks} projects={data.projects} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Add a task above."} />
+          {data.moreTasks && (
+            <Link
+              href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}
+              scroll={false}
+              className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Show more
+            </Link>
+          )}
         </>
       )}
 

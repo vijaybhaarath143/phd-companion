@@ -12,13 +12,15 @@ import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
 import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback } from "@/server/actions/research";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
+import { quickAction } from "@/components/app/call-action";
 import { phases, submissionStatuses, type Phase, viaLabel } from "@/lib/labels";
 
 type Props = {
   manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null };
   project: { id: string; title: string } | null;
-  history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; kind: string; note: string | null; createdVia: string }[];
-  submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null }[];
+  history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; recordedLabel: string; kind: string; note: string | null; createdVia: string }[];
+  submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; version: number }[];
+  submissionHistory: { id: string; submissionId: string; status: string; decisionDate: string | null; recordedLabel: string; createdVia: string }[];
   feedback: { entryId: string; title: string; source: string | null; requestedChanges: string | null; resolutionStatus: string; entryDate: string | null; entryPrecision: Precision; taskCount: number }[];
   waitingTasks: { id: string; title: string; waitingReason: string | null }[];
   today: string;
@@ -34,7 +36,30 @@ function PhaseSelect({ name = "phase", defaultValue }: { name?: string; defaultV
   );
 }
 
-export function ManuscriptView({ manuscript, project, history, submissions, feedback, waitingTasks, today }: Props) {
+/** A submission's recorded changes, oldest first: status, decision date, and when each was recorded. */
+function SubmissionHistory({ events }: { events: Props["submissionHistory"] }) {
+  if (!events.length) return null;
+  return (
+    <details className="ml-8 text-[13px]">
+      <summary className="w-fit cursor-pointer text-muted-foreground hover:text-foreground">
+        History · {events.length} {events.length === 1 ? "record" : "records"}
+      </summary>
+      <ol className="mt-2 flex flex-col gap-1 border-l border-zinc-200 pl-3">
+        {events.map((e) => (
+          <li key={e.id}>
+            <span className="font-medium">{submissionStatuses[e.status as keyof typeof submissionStatuses] ?? e.status}</span>
+            <span className="text-muted-foreground">
+              {e.decisionDate ? ` · decision ${formatFullDay(e.decisionDate)}` : ""} · recorded {e.recordedLabel}
+              {viaLabel(e.createdVia) ? ` · via ${viaLabel(e.createdVia)}` : ""}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
+
+export function ManuscriptView({ manuscript, project, history, submissions, submissionHistory, feedback, waitingTasks, today }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -168,7 +193,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, feed
                       ) : (
                         <>
                           <Badge variant="muted">Resolved</Badge>
-                          <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => void (await reopenFeedback(f.entryId)))}>Reopen</Button>
+                          <Button size="sm" variant="ghost" disabled={pending} onClick={() => start(async () => void (await quickAction(() => reopenFeedback(f.entryId))))}>Reopen</Button>
                         </>
                       )}
                     </div>
@@ -238,7 +263,8 @@ export function ManuscriptView({ manuscript, project, history, submissions, feed
                       {!s.closedAt && <Button size="sm" variant="outline" onClick={() => setDeciding(deciding === s.id ? null : s.id)}>Update</Button>}
                     </div>
                     {deciding === s.id && (
-                      <ActionForm action={recordDecision.bind(null, s.id)} success="Saved" onDone={() => setDeciding(null)} className="ml-8 flex flex-wrap items-end gap-2">
+                      <ActionForm action={recordDecision.bind(null, s.id)} success="Saved" reset={false} onDone={() => setDeciding(null)} className="ml-8 flex flex-wrap items-end gap-2">
+                        <input type="hidden" name="version" value={s.version} />
                         <div className="flex flex-col gap-1.5">
                           <label className="text-sm font-medium" htmlFor={`dec-${s.id}`}>Journal&apos;s decision</label>
                           <NativeSelect id={`dec-${s.id}`} name="status" defaultValue={s.status} className="w-56">
@@ -252,11 +278,18 @@ export function ManuscriptView({ manuscript, project, history, submissions, feed
                         </div>
                         <div className="flex flex-col gap-1.5">
                           <label className="text-sm font-medium" htmlFor={`dd-${s.id}`}>Decision date</label>
-                          <Input id={`dd-${s.id}`} type="date" name="decisionDate" className="w-44" />
+                          <Input id={`dd-${s.id}`} type="date" name="decisionDate" defaultValue={s.decisionDate ?? ""} className="w-44" />
                         </div>
                         <Button type="submit">Save</Button>
+                        {s.decisionDate && (
+                          <label className="flex basis-full items-center gap-2 text-[13px] text-muted-foreground">
+                            <input type="checkbox" name="clearDecisionDate" className="size-4 accent-zinc-900" />
+                            Clear the decision date (leaving the date empty keeps it)
+                          </label>
+                        )}
                       </ActionForm>
                     )}
+                    <SubmissionHistory events={submissionHistory.filter((e) => e.submissionId === s.id)} />
                   </li>
                 ))}
               </ol>
@@ -277,7 +310,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, feed
                     {h.effectivePrecision === "none" ? "Date not known" : formatPartialDate(h.effectiveDate, h.effectivePrecision)}
                     {h.kind === "earlier_change" ? " · added later" : ""}
                     {viaLabel(h.createdVia) ? ` · via ${viaLabel(h.createdVia)}` : ""}
-                    {" · recorded "}{new Date(h.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    {" · recorded "}{h.recordedLabel}
                   </span>
                   {h.note && <span className="block text-[13px] text-zinc-700">{h.note}</span>}
                 </span>

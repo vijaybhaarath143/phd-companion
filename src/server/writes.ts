@@ -27,7 +27,7 @@ export function kindFor(category: string | null) {
 export function checkPartial(d: PartialDate): PartialDate {
   if (d.precision === "none") return { date: null, precision: "none" };
   if (d.precision === "day" && dateOrNull(d.date)) return d;
-  if (d.precision === "month" && typeof d.date === "string" && /^\d{4}-\d{2}-01$/.test(d.date)) return d;
+  if (d.precision === "month" && typeof d.date === "string" && /^\d{4}-(0[1-9]|1[0-2])-01$/.test(d.date)) return d;
   throw new ValidationError("That date isn't valid.");
 }
 
@@ -158,24 +158,43 @@ export async function parentExists(tx: Tx, parentType: ParentType, parentId: str
   return Boolean(row);
 }
 
-export async function insertLink(tx: Tx, parentType: ParentType, parentId: string, url: string, label: string | null) {
+/**
+ * A link as evidence on a record. With `id` (the connector's request_id), a repeated call
+ * finds the first call's link instead of adding another; an id taken by a record she can't
+ * see is refused.
+ */
+export async function insertLink(tx: Tx, parentType: ParentType, parentId: string, url: string, label: string | null, id?: string) {
   const u = String(url ?? "").trim();
   if (!/^https?:\/\/\S+$/i.test(u) || u.length > 2000) throw new ValidationError("Paste a full link starting with https://");
   if (!(await parentExists(tx, parentType, parentId))) throw new ValidationError("That record wasn't found.");
   const [row] = await tx<{ id: string }[]>`
-    insert into public.attachments (parent_type, parent_id, kind, url, label)
-    values (${parentType}, ${parentId}, 'link', ${u}, ${cleanText(label, 200)})
+    insert into public.attachments (id, parent_type, parent_id, kind, url, label)
+    values (${id ?? crypto.randomUUID()}, ${parentType}, ${parentId}, 'link', ${u}, ${cleanText(label, 200)})
+    on conflict (id) do nothing
     returning id`;
-  return row;
+  if (row) return row;
+  await mustBeVisible(tx, "attachments", id!);
+  return { id: id!, repeated: true as const };
+}
+
+/** After `on conflict (id) do nothing` skipped an insert: the existing row must be hers. */
+async function mustBeVisible(tx: Tx, table: "attachments" | "entries", id: string) {
+  const [seen] = await tx`select 1 from ${tx("public." + table)} where id = ${id}`;
+  if (!seen) throw new ValidationError("That request_id is already in use. Send a new one.");
 }
 
 // ---------------------------------------------------------------- manuscripts
 
-/** Guide feedback: one entry, its requested changes, and (optionally) one linked task per change. */
+/**
+ * Guide feedback: one entry, its requested changes, and (optionally) one linked task per change.
+ * With `id` (the connector's request_id) as the entry's id, a repeated call returns the first
+ * call's entry and tasks instead of adding them again.
+ */
 export async function insertFeedback(
   tx: Tx,
   manuscriptId: string,
   input: { source: string | null; via: string | null; changes: string | null; date: PartialDate; makeTasks: boolean },
+  id?: string,
 ) {
   const [m] = await tx<{ title: string; projectId: string | null }[]>`
     select title, project_id from public.manuscripts where id = ${uuidOrNull(manuscriptId)} and deleted_at is null`;
@@ -184,9 +203,15 @@ export async function insertFeedback(
   const changes = cleanText(input.changes, 20000);
   const date = checkPartial(input.date);
   const [e] = await tx<{ id: string }[]>`
-    insert into public.entries (title, kind, category, entry_date, entry_precision, project_id, people)
-    values (${`Feedback on ${m.title}`}, 'feedback', 'guide_meeting', ${date.date}, ${date.precision}, ${m.projectId}, ${source})
+    insert into public.entries (id, title, kind, category, entry_date, entry_precision, project_id, people)
+    values (${id ?? crypto.randomUUID()}, ${`Feedback on ${m.title}`}, 'feedback', 'guide_meeting', ${date.date}, ${date.precision}, ${m.projectId}, ${source})
+    on conflict (id) do nothing
     returning id`;
+  if (!e) {
+    await mustBeVisible(tx, "entries", id!);
+    const earlier = await tx<{ id: string }[]>`select id from public.tasks where origin_entry_id = ${id!} order by created_at`;
+    return { entryId: id!, taskIds: earlier.map((t) => t.id), repeated: true as const };
+  }
   await tx`
     insert into public.feedback (entry_id, manuscript_id, source, received_via, requested_changes)
     values (${e.id}, ${manuscriptId}, ${source}, ${cleanText(input.via, 200)}, ${changes})`;

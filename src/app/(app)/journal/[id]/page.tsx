@@ -4,6 +4,7 @@ import { asUser } from "@/server/auth";
 import { getEntry } from "@/server/journal";
 import { projectOptions, requireProfile } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
+import { isUuid } from "@/lib/utils";
 import { EntryEditor } from "./entry-editor";
 
 export const metadata: Metadata = { title: "Entry" };
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "Entry" };
 export default async function EntryPage({ params, searchParams }: PageProps<"/journal/[id]">) {
   const { id } = await params;
   const openDate = (await searchParams).date === "1";
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  if (!isUuid(id)) notFound();
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
     const entry = await getEntry(tx, id);

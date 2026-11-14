@@ -454,9 +454,11 @@ function PptxView({ data }: { data: ArrayBuffer }) {
               if (!r.getAttribute("Type")?.endsWith("/image")) continue;
               const target = (r.getAttribute("Target") ?? "").replace(/^\.\.\//, "ppt/");
               const ext = extensionOf(target);
-              const type = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" }[ext];
+              // Raster images only. An SVG could carry scripts, and a blob: URL would run them
+              // on the app's own origin if opened in a new tab — so SVGs aren't shown here.
+              const type = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[ext];
               const bytes = files[target];
-              if (!type || !bytes) continue; // e.g. old Windows drawing formats
+              if (!type || !bytes) continue; // e.g. SVG, or old Windows drawing formats
               const u = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
               urls.push(u);
               images.push(u);

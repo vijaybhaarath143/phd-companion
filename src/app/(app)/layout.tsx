@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
-import { asUser } from "@/server/auth";
+import { asUser, requireUser } from "@/server/auth";
+import { removeQueuedFiles, storageAsUser } from "@/server/storage";
 import { getProfile, projectOptions } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
 import { QuickAddProvider } from "@/components/app/quick-add";
@@ -18,6 +20,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     return { profile, projects, overdue };
   });
   if (!profile?.onboardedAt) redirect("/welcome");
+
+  // In the background, after the page is sent: remove stored files that are no longer
+  // evidence (failed uploads, files of records purged from Trash).
+  const [user, bucket] = await Promise.all([requireUser(), storageAsUser()]);
+  if (bucket) after(() => removeQueuedFiles(user, bucket));
   const today = todayIn(profile.timezone);
 
   return (

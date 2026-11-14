@@ -24,6 +24,10 @@ describe("evidence file checks", () => {
     expect(sniff(bytes("MZ", [0x90, 0x00]), "certificate.pdf")).toBeNull(); // a Windows program renamed to .pdf
     expect(sniff(bytes("%PDF-1.7"), "photo.jpg")).toBeNull();
     expect(sniff(bytes("text", [0, 0, 0]), "notes.txt")).toBeNull(); // binary pretending to be text
+    // a multi-byte character across the old 4 KB cut-off is still text
+    expect(sniff(new TextEncoder().encode("शोध ".repeat(1500)), "notes.txt")).toBe("text/plain");
+    // Excel on Windows saves CSVs in Windows-1252: 0xB0 = "°", 0xB5 = "µ"
+    expect(sniff(new Uint8Array([...new TextEncoder().encode("temp,vol\n37"), 0xb0, 0x43, 0x2c, 0x35, 0xb5, 0x4c, 0x0a]), "lab.csv")).toBe("text/csv");
   });
 
   it("makes safe, readable storage names", () => {

@@ -7,6 +7,20 @@ import { Segmented } from "@/components/app/segmented";
 import { monthNames, type PartialDate, type Precision } from "@/lib/dates";
 
 /**
+ * Years offered for a month-only date, newest first: far enough ahead for targets like
+ * a thesis submission (this year + 8), back 15 years, and always the year already chosen.
+ */
+export function yearOptions(today: string, current?: string | null) {
+  const thisYear = Number(today.slice(0, 4));
+  const years = Array.from({ length: 24 }, (_, i) => String(thisYear + 8 - i));
+  if (current && /^\d{4}$/.test(current) && !years.includes(current)) {
+    years.push(current);
+    years.sort((a, b) => Number(b) - Number(a));
+  }
+  return years;
+}
+
+/**
  * "Exact date / Month only / Not sure yet". Never invents a day: month-only
  * dates are kept as a month, and "Not sure yet" keeps the item in Needs a date.
  * Renders form fields `${name}Precision`, `${name}Date`, `${name}Month`.
@@ -40,8 +54,7 @@ export function PartialDateInput({
     );
   };
 
-  const thisYear = Number(today.slice(0, 4));
-  const years = Array.from({ length: 12 }, (_, i) => String(thisYear + 2 - i));
+  const years = yearOptions(today, year);
 
   const options: { value: Precision; label: string }[] = [
     { value: "day", label: "Exact date" },

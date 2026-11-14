@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { decodeBase64, schemas, toPartialDate, type ToolName } from "@/server/mcp/schemas";
+import { decodeBase64, MAX_BASE64_CHARS, schemas, toPartialDate, type ToolName } from "@/server/mcp/schemas";
 import { viaLabel } from "@/lib/labels";
 
 const parse = (name: ToolName, input: unknown) => z.object(schemas[name]).safeParse(input);
@@ -63,6 +63,29 @@ describe("checking tool inputs", () => {
     expect(parse("get_timeline", { type: "party" }).success).toBe(false);
     expect(parse("get_timeline", { period: "week" }).success).toBe(false);
     expect(parse("get_timeline", { limit: 1000 }).success).toBe(false);
+    expect(parse("get_timeline", { before: "2026-03-01" }).success).toBe(true);
+    for (const bad of ["2026-03", "2026-02-30", "yesterday"]) expect(parse("get_timeline", { before: bad }).success, bad).toBe(false);
+  });
+
+  it("takes an optional request_id (a UUID) on every add, so retries don't duplicate", () => {
+    for (const [tool, args] of [
+      ["create_journal_entry", { title: "A" }],
+      ["create_task", { title: "A" }],
+      ["add_link", { record_type: "entry", record_id: ID, url: "https://doi.org/10.1/x" }],
+      ["add_guide_feedback", { manuscript_id: ID, requested_changes: "x" }],
+      ["add_file", { record_type: "entry", record_id: ID, filename: "a.txt", content_base64: "aGk=" }],
+    ] as const) {
+      expect(parse(tool, args).success, tool).toBe(true);
+      expect(parse(tool, { ...args, request_id: ID }).success, tool).toBe(true);
+      expect(parse(tool, { ...args, request_id: "retry-1" }).success, tool).toBe(false);
+    }
+  });
+
+  it("refuses file content over the request size limit with a clear message", () => {
+    const r = parse("add_file", { record_type: "entry", record_id: ID, filename: "a.pdf", content_base64: "A".repeat(MAX_BASE64_CHARS + 4) });
+    expect(r.success).toBe(false);
+    expect(r.error!.issues[0].message).toMatch(/about 3 MB/);
+    expect(parse("add_file", { record_type: "entry", record_id: ID, filename: "a.pdf", content_base64: "A".repeat(MAX_BASE64_CHARS) }).success).toBe(true);
   });
 
   it("caps search and list sizes", () => {

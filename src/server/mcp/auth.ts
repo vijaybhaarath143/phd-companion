@@ -1,5 +1,5 @@
 import "server-only";
-import { createRemoteJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
+import { createRemoteJWKSet, decodeJwt, decodeProtectedHeader, errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from "jose";
 import { withUser, type SessionUser } from "@/server/db";
 
 /**
@@ -10,6 +10,26 @@ import { withUser, type SessionUser } from "@/server/db";
 export type ConnectorUser = Required<Pick<SessionUser, "id" | "email" | "clientId" | "sessionId">>;
 
 export class ConnectorAuthError extends Error {}
+
+/**
+ * Supabase Auth couldn't be reached (or failed) while checking the token. The token may be
+ * fine, so this is answered with 503 "try again shortly" — never 401, which would make
+ * ChatGPT / Codex treat the connection as revoked and ask her to connect again.
+ */
+export class AuthUnavailableError extends Error {
+  constructor() {
+    super("PhD Companion couldn't check this sign-in just now. Try again in a moment.");
+  }
+}
+
+/** Did fetching the project's public keys fail for a reason other than a bad token? */
+export function isKeyFetchFailure(e: unknown) {
+  if (e instanceof errors.JWKSTimeout || e instanceof errors.JWKSInvalid) return true;
+  // Network failures from fetch (DNS, refused, reset, aborted).
+  if ((e instanceof TypeError && /fetch/i.test(e.message)) || (e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError"))) return true;
+  // A key set answered with something other than 200 OK (e.g. 503 during an outage).
+  return e instanceof errors.JOSEError && e.code === "ERR_JOSE_GENERIC" && /JSON Web Key Set/i.test(e.message);
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -34,11 +54,19 @@ function projectKeys() {
  * Projects still on the older shared-secret (HS256) signing can't be checked with public keys;
  * ask Supabase Auth itself whether the token is valid instead.
  */
-async function verifyWithAuthServer(token: string): Promise<JWTPayload> {
-  const res = await fetch(`${authIssuer()}/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY! },
-    cache: "no-store",
-  });
+export async function verifyWithAuthServer(token: string, issuer = authIssuer(), fetchImpl: typeof fetch = fetch): Promise<JWTPayload> {
+  let res: Response;
+  try {
+    res = await fetchImpl(`${issuer}/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw new AuthUnavailableError();
+  }
+  // 5xx (and 429): Supabase Auth is having trouble, not the token.
+  if (res.status >= 500 || res.status === 429) throw new AuthUnavailableError();
   if (!res.ok) throw new ConnectorAuthError("The sign-in for this connection has expired or isn't valid.");
   return decodeJwt(token);
 }
@@ -61,7 +89,7 @@ export async function verifyAccessToken(token: string, opts: VerifyOptions = {})
   try {
     const { alg } = decodeProtectedHeader(token);
     if (alg === "HS256") {
-      payload = await (opts.verifyRemotely ?? verifyWithAuthServer)(token);
+      payload = await (opts.verifyRemotely ?? ((t: string) => verifyWithAuthServer(t, issuer)))(token);
       if (payload.iss !== issuer || payload.aud !== "authenticated" || !payload.exp || payload.exp * 1000 < Date.now()) {
         throw new ConnectorAuthError("This token wasn't issued for PhD Companion.");
       }
@@ -75,7 +103,8 @@ export async function verifyAccessToken(token: string, opts: VerifyOptions = {})
       }));
     }
   } catch (e) {
-    if (e instanceof ConnectorAuthError) throw e;
+    if (e instanceof ConnectorAuthError || e instanceof AuthUnavailableError) throw e;
+    if (isKeyFetchFailure(e)) throw new AuthUnavailableError();
     throw new ConnectorAuthError("The sign-in for this connection has expired or isn't valid.");
   }
 

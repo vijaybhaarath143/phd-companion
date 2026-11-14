@@ -1,14 +1,40 @@
 import Link from "next/link";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen, Download, Search } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
-import { getHome } from "@/server/home";
-import { greeting, longToday, todayIn } from "@/lib/dates";
+import { getHome, needsBackupReminder } from "@/server/home";
+import { formatTimestamp, greeting, longToday, todayIn } from "@/lib/dates";
 import { describeBucket, formatCredits } from "@/lib/credits";
 import { Empty, PageHeader, RowLink, Rows, Section } from "@/components/app/ui";
 import { GuideInvite } from "@/components/app/guide";
 import { QuickAddButton } from "@/components/app/quick-add";
 import { Button } from "@/components/ui/button";
+
+/** One calm line, weekly: the free hosting keeps no backups, so her export is the backup. */
+function BackupReminder({ lastExportAt, tz }: { lastExportAt: Date | null; tz: string }) {
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border bg-card px-5 py-3 text-[13px] text-zinc-700">
+      <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="flex-[1_1_240px]">
+        Free hosting keeps no backups — download an export weekly.
+        <span className="text-muted-foreground"> {lastExportAt ? `Last export: ${formatTimestamp(lastExportAt, tz)}.` : "No export yet."}</span>
+      </span>
+      <Link href="/settings#export" className="font-medium underline-offset-4 hover:underline">Settings → Export</Link>
+    </p>
+  );
+}
+
+function Attention({ home }: { home: Awaited<ReturnType<typeof getHome>> }) {
+  return (
+    <Section guide="attention" title="Needs attention" action={home.attentionTotal > 0 && <span className="text-[13px] text-muted-foreground">{home.attentionTotal} {home.attentionTotal === 1 ? "item" : "items"}</span>}>
+      {home.attention.length ? (
+        <Rows>{home.attention.map((a, i) => <RowLink key={i} href={a.href} title={a.title} detail={a.detail} badge={a.badge} attention={a.attention} />)}</Rows>
+      ) : (
+        <Empty>Nothing needs you right now.</Empty>
+      )}
+    </Section>
+  );
+}
 
 export default async function HomePage() {
   const { profile, home } = await asUser(async (tx) => {
@@ -17,12 +43,14 @@ export default async function HomePage() {
   });
   const tz = profile.timezone;
   const name = profile.displayName?.split(" ")[0];
+  const backup = needsBackupReminder(profile.lastExportAt, !home.isEmpty) && <BackupReminder lastExportAt={profile.lastExportAt} tz={tz} />;
 
   if (home.isEmpty) {
     return (
       <div className="mx-auto flex max-w-[960px] flex-col gap-6">
         <PageHeader eyebrow={longToday(tz)} title={name ? `Welcome, ${name}` : "Welcome"} />
         <GuideInvite />
+        {home.attention.length > 0 && <Attention home={home} />}
         <section className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-10 text-center">
           <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
             <BookOpen className="size-5 text-zinc-700" />
@@ -55,18 +83,13 @@ export default async function HomePage() {
     <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
       <PageHeader eyebrow={longToday(tz)} title={greeting(tz)} />
       <GuideInvite />
+      {backup}
       <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground md:hidden">
         <Search className="size-4" aria-hidden /> Search everything
       </Link>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <Section guide="attention" title="Needs attention" action={home.attentionTotal > 0 && <span className="text-[13px] text-muted-foreground">{home.attentionTotal} {home.attentionTotal === 1 ? "item" : "items"}</span>}>
-            {home.attention.length ? (
-              <Rows>{home.attention.map((a, i) => <RowLink key={i} href={a.href} title={a.title} detail={a.detail} badge={a.badge} attention={a.attention} />)}</Rows>
-            ) : (
-              <Empty>Nothing needs you right now.</Empty>
-            )}
-          </Section>
+          <Attention home={home} />
 
           <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All projects</Link>}>
             {home.workingOn.length ? (
@@ -77,7 +100,11 @@ export default async function HomePage() {
           </Section>
 
           <Section title="Recently recorded" action={<Link href="/journal" className="text-[13px] hover:underline">Open Journal</Link>}>
-            <Rows>{home.recent.map((e) => <RowLink key={e.id} href={e.href} title={e.title} detail={e.detail} />)}</Rows>
+            {home.recent.length ? (
+              <Rows>{home.recent.map((e) => <RowLink key={e.id} href={e.href} title={e.title} detail={e.detail} />)}</Rows>
+            ) : (
+              <Empty>No journal entries yet. Use Quick Add to record what happened.</Empty>
+            )}
           </Section>
         </div>
 

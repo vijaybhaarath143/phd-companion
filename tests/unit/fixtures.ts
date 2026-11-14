@@ -1,8 +1,24 @@
 // Tiny, hand-built documents for testing text extraction (no binary files in the repo).
-import { strToU8, zipSync } from "fflate";
+import { strToU8, unzipSync, zipSync } from "fflate";
 
 /** A one-page PDF whose page shows `text` (plain ASCII). */
 export function makePdf(text: string): Uint8Array {
+  return buildPdf(text);
+}
+
+/**
+ * A PDF locked with a password (standard security handler, RC4 40-bit). The password check
+ * values are made up, so no password opens it — enough to see it refused as unreadable.
+ */
+export function makeEncryptedPdf(): Uint8Array {
+  const hex = "28bf4e5e4e758a4164004e56fffa01082e2e00b6d0683e802f0ca9fe6453697a";
+  return buildPdf("locked", {
+    extraObjects: [`<< /Filter /Standard /V 1 /R 2 /Length 40 /O <${hex}> /U <${hex}> /P -44 >>`],
+    trailer: `/Encrypt 6 0 R /ID [<00112233445566778899aabbccddeeff><00112233445566778899aabbccddeeff>]`,
+  });
+}
+
+function buildPdf(text: string, opts: { extraObjects?: string[]; trailer?: string } = {}): Uint8Array {
   const stream = `BT /F1 12 Tf 72 720 Td (${text.replace(/[()\\]/g, "\\$&")}) Tj ET`;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -10,6 +26,7 @@ export function makePdf(text: string): Uint8Array {
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
     `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ...(opts.extraObjects ?? []),
   ];
   let out = "%PDF-1.4\n";
   const offsets: number[] = [];
@@ -20,7 +37,7 @@ export function makePdf(text: string): Uint8Array {
   const xref = out.length;
   out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   for (const o of offsets) out += `${String(o).padStart(10, "0")} 00000 n \n`;
-  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R ${opts.trailer ?? ""}>>\nstartxref\n${xref}\n%%EOF\n`;
   return strToU8(out);
 }
 
@@ -68,6 +85,31 @@ export function makeXlsx(rows: (string | number)[][]): Uint8Array {
     "xl/_rels/workbook.xml.rels": strToU8(rels([["rId1", `${OD}/worksheet`, "worksheets/sheet1.xml"]])),
     "xl/worksheets/sheet1.xml": strToU8(sheet),
   });
+}
+
+/**
+ * A copy of a zip whose table of contents claims `name` unpacks to `size` bytes (a "zip bomb"
+ * shape: tiny file, huge claimed contents). Patches both the local and central headers.
+ */
+export function withClaimedSize(zip: Uint8Array, name: string, size: number): Uint8Array {
+  const out = zip.slice();
+  const dv = new DataView(out.buffer);
+  const nameBytes = strToU8(name);
+  const matches = (at: number, len: number) => len === nameBytes.length && nameBytes.every((b, i) => out[at + i] === b);
+  for (let i = 0; i + 46 <= out.length; i++) {
+    const sig = dv.getUint32(i, true);
+    if (sig === 0x04034b50 && matches(i + 30, dv.getUint16(i + 26, true))) dv.setUint32(i + 22, size, true);
+    if (sig === 0x02014b50 && matches(i + 46, dv.getUint16(i + 28, true))) dv.setUint32(i + 24, size, true);
+  }
+  return out;
+}
+
+/** A Word document padded with `extra` tiny files (to test the entry-count limit). */
+export function makeDocxWithManyEntries(extra: number): Uint8Array {
+  const files: Record<string, Uint8Array> = {};
+  for (let i = 0; i < extra; i++) files[`customXml/item${i}.xml`] = strToU8("<a/>");
+  const base = makeDocx(["Many parts"]);
+  return zipSync({ ...unzipSync(base), ...files });
 }
 
 export function makePptx(slides: string[][]): Uint8Array {

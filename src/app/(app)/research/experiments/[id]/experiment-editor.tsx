@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
@@ -9,20 +10,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/ui/badge";
 import { SaveStatus, useAutosave } from "@/components/app/autosave";
-import { ActionForm } from "@/components/app/action-form";
+import { ActionForm, SaveError } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
-import { addBlocker, resolveBlocker, setExperimentStatus, updateExperiment } from "@/server/actions/research";
+import { callAction, quickAction } from "@/components/app/call-action";
+import { addBlocker, archiveExperiment, resolveBlocker, trashExperiment, updateExperiment, updateExperimentDetails } from "@/server/actions/research";
 import { setEntryDate } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
 import type { EvidenceItem } from "@/server/evidence";
+import type { ProjectOption } from "@/server/profile";
 import { blockerCategories, experimentStatuses } from "@/lib/labels";
 import { formatFullDay, formatPartialDate, type PartialDate, type Precision } from "@/lib/dates";
 
 type Fields = { objective: string; materials: string; procedure: string; observations: string; interpretation: string; outcome: string; nextSteps: string };
-type Revision = Partial<Record<keyof Fields, string | null>> & { id: string; revisionNo: number; capturedAt: Date; status: string | null };
+type Patch = Partial<Fields> & { status?: string | null };
+type Revision = Partial<Record<keyof Fields, string | null>> & { id: string; revisionNo: number; capturedLabel: string; status: string | null };
 
 const SESSION_IDLE_MS = 10 * 60 * 1000;
+const FIELD_LABELS: Record<keyof Fields, string> = {
+  objective: "Objective",
+  materials: "Materials and instruments",
+  procedure: "Procedure",
+  observations: "Observations",
+  interpretation: "Interpretation",
+  outcome: "Outcome",
+  nextSteps: "Next steps",
+};
 
 /**
  * One editing session per visit, and a new one after 10 idle minutes. The database
@@ -39,15 +52,17 @@ export function ExperimentEditor({
   entry,
   experiment,
   project,
+  projects,
   revisions,
   blockers,
   evidence,
   today,
   openDate = false,
 }: {
-  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; version: number };
-  experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number; updatedAt: Date };
+  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number; archivedAt: Date | null };
+  experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number };
   project: { id: string; title: string } | null;
+  projects: ProjectOption[];
   revisions: Revision[];
   blockers: { id: string; category: string; description: string; openedOn: string; resolvedOn: string | null }[];
   evidence: EvidenceItem[];
@@ -63,8 +78,11 @@ export function ExperimentEditor({
     outcome: experiment.outcome ?? "",
     nextSteps: experiment.nextSteps ?? "",
   });
+  // The status goes through the same autosave as the text, so changing it never leaves
+  // the page holding an old version (which would make the next save look like a conflict).
+  const [status, setStatus] = useState(experiment.status);
   const session = useRef<{ id: string | null; last: number }>({ id: null, last: 0 });
-  const auto = useAutosave<Partial<Fields>>(
+  const auto = useAutosave<Patch>(
     experiment.version,
     (version, patch) => updateExperiment(entry.id, version, session.current.id ?? "", patch),
     (a, b) => ({ ...a, ...b }),
@@ -75,12 +93,19 @@ export function ExperimentEditor({
   const [editingDate, setEditingDate] = useState(openDate);
   const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [entryVersion, setEntryVersion] = useState(entry.version);
+  const [title, setTitle] = useState(entry.title);
+  const [projectId, setProjectId] = useState(entry.projectId ?? "");
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   const set = (k: keyof Fields, value: string) => {
     touchSession(session.current);
     setF((s) => ({ ...s, [k]: value }));
     auto.schedule({ [k]: value });
   };
+
+  const copyText = () =>
+    [title, ...(Object.keys(FIELD_LABELS) as (keyof Fields)[]).filter((k) => f[k]).map((k) => `${FIELD_LABELS[k]}:\n${f[k]}`)].join("\n\n");
 
   const area = (k: keyof Fields, label: string, help: string | null, rows: number) => (
     <div className="flex flex-col gap-1">
@@ -90,21 +115,82 @@ export function ExperimentEditor({
     </div>
   );
 
+  const saveDetails = (form: HTMLFormElement) => {
+    const data = new FormData(form);
+    const next = { title: String(data.get("title") ?? ""), projectId: String(data.get("projectId") ?? "") || null };
+    setDetailsError(null);
+    start(async () => {
+      const r = await callAction(() => updateExperimentDetails(entry.id, entryVersion, next));
+      if (!r) return;
+      if (!r.ok) return void setDetailsError(r.error.message);
+      setEntryVersion(r.data.version);
+      setTitle(next.title.trim());
+      setProjectId(next.projectId ?? "");
+      setEditingDetails(false);
+      toast.success("Saved");
+    });
+  };
+
+  /** Archive / Trash: only after everything typed has saved. */
+  const leave = (how: "archive" | "trash") =>
+    start(async () => {
+      if (how === "trash" && !confirm("Move this experiment to Trash? You can restore it from Settings for 30 days.")) return;
+      if (!(await auto.flush())) return void toast.error("Your latest changes haven't saved yet — copy your text or try again first.");
+      await quickAction(() => (how === "archive" ? archiveExperiment(entry.id) : trashExperiment(entry.id)));
+    });
+
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Breadcrumb items={[...(project ? [{ href: `/research/projects/${project.id}`, label: project.title.split(":")[0] }] : [{ href: "/research", label: "Research" }]), { label: "Experiment" }]} />
-        <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.flush()} copyText={() => Object.values(f).filter(Boolean).join("\n\n")} />
+        <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
       </div>
 
+      {entry.archivedAt && (
+        <p className="rounded-lg border border-attention-border bg-attention px-4 py-2.5 text-[13px] text-attention-foreground">
+          This experiment is archived — hidden from its project and the Journal, but kept. <Link href="/settings#archive" className="font-medium underline underline-offset-2">Restore it from Settings</Link>.
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">{entry.title}</h1>
+        {editingDetails ? (
+          <form
+            className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveDetails(e.currentTarget);
+            }}
+          >
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="x-title" className="text-sm font-medium">Experiment title</label>
+              <Input id="x-title" name="title" required maxLength={300} defaultValue={title} autoFocus />
+            </div>
+            <div className="flex max-w-96 flex-col gap-1.5">
+              <label htmlFor="x-project" className="text-sm font-medium">Project</label>
+              <NativeSelect id="x-project" name="projectId" defaultValue={projectId}>
+                <option value="">No project</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+              </NativeSelect>
+            </div>
+            {detailsError && <SaveError message={detailsError} />}
+            <div className="flex gap-2">
+              <Button type="submit" size="sm" disabled={pending}>Save</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setEditingDetails(false); setDetailsError(null); }}>Cancel</Button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h1 className="min-w-0 flex-[1_1_320px] text-2xl leading-8 font-semibold tracking-[-0.015em]">{title}</h1>
+            <Button size="sm" variant="outline" onClick={() => setEditingDetails(true)}>Rename or move</Button>
+          </div>
+        )}
         {editingDate ? (
           <div className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
             <PartialDateInput name="xd" label="Date performed" today={today} defaultValue={date.precision === "none" ? { date: today, precision: "day" } : date} onChange={setDraftDate} />
             <div className="flex gap-2">
               <Button size="sm" disabled={pending} onClick={() => start(async () => {
-                const r = await setEntryDate(entry.id, entryVersion, draftDate);
+                const r = await callAction(() => setEntryDate(entry.id, entryVersion, draftDate));
+                if (!r) return;
                 if (!r.ok) return void toast.error(r.error.message);
                 setEntryVersion(r.data.version);
                 setDate(draftDate);
@@ -124,7 +210,7 @@ export function ExperimentEditor({
       <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-[15px] font-semibold">Status</h2>
-          <span className="text-[13px] text-muted-foreground">{experiment.status ? "" : "Not set. "}Failed and unclear results are saved like any other.</span>
+          <span className="text-[13px] text-muted-foreground">{status ? "" : "Not set. "}Failed and unclear results are saved like any other.</span>
         </div>
         <div role="radiogroup" aria-label="Experiment status" className="flex flex-wrap gap-2">
           {Object.entries(experimentStatuses).map(([k, v]) => (
@@ -132,11 +218,14 @@ export function ExperimentEditor({
               key={k}
               type="button"
               role="radio"
-              aria-checked={experiment.status === k}
-              disabled={pending}
-              onClick={() => start(async () => { const r = await setExperimentStatus(entry.id, k); if (!r.ok) toast.error(r.error.message); })}
+              aria-checked={status === k}
+              onClick={() => {
+                touchSession(session.current);
+                setStatus(k);
+                auto.schedule({ status: k }, 0);
+              }}
               className={cn("h-9 rounded-full border px-3.5 text-[13px] font-medium transition-colors",
-                experiment.status === k ? "border-primary bg-primary text-primary-foreground" : "bg-background text-zinc-700 hover:bg-muted")}
+                status === k ? "border-primary bg-primary text-primary-foreground" : "bg-background text-zinc-700 hover:bg-muted")}
             >
               {v}
             </button>
@@ -159,7 +248,13 @@ export function ExperimentEditor({
             {area("outcome", "Outcome", null, 2)}
             {area("nextSteps", "Next steps", null, 2)}
           </section>
-          <p className="text-[13px] text-muted-foreground">Incomplete is fine. Save what you have and come back later.</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[13px] text-muted-foreground">Incomplete is fine. Save what you have and come back later.</p>
+            <div className="flex gap-1">
+              {!entry.archivedAt && <Button variant="ghost" disabled={pending} onClick={() => leave("archive")}>Archive</Button>}
+              <Button variant="ghost" disabled={pending} onClick={() => leave("trash")}>Move to Trash</Button>
+            </div>
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
@@ -174,18 +269,16 @@ export function ExperimentEditor({
                   <div className="flex items-center gap-3">
                     <span className="flex-1">
                       <span className="block font-medium">Version {r.revisionNo}</span>
-                      <span className="block text-[13px] text-muted-foreground">
-                        {new Date(r.capturedAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })} · read-only
-                      </span>
+                      <span className="block text-[13px] text-muted-foreground">{r.capturedLabel} · read-only</span>
                     </span>
                     <Button size="sm" variant="outline" onClick={() => setViewing(viewing === r.id ? null : r.id)}>{viewing === r.id ? "Hide" : "View"}</Button>
                   </div>
                   {viewing === r.id && (
                     <dl className="flex flex-col gap-2 rounded-lg bg-zinc-50 p-3 text-[13px]">
-                      {(["objective", "materials", "procedure", "observations", "interpretation", "outcome", "nextSteps"] as const).map((k) =>
+                      {(Object.keys(FIELD_LABELS) as (keyof Fields)[]).map((k) =>
                         r[k] ? (
                           <div key={k}>
-                            <dt className="font-medium capitalize">{k === "nextSteps" ? "Next steps" : k}</dt>
+                            <dt className="font-medium">{FIELD_LABELS[k]}</dt>
                             <dd className="whitespace-pre-line text-zinc-700">{r[k]}</dd>
                           </div>
                         ) : null,
@@ -213,12 +306,12 @@ export function ExperimentEditor({
                   </span>
                 </span>
                 {b.resolvedOn ? <Badge variant="muted">Resolved</Badge> : (
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => void (await resolveBlocker(b.id)))}>Resolve</Button>
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => start(async () => void (await quickAction(() => resolveBlocker(b.id))))}>Resolve</Button>
                 )}
               </div>
             ))}
             <ActionForm action={addBlocker.bind(null, entry.id)} success="Blocker recorded" className="flex flex-col gap-2 border-t border-zinc-100 pt-3">
-              <Input name="description" required placeholder="What's blocking?" aria-label="Blocker" />
+              <Input name="description" required maxLength={1000} placeholder="What's blocking?" aria-label="Blocker" />
               <div className="flex gap-2">
                 <NativeSelect name="category" defaultValue="other" aria-label="Kind of blocker">
                   {Object.entries(blockerCategories).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

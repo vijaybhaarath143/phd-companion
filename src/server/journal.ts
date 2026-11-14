@@ -1,6 +1,8 @@
 import "server-only";
 import type { Tx } from "@/server/db";
-import type { Precision } from "@/lib/dates";
+import { isMonthKey, type Precision } from "@/lib/dates";
+import { isUuid, likePattern } from "@/lib/utils";
+import { CATEGORY_KEYS } from "@/server/writes";
 import { evidenceFor, type EvidenceItem } from "@/server/evidence";
 
 export type JournalRow = {
@@ -37,11 +39,26 @@ function endOfMonth(ym: string) {
   return d.toISOString().slice(0, 10);
 }
 
-export async function getJournal(tx: Tx, f: JournalFilters) {
-  const q = f.q?.trim() || null;
-  const like = q ? `%${q}%` : null;
-  const from = f.from && /^\d{4}-\d{2}$/.test(f.from) ? `${f.from}-01` : null;
-  const to = f.to && /^\d{4}-\d{2}$/.test(f.to) ? endOfMonth(f.to) : null;
+/** Filters as they arrive from a URL (or an assistant), reduced to ones that are valid — never a 500. */
+export function cleanJournalFilters(f: JournalFilters): JournalFilters {
+  const q = f.q?.trim().slice(0, 200) || undefined;
+  return {
+    q,
+    category: f.category && (CATEGORY_KEYS as readonly string[]).includes(f.category) ? f.category : undefined,
+    status: f.status && ["planned", "done", "postponed", "cancelled"].includes(f.status) ? f.status : undefined,
+    project: isUuid(f.project) ? f.project : undefined,
+    from: isMonthKey(f.from) ? f.from : undefined,
+    to: isMonthKey(f.to) ? f.to : undefined,
+    limit: Number.isFinite(f.limit) ? f.limit : undefined,
+  };
+}
+
+export async function getJournal(tx: Tx, filters: JournalFilters) {
+  const f = cleanJournalFilters(filters);
+  const q = f.q ?? null;
+  const like = q ? likePattern(q) : null;
+  const from = f.from ? `${f.from}-01` : null;
+  const to = f.to ? endOfMonth(f.to) : null;
   const limit = Math.min(Math.max(f.limit ?? 200, 50), 5000);
 
   const base = (dated: boolean) => tx<JournalRow[]>`
@@ -147,12 +164,12 @@ export type EntryDetail = {
 };
 
 export async function getEntry(tx: Tx, id: string): Promise<EntryDetail | null> {
+  if (!isUuid(id)) return null;
   const [e] = await tx`select * from public.entries where id = ${id} and deleted_at is null`;
   if (!e) return null;
   const [event] = await tx`select organiser, location, registration, participation, presentation_title, award, submission_outcome from public.events where entry_id = ${id}`;
   const [feedback] = await tx`select manuscript_id, source, received_via, requested_changes, resolution_status, resolution_note from public.feedback where entry_id = ${id}`;
-  const [enquiry] = await tx`select office, contact, response, follow_up_date, status from public.enquiries where entry_id = ${id}`;
-  const [exp] = await tx`select 1 from public.experiments where entry_id = ${id}`;
+  const [enquiry] = await tx`select office, contact, response, follow_up_date, status from public.enquiries where entry_id = ${id}`;  const [exp] = await tx`select 1 from public.experiments where entry_id = ${id}`;
   const tasks = await tx`select id, title, status from public.tasks where origin_entry_id = ${id} and deleted_at is null order by created_at`;
   const evidence = await evidenceFor(tx, "entry", id);
   return {

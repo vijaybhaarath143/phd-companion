@@ -11,14 +11,15 @@ import { categories, experimentStatuses, phases, projectStatuses, projectTypes }
 import { Badge } from "@/components/ui/badge";
 import { Empty, Rows, RowLink, Section } from "@/components/app/ui";
 import { QuickAddButton } from "@/components/app/quick-add";
-import { ProjectActions } from "./project-actions";
+import { ProjectActions, RememberProject } from "./project-actions";
+import { isUuid } from "@/lib/utils";
 import { Evidence } from "@/components/app/evidence";
 
 export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectPage({ params }: PageProps<"/research/projects/[id]">) {
   const { id } = await params;
-  if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
+  if (!isUuid(id)) notFound();
   const data = await asUser(async (tx) => {
     await requireProfile(tx);
     return { bundle: await getProjectBundle(tx, id), projects: await listProjects(tx) };
@@ -28,6 +29,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
+      <RememberProject id={project.id} />
       <nav aria-label="Projects" data-guide="projects" className="flex flex-wrap gap-2">
         {data.projects.map((p) => (
           <Link

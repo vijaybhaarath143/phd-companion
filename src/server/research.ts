@@ -3,6 +3,7 @@ import type { Tx } from "@/server/db";
 import type { Precision } from "@/lib/dates";
 import type { Phase } from "@/lib/labels";
 import { evidenceFor } from "@/server/evidence";
+import { isUuid } from "@/lib/utils";
 
 export type ProjectRow = {
   id: string;
@@ -25,6 +26,7 @@ export async function listProjects(tx: Tx) {
 }
 
 export async function getProjectBundle(tx: Tx, id: string) {
+  if (!isUuid(id)) return null;
   const [project] = await tx<ProjectRow[]>`select * from public.projects where id = ${id} and deleted_at is null`;
   if (!project) return null;
   const manuscripts = await tx<{ id: string; title: string; currentPhase: Phase; openFeedback: number; waiting: number }[]>`
@@ -36,7 +38,7 @@ export async function getProjectBundle(tx: Tx, id: string) {
   const experiments = await tx<{ id: string; title: string; status: string | null; entryDate: string | null; entryPrecision: Precision }[]>`
     select e.id, e.title, x.status, e.entry_date, e.entry_precision
     from public.entries e join public.experiments x on x.entry_id = e.id
-    where e.project_id = ${id} and e.deleted_at is null order by e.created_at desc`;
+    where e.project_id = ${id} and e.deleted_at is null and e.archived_at is null order by e.created_at desc`;
   const tasks = await tx<{ id: string; title: string; status: string; dueDate: string | null; waitingReason: string | null }[]>`
     select id, title, status, due_date, waiting_reason from public.tasks
     where project_id = ${id} and deleted_at is null and status not in ('done', 'cancelled')
@@ -52,6 +54,7 @@ export async function getProjectBundle(tx: Tx, id: string) {
 }
 
 export async function getManuscriptBundle(tx: Tx, id: string) {
+  if (!isUuid(id)) return null;
   const [manuscript] = await tx<{
     id: string; title: string; projectId: string | null; currentPhase: Phase; stoppedReason: string | null;
     doi: string | null; authors: string | null; articleType: string | null; version: number;
@@ -66,8 +69,14 @@ export async function getManuscriptBundle(tx: Tx, id: string) {
     order by coalesce(effective_date, recorded_at::date) desc, recorded_at desc`;
   const submissions = await tx<{
     id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null;
-    submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; notes: string | null;
+    submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; notes: string | null; version: number;
   }[]>`select * from public.submissions where manuscript_id = ${id} order by attempt_no desc`;
+  // Every status / decision-date change of each submission, oldest first (kept by the database).
+  const submissionHistory = await tx<{ id: string; submissionId: string; status: string; decisionDate: string | null; recordedAt: Date; createdVia: string }[]>`
+    select se.id, se.submission_id, se.status, se.decision_date, se.recorded_at, se.created_via
+    from public.submission_events se join public.submissions s on s.id = se.submission_id
+    where s.manuscript_id = ${id}
+    order by se.recorded_at, se.id`;
   const feedback = await tx<{ entryId: string; title: string; source: string | null; requestedChanges: string | null; resolutionStatus: string; entryDate: string | null; entryPrecision: Precision; taskCount: number }[]>`
     select f.entry_id, e.title, f.source, f.requested_changes, f.resolution_status, e.entry_date, e.entry_precision,
       (select count(*)::int from public.tasks t where t.origin_entry_id = e.id and t.deleted_at is null) as task_count
@@ -76,12 +85,13 @@ export async function getManuscriptBundle(tx: Tx, id: string) {
     order by (f.resolution_status = 'resolved'), e.created_at desc`;
   const waitingTasks = await tx<{ id: string; title: string; waitingReason: string | null }[]>`
     select id, title, waiting_reason from public.tasks where manuscript_id = ${id} and status = 'waiting' and deleted_at is null`;
-  return { manuscript, project, history, submissions, feedback, waitingTasks };
+  return { manuscript, project, history, submissions, submissionHistory, feedback, waitingTasks };
 }
 
 export async function getExperimentBundle(tx: Tx, id: string) {
-  const [entry] = await tx<{ id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number }[]>`
-    select id, title, entry_date, entry_precision, project_id, version from public.entries where id = ${id} and deleted_at is null`;
+  if (!isUuid(id)) return null;
+  const [entry] = await tx<{ id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number; archivedAt: Date | null }[]>`
+    select id, title, entry_date, entry_precision, project_id, version, archived_at from public.entries where id = ${id} and deleted_at is null`;
   if (!entry) return null;
   const [experiment] = await tx<{
     status: string | null; objective: string | null; materials: string | null; procedure: string | null;

@@ -50,7 +50,10 @@ export async function getHome(tx: Tx, today: string) {
     order by q.follow_up_date limit 5`;
 
   const blockers = await tx<{ id: string; description: string; entryId: string | null }[]>`
-    select id, description, entry_id from public.blockers where resolved_on is null order by opened_on limit 5`;
+    select b.id, b.description, b.entry_id from public.blockers b
+    where b.resolved_on is null
+      and (b.entry_id is null or exists (select 1 from public.entries e where e.id = b.entry_id and e.deleted_at is null and e.archived_at is null))
+    order by b.opened_on limit 5`;
 
   const [{ undated }] = await tx<{ undated: number }[]>`
     select count(*)::int as undated from public.entries
@@ -142,8 +145,29 @@ export async function getHome(tx: Tx, today: string) {
       href: `/journal/${e.id}`,
     })),
     credits,
-    isEmpty: recent.length === 0,
+    // "First day" only when nothing at all has been recorded yet — not just no journal entries.
+    isEmpty: !(await hasAnyRecords(tx)),
   };
+}
+
+/** Has she recorded anything yet (of any kind, outside Trash)? */
+export async function hasAnyRecords(tx: Tx) {
+  const [{ any }] = await tx<{ any: boolean }[]>`
+    select exists (select 1 from public.entries where deleted_at is null)
+        or exists (select 1 from public.tasks where deleted_at is null)
+        or exists (select 1 from public.projects where deleted_at is null)
+        or exists (select 1 from public.manuscripts where deleted_at is null)
+        or exists (select 1 from public.courses where deleted_at is null)
+        or exists (select 1 from public.milestones)
+        or exists (select 1 from public.goals where deleted_at is null)
+        or exists (select 1 from public.requirements) as any`;
+  return any;
+}
+
+/** Free hosting keeps no backups: remind her when there's data and no export in the last 7 days. */
+export function needsBackupReminder(lastExportAt: Date | null, hasRecords: boolean, now = new Date()) {
+  if (!hasRecords) return false;
+  return !lastExportAt || now.getTime() - new Date(lastExportAt).getTime() > 7 * 24 * 60 * 60 * 1000;
 }
 
 /** "SLR 1: Electrochemical…" → "SLR 1" when the title has a short prefix. */

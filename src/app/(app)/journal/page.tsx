@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CalendarDays, Search } from "lucide-react";
 import { asUser } from "@/server/auth";
-import { getJournal, type JournalRow } from "@/server/journal";
+import { cleanJournalFilters, getJournal, type JournalRow } from "@/server/journal";
+import { MonthFilter } from "@/components/app/month-filter";
 import { projectOptions, requireProfile } from "@/server/profile";
 import { formatDay, monthKey, monthLabel, todayIn } from "@/lib/dates";
 import { categories, entryStatuses, participation, registration, experimentStatuses } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PageHeader } from "@/components/app/ui";
 
@@ -52,7 +52,8 @@ function EntryRow({ e, partial }: { e: JournalRow; partial: boolean }) {
 export default async function JournalPage({ searchParams }: PageProps<"/journal">) {
   const sp = await searchParams;
   const pick = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
-  const filters = { q: pick("q"), category: pick("category"), status: pick("status"), project: pick("project"), from: pick("from"), to: pick("to"), limit: Number(pick("limit")) || undefined };
+  // anything invalid in the address (a bad project id, month 13…) is simply ignored
+  const filters = cleanJournalFilters({ q: pick("q"), category: pick("category"), status: pick("status"), project: pick("project"), from: pick("from"), to: pick("to"), limit: Number(pick("limit")) || undefined });
   const filtering = [filters.q, filters.category, filters.status, filters.project, filters.from, filters.to].some(Boolean);
 
   const { journal, projects, today } = await asUser(async (tx) => {
@@ -99,12 +100,8 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
             <option value="">All projects</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.title.split(":")[0]}</option>)}
           </NativeSelect>
-          <label className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-            From <Input type="month" name="from" defaultValue={filters.from} className="h-9 w-40" />
-          </label>
-          <label className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-            to <Input type="month" name="to" defaultValue={filters.to} className="h-9 w-40" />
-          </label>
+          <MonthFilter key={`from-${filters.from ?? ""}`} name="from" label="From" edge="start" defaultValue={filters.from} today={today} />
+          <MonthFilter key={`to-${filters.to ?? ""}`} name="to" label="to" edge="end" defaultValue={filters.to} today={today} />
           <Button type="submit" size="sm">Apply</Button>
           {filtering && <Button asChild size="sm" variant="ghost"><Link href="/journal">Clear</Link></Button>}
         </div>

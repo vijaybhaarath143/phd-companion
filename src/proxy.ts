@@ -2,6 +2,9 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { CONSENT_PATH, RETURN_TO_COOKIE } from "@/lib/return-to";
+import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookies";
+import { isBrowserSession } from "@/lib/session-claims";
+import { captchaSiteKey, TURNSTILE_ORIGIN } from "@/lib/captcha";
 
 const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
 
@@ -13,12 +16,17 @@ const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
  *     only runs the app's own scripts.
  */
 export async function proxy(request: NextRequest) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    console.error("NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set");
+    return new NextResponse("The app isn't configured yet (missing Supabase settings).", { status: 503 });
+  }
   const pending: { name: string; value: string; options: CookieOptions }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions: SESSION_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -34,7 +42,7 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  const signedIn = Boolean(data?.claims?.sub);
+  const signedIn = isBrowserSession(data?.claims);
   const path = request.nextUrl.pathname;
   const isPublic = PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + "/"));
 
@@ -76,6 +84,7 @@ export async function proxy(request: NextRequest) {
 function contentSecurityPolicy(nonce: string, https: boolean) {
   const dev = process.env.NODE_ENV === "development";
   const supabase = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin;
+  const captcha = captchaSiteKey() ? ` ${TURNSTILE_ORIGIN}` : "";
   return [
     "default-src 'self'",
     // only scripts carrying this request's nonce (and what they load) may run
@@ -88,6 +97,8 @@ function contentSecurityPolicy(nonce: string, https: boolean) {
     `connect-src 'self' ${supabase}${dev ? " ws: wss:" : ""}`,
     // the PDF preview renders pages in a background worker served from the app itself
     "worker-src 'self' blob:",
+    // the optional sign-in check (Cloudflare Turnstile) runs in its own frame
+    `frame-src 'self'${captcha}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -100,5 +111,5 @@ function contentSecurityPolicy(nonce: string, https: boolean) {
 // Not run for the ChatGPT / Codex connector (/mcp) or its sign-in metadata (/.well-known/…):
 // those check their own bearer token, return JSON rather than pages, and use no cookies.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.*\\.png|mcp$|mcp/|\\.well-known/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.*\\.png|apple-icon.*\\.png|mcp$|mcp/|\\.well-known/).*)"],
 };

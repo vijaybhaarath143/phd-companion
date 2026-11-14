@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,19 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
-import { addCourse, addEnquiry, addMilestone, recordRecognition, saveRequirement, setMilestoneStatus, updateCourse, updateEnquiry } from "@/server/actions/academics";
+import { addCourse, addEnquiry, addMilestone, recordRecognition, saveRequirement, trashCourse, updateCourse, updateEnquiry, updateMilestone } from "@/server/actions/academics";
+import { quickAction } from "@/components/app/call-action";
 import { formatCredits } from "@/lib/credits";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
 import { courseStatuses, enquiryStatuses, milestoneStatuses, suggestedMilestones } from "@/lib/labels";
 import type { ProjectOption } from "@/server/profile";
 
-export function RequirementEditor({ requirement }: { requirement: { label: string; periodLabel: string | null; requiredCredits: number | null } | null }) {
+export function RequirementEditor({ requirement }: { requirement: { label: string; periodLabel: string | null; requiredCredits: number | null; version: number } | null }) {
   const [open, setOpen] = useState(false);
   if (!open) return <Button size="sm" variant="outline" onClick={() => setOpen(true)}>{requirement ? "Edit requirement" : "Set requirement"}</Button>;
   return (
     <ActionForm action={saveRequirement} success="Saved" reset={false} onDone={() => setOpen(false)} className="flex w-full flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4">
+      {requirement && <input type="hidden" name="version" value={requirement.version} />}
       <div className="flex flex-col gap-1.5"><label htmlFor="rq-l" className="text-sm font-medium">Name</label><Input id="rq-l" name="label" defaultValue={requirement?.label ?? "Coursework credits"} className="w-56" /></div>
       <div className="flex flex-col gap-1.5"><label htmlFor="rq-p" className="text-sm font-medium">Period</label><Input id="rq-p" name="period" defaultValue={requirement?.periodLabel ?? ""} placeholder="e.g. First year" className="w-40" /></div>
       <div className="flex flex-col gap-1.5"><label htmlFor="rq-c" className="text-sm font-medium">Credits required</label><Input id="rq-c" name="credits" inputMode="decimal" defaultValue={requirement?.requiredCredits ?? ""} className="w-32" /></div>
@@ -31,12 +33,13 @@ export function RequirementEditor({ requirement }: { requirement: { label: strin
   );
 }
 
-type Course = { id: string; name: string; provider: string | null; credits: number | null; status: string; completedOn: string | null; recognised: number };
+type Course = { id: string; name: string; provider: string | null; credits: number | null; status: string; completedOn: string | null; recognised: number; version: number };
 
 export function CoursesSection({ courses, today }: { courses: Course[]; today: string }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [recognising, setRecognising] = useState<string | null>(null);
+  const [pending, start] = useTransition();
   return (
     <section data-guide="courses" className="rounded-xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
@@ -84,12 +87,22 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
                   {editing === c.id && (
                     <TableRow className="hover:bg-transparent">
                       <TableCell colSpan={6} className="px-5">
-                        <ActionForm action={updateCourse.bind(null, c.id)} success="Course saved" reset={false} onDone={() => setEditing(null)} className="flex flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4">
+                        <ActionForm action={updateCourse.bind(null, c.id)} success="Course saved" reset={false} onDone={() => setEditing(null)} className="flex flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4 whitespace-normal">
+                          <input type="hidden" name="version" value={c.version} />
+                          <div className="flex flex-col gap-1.5"><label htmlFor={`cn-${c.id}`} className="text-sm font-medium">Course</label>
+                            <Input id={`cn-${c.id}`} name="name" required maxLength={300} defaultValue={c.name} className="w-60" /></div>
+                          <div className="flex flex-col gap-1.5"><label htmlFor={`cp-${c.id}`} className="text-sm font-medium">Provider</label>
+                            <Input id={`cp-${c.id}`} name="provider" maxLength={200} defaultValue={c.provider ?? ""} className="w-44" /></div>
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cs-${c.id}`} className="text-sm font-medium">Status</label>
                             <NativeSelect id={`cs-${c.id}`} name="status" defaultValue={c.status} className="w-40">{Object.entries(courseStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cc-${c.id}`} className="text-sm font-medium">Credits <span className="font-normal text-muted-foreground">(blank = unknown)</span></label>
                             <Input id={`cc-${c.id}`} name="credits" inputMode="decimal" defaultValue={c.credits ?? ""} className="w-32" /></div>
                           <Button type="submit">Save</Button>
+                          <Button type="button" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                          <Button type="button" variant="ghost" className="ml-auto" disabled={pending}
+                            onClick={() => start(async () => { if (confirm("Move this course to Trash? Its credits leave the totals. You can restore it from Settings for 30 days.")) await quickAction(() => trashCourse(c.id)); })}>
+                            Move to Trash
+                          </Button>
                           <p className="w-full text-[13px] text-muted-foreground">Marking a course completed doesn&apos;t record any official recognition — that&apos;s a separate step.</p>
                         </ActionForm>
                       </TableCell>
@@ -122,7 +135,32 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
   );
 }
 
-type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; projectTitle: string | null };
+type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; projectTitle: string | null; version: number };
+
+/** The milestone's "Update": starts from what's recorded (done date, target), never from today. */
+function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDone: () => void }) {
+  const [status, setStatus] = useState(m.status);
+  return (
+    <ActionForm action={updateMilestone.bind(null, m.id)} success="Saved" reset={false} onDone={onDone} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+      <input type="hidden" name="version" value={m.version} />
+      <div className="flex flex-col gap-1.5"><label htmlFor={`mt-${m.id}`} className="text-sm font-medium">Milestone</label>
+        <Input id={`mt-${m.id}`} name="title" required maxLength={300} defaultValue={m.title} /></div>
+      <PartialDateInput name="target" label="Target date" today={today} noneLabel="No date yet" defaultValue={{ date: m.targetDate, precision: m.targetPrecision }} />
+      <div className="flex max-w-60 flex-col gap-1.5"><label htmlFor={`ms-${m.id}`} className="text-sm font-medium">Status</label>
+        <NativeSelect id={`ms-${m.id}`} name="status" value={status} onChange={(e) => setStatus(e.target.value)}>{Object.entries(milestoneStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
+      {status === "done" && (
+        <PartialDateInput
+          name="done"
+          label="When was it done?"
+          today={today}
+          noneLabel="Not sure"
+          defaultValue={m.status === "done" ? { date: m.doneOn, precision: m.donePrecision } : undefined}
+        />
+      )}
+      <Button type="submit" className="self-start">Save</Button>
+    </ActionForm>
+  );
+}
 
 export function MilestonesSection({ milestones, projects, today }: { milestones: Milestone[]; projects: ProjectOption[]; today: string }) {
   const [adding, setAdding] = useState<string | null>(null);
@@ -160,14 +198,7 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
                 <Badge variant={m.status === "done" ? "default" : "outline"}>{milestoneStatuses[m.status as keyof typeof milestoneStatuses]}</Badge>
                 <Button size="sm" variant="ghost" onClick={() => setMarking(marking === m.id ? null : m.id)}>Update</Button>
               </div>
-              {marking === m.id && (
-                <ActionForm action={setMilestoneStatus.bind(null, m.id)} success="Saved" onDone={() => setMarking(null)} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
-                  <div className="flex max-w-60 flex-col gap-1.5"><label htmlFor={`ms-${m.id}`} className="text-sm font-medium">Status</label>
-                    <NativeSelect id={`ms-${m.id}`} name="status" defaultValue={m.status}>{Object.entries(milestoneStatuses).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</NativeSelect></div>
-                  <PartialDateInput name="done" label="If done: when?" today={today} noneLabel="Not sure" />
-                  <Button type="submit" className="self-start">Save</Button>
-                </ActionForm>
-              )}
+              {marking === m.id && <MilestoneForm m={m} today={today} onDone={() => setMarking(null)} />}
             </li>
           ))}
         </ul>
@@ -186,7 +217,7 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
   );
 }
 
-type Enquiry = { entryId: string; title: string; office: string | null; contact: string | null; response: string | null; followUpDate: string | null; status: string };
+type Enquiry = { entryId: string; title: string; office: string | null; contact: string | null; response: string | null; followUpDate: string | null; status: string; entryVersion: number };
 
 export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; today: string }) {
   const [adding, setAdding] = useState(false);
@@ -226,6 +257,7 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
                 </div>
                 {editing === q.entryId && (
                   <ActionForm action={updateEnquiry.bind(null, q.entryId)} success="Saved" reset={false} onDone={() => setEditing(null)} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+                    <input type="hidden" name="version" value={q.entryVersion} />
                     <div className="flex flex-col gap-1.5"><label htmlFor={`qr-${q.entryId}`} className="text-sm font-medium">Response</label><Textarea id={`qr-${q.entryId}`} name="response" rows={2} defaultValue={q.response ?? ""} /></div>
                     <div className="flex flex-wrap gap-3">
                       <div className="flex flex-col gap-1.5"><label htmlFor={`qf-${q.entryId}`} className="text-sm font-medium">Follow up on</label><Input id={`qf-${q.entryId}`} type="date" name="followUp" defaultValue={q.followUpDate ?? ""} className="w-44" /></div>

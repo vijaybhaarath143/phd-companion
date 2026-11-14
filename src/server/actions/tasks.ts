@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { run, ValidationError, oneOf, uuidOrNull, dateOrNull, text } from "@/server/actions/run";
+import { run, ValidationError, oneOf, uuidOrNull, dateOrNull, text, versionOf, expectRow } from "@/server/actions/run";
 import { insertTask, type NewTaskInput } from "@/server/writes";
 
 export type NewTask = NewTaskInput;
@@ -29,24 +29,28 @@ export async function quickTask(form: FormData) {
 
 export async function toggleTask(id: string, done: boolean) {
   return run(async (tx) => {
-    await tx`
+    const [row] = await tx`
       update public.tasks
       set status = ${done ? "done" : "todo"}, completed_at = ${done ? tx`now()` : null},
           waiting_reason = case when ${done} then waiting_reason else null end,
           version = version + 1
-      where id = ${id}`;
+      where id = ${id} and deleted_at is null
+      returning id`;
+    if (!row) throw new ValidationError("That task wasn't found — it may have been moved to Trash.");
     refresh();
   });
 }
 
+/** The Planner's edit form. Refuses to overwrite a change made elsewhere since the form was opened. */
 export async function updateTask(id: string, form: FormData) {
   return run(async (tx) => {
+    const version = versionOf(form.get("version"));
     const title = text(form.get("title"), 300);
     if (!title) throw new ValidationError("Add a title.");
     const status = oneOf(form.get("status"), ["todo", "doing", "waiting", "done", "cancelled"] as const, "todo")!;
     const waitingOn = status === "waiting" ? uuidOrNull(form.get("waitingOnTaskId")) : null;
     if (waitingOn === id) throw new ValidationError("A task can't wait on itself.");
-    await tx`
+    expectRow(await tx`
       update public.tasks set
         title = ${title},
         status = ${status},
@@ -58,7 +62,8 @@ export async function updateTask(id: string, form: FormData) {
         waiting_on_task_id = ${waitingOn},
         completed_at = case when ${status} in ('done', 'cancelled') then coalesce(completed_at, now()) else null end,
         version = version + 1
-      where id = ${id}`;
+      where id = ${id} and version = ${version} and deleted_at is null
+      returning id`);
     refresh();
   });
 }

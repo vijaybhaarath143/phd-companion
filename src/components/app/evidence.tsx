@@ -12,6 +12,7 @@ import { ActionForm } from "@/components/app/action-form";
 import { addLink } from "@/server/actions/entries";
 import { removeEvidence } from "@/server/actions/files";
 import { uploadEvidence } from "@/lib/upload";
+import { quickAction } from "@/components/app/call-action";
 import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
 import type { EvidenceItem } from "@/server/evidence";
 
@@ -39,6 +40,10 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
         else added++;
       }
       if (added) toast.success(added === 1 ? "File added" : `${added} files added`);
+    } catch (e) {
+      // a dropped connection or an expired session mid-upload: say so instead of failing silently
+      console.error(e);
+      toast.error("Couldn't upload — check your connection and try again. Anything already uploaded is kept.");
     } finally {
       setBusy(null);
       if (input.current) input.current.value = "";
@@ -84,8 +89,7 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
                   onClick={() =>
                     start(async () => {
                       if (!confirm("Remove this from the page? It's kept in your export, so nothing is lost.")) return;
-                      const r = await removeEvidence(it.id);
-                      if (!r.ok) toast.error(r.error.message);
+                      await quickAction(() => removeEvidence(it.id));
                     })
                   }
                   className={cn("rounded p-1.5 text-muted-foreground hover:bg-muted", it.kind === "link" && "ml-auto")}

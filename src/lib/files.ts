@@ -63,11 +63,7 @@ export function sniff(bytes: Uint8Array, name: string): string | null {
       case "webp": return ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 12) === "WEBP";
       case "heic": case "heif": return ascii(bytes, 4, 8) === "ftyp" && /^(heic|heix|hevc|mif1|msf1)$/.test(ascii(bytes, 8, 12));
       case "docx": case "xlsx": case "pptx": return starts(bytes, [0x50, 0x4b, 0x03, 0x04]);
-      case "csv": case "txt": {
-        const head = bytes.slice(0, 4096);
-        if (head.includes(0)) return false; // binary data
-        try { new TextDecoder("utf-8", { fatal: true }).decode(head.length === 4096 ? head.slice(0, 4090) : head); return true; } catch { return false; }
-      }
+      case "csv": case "txt": return looksLikeText(bytes.subarray(0, 8192));
       default: return false;
     }
   })();
@@ -79,4 +75,20 @@ export function formatBytes(n: number | null | undefined) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * Plain text in any common encoding (UTF-8, UTF-16 with a byte-order mark, or a Windows
+ * code page such as Excel's CSVs with "°C" / "µL"): no NUL bytes outside UTF-16, and almost
+ * no control characters other than tab, line breaks and form feed.
+ */
+function looksLikeText(head: Uint8Array): boolean {
+  if (head.length === 0) return true;
+  if (starts(head, [0xff, 0xfe]) || starts(head, [0xfe, 0xff])) return true; // UTF-16 text
+  let control = 0;
+  for (const b of head) {
+    if (b === 0) return false; // binary data
+    if (b < 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d && b !== 0x0c && b !== 0x1a) control++;
+  }
+  return control <= head.length / 100;
 }

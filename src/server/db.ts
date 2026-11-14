@@ -67,6 +67,23 @@ export class ConflictError extends Error {
   }
 }
 
+/**
+ * How the nightly Trash purge last went (pg_cron keeps its own log), so a stuck job shows
+ * up in /api/health instead of failing silently. Null when it hasn't run yet.
+ */
+export async function lastPurge(): Promise<{ status: string; at: string } | null> {
+  try {
+    const [r] = await sql<{ status: string; at: Date }[]>`
+      select d.status, d.start_time as at
+      from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+      where j.jobname = 'purge-trash'
+      order by d.start_time desc limit 1`;
+    return r ? { status: r.status, at: new Date(r.at).toISOString() } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Liveness check for /api/health — touches no user data. */
 export async function ping(): Promise<boolean> {
   try {

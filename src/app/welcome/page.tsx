@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { asUser } from "@/server/auth";
 import { getProfile } from "@/server/profile";
-import { createFirstProject, finishOnboarding, saveName, saveProgramme } from "@/server/actions/onboarding";
 import { monthNames, todayIn } from "@/lib/dates";
 import { projectTypes } from "@/lib/labels";
+import { ContinueButton, SkipButton, WelcomeForm } from "./welcome-form";
 
 export const metadata: Metadata = { title: "Welcome" };
 
@@ -24,24 +24,17 @@ function Steps({ step }: { step: number }) {
   );
 }
 
-function Skip({ to }: { to?: string }) {
-  return to ? (
-    <Button asChild variant="ghost"><a href={to}>Skip</a></Button>
-  ) : (
-    // A second submit button on the same form, sent to a different action (no nested forms).
-    <Button type="submit" variant="ghost" formAction={finishOnboarding} formNoValidate>Skip setup</Button>
-  );
-}
-
 export default async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
   const sp = await searchParams;
-  const step = Math.min(3, Math.max(1, Number(sp.step) || 1));
+  const step = Math.min(3, Math.max(1, Number(sp.step) || 1)) as 1 | 2 | 3;
   const profile = await asUser((tx) => getProfile(tx));
   if (profile?.onboardedAt) redirect("/");
   const today = todayIn(profile?.timezone ?? "Asia/Kolkata");
   const thisYear = Number(today.slice(0, 4));
   const startYear = profile?.programmeStart?.slice(0, 4);
   const startMonth = profile?.programmeStart?.slice(5, 7);
+  const years = Array.from({ length: 16 }, (_, i) => String(thisYear - i));
+  if (startYear && !years.includes(startYear)) years.push(startYear);
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-50 p-6">
@@ -51,7 +44,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           <Steps step={step} />
 
           {step === 1 && (
-            <form action={saveName} className="flex flex-col gap-6">
+            <WelcomeForm step={1}>
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Welcome. What should we call you?</h1>
                 <p className="text-muted-foreground">This is the only thing we need. Everything else can wait.</p>
@@ -62,14 +55,14 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
               </div>
               {/* The main button comes first so pressing Enter continues rather than skips. */}
               <div className="flex flex-row-reverse items-center justify-between">
-                <Button type="submit">Continue</Button>
-                <Skip />
+                <ContinueButton>Continue</ContinueButton>
+                <SkipButton />
               </div>
-            </form>
+            </WelcomeForm>
           )}
 
           {step === 2 && (
-            <form action={saveProgramme} className="flex flex-col gap-6">
+            <WelcomeForm step={2}>
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Your programme</h1>
                 <p className="text-muted-foreground">Fill in what you know. You can change any of this later in Settings.</p>
@@ -77,15 +70,15 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="university" className="text-sm font-medium">University</label>
-                  <Input id="university" name="university" defaultValue={profile?.university ?? ""} />
+                  <Input id="university" name="university" maxLength={200} defaultValue={profile?.university ?? ""} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="department" className="text-sm font-medium">Department</label>
-                  <Input id="department" name="department" defaultValue={profile?.department ?? ""} />
+                  <Input id="department" name="department" maxLength={200} defaultValue={profile?.department ?? ""} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="guide" className="text-sm font-medium">Research guide</label>
-                  <Input id="guide" name="guide" defaultValue={profile?.guideName ?? ""} />
+                  <Input id="guide" name="guide" maxLength={200} defaultValue={profile?.guideName ?? ""} />
                 </div>
                 <fieldset className="flex flex-col gap-1.5">
                   <legend className="mb-1.5 text-sm font-medium">Programme start</legend>
@@ -96,7 +89,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
                     </NativeSelect>
                     <NativeSelect name="startYear" aria-label="Year" defaultValue={startYear ?? ""}>
                       <option value="">Year</option>
-                      {Array.from({ length: 10 }, (_, i) => String(thisYear - i)).map((y) => <option key={y} value={y}>{y}</option>)}
+                      {years.map((y) => <option key={y} value={y}>{y}</option>)}
                     </NativeSelect>
                   </div>
                   <p className="text-[13px] text-muted-foreground">Month is enough — we don&apos;t need the exact day.</p>
@@ -104,14 +97,14 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
               </div>
               {/* The main button comes first so pressing Enter continues rather than skips. */}
               <div className="flex flex-row-reverse items-center justify-between">
-                <Button type="submit">Continue</Button>
-                <Skip to="/welcome?step=3" />
+                <ContinueButton>Continue</ContinueButton>
+                <Button asChild variant="ghost"><a href="/welcome?step=3">Skip</a></Button>
               </div>
-            </form>
+            </WelcomeForm>
           )}
 
           {step === 3 && (
-            <form action={createFirstProject} className="flex flex-col gap-6">
+            <WelcomeForm step={3}>
               <div className="flex flex-col gap-1.5">
                 <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Add something you&apos;re working on</h1>
                 <p className="text-muted-foreground">A project groups related notes, tasks and manuscripts. A title is all it needs.</p>
@@ -131,10 +124,10 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
               </div>
               {/* The main button comes first so pressing Enter continues rather than skips. */}
               <div className="flex flex-row-reverse items-center justify-between">
-                <Button type="submit">Finish</Button>
-                <Skip />
+                <ContinueButton>Finish</ContinueButton>
+                <SkipButton />
               </div>
-            </form>
+            </WelcomeForm>
           )}
         </div>
       </main>

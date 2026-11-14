@@ -41,6 +41,22 @@ const categoryKeys = Object.keys(categories) as [keyof typeof categories, ...(ke
 const timelineTypes = Object.keys(TIMELINE_TYPES) as [keyof typeof TIMELINE_TYPES, ...(keyof typeof TIMELINE_TYPES)[]];
 const phaseKeys = Object.keys(phases) as [keyof typeof phases, ...(keyof typeof phases)[]];
 
+/**
+ * Makes an add safe to retry: the same request_id never adds a second record. It becomes the
+ * new record's id, and a repeat call returns the record the first call added.
+ */
+const requestId = z
+  .string()
+  .uuid("request_id must be a UUID.")
+  .optional()
+  .describe("Optional: a new random UUID for this add. If the call is retried (e.g. after a timeout) with the same request_id, nothing is added twice — the earlier record is returned.");
+
+/**
+ * The most base64 text add_file takes: Vercel accepts request bodies up to 4.5 MB, and base64
+ * is a third bigger than the file, so files of about 3 MB fit.
+ */
+export const MAX_BASE64_CHARS = 4_400_000;
+
 export const schemas = {
   search: {
     query: z.string().trim().min(2, "Search for at least 2 characters.").max(200).describe("Words to look for, e.g. a person, method, journal or topic."),
@@ -72,6 +88,12 @@ export const schemas = {
     project_id: id("project").optional().describe("Only things belonging to this project."),
     period: z.enum(["month", "year", "all"]).optional().describe("this month, this year, or all (default) — 'all' also lists things with no date yet."),
     limit: z.number().int().min(1).max(300).optional().describe("Most dated items to return, newest first (default 100)."),
+    before: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.")
+      .refine(isRealDay, "That day doesn't exist.")
+      .optional()
+      .describe("Only items dated before this day (YYYY-MM-DD), to read further back: pass next_before from the previous result."),
   },
   list_files_and_links: { record_type: recordType, record_id: id("record") },
   read_file_text: {
@@ -87,6 +109,7 @@ export const schemas = {
     notes: z.string().max(20000).optional().describe("What happened, in her words."),
     people: z.string().max(500).optional().describe("People involved, e.g. her guide."),
     planned: z.boolean().optional().describe("True if this is something planned for a future date (marks it Planned)."),
+    request_id: requestId,
   },
   create_task: {
     title: z.string().trim().min(1, "Add a title.").max(300),
@@ -96,6 +119,7 @@ export const schemas = {
     manuscript_id: id("manuscript").optional(),
     from_entry_id: id("journal entry").optional().describe("The journal entry this task came out of, if any."),
     notes: z.string().max(5000).optional(),
+    request_id: requestId,
   },
   update_task_status: {
     task_id: id("task"),
@@ -108,6 +132,7 @@ export const schemas = {
     record_id: id("record"),
     url: z.string().trim().url("Give a full link starting with https://").max(2000).refine((u) => /^https?:\/\//i.test(u), "Links must start with https:// or http://"),
     label: z.string().trim().max(200).optional().describe("A short name for the link."),
+    request_id: requestId,
   },
   add_guide_feedback: {
     manuscript_id: id("manuscript"),
@@ -116,6 +141,7 @@ export const schemas = {
     received_via: z.string().trim().max(200).optional().describe("How it came, e.g. meeting, email, comments on the draft."),
     received_date: partialDate.optional().describe(dateHelp),
     make_tasks: z.boolean().optional().describe("Also create one task per line of requested changes (default false)."),
+    request_id: requestId,
   },
   move_manuscript_to_phase: {
     manuscript_id: id("manuscript"),
@@ -129,8 +155,13 @@ export const schemas = {
     record_type: recordType,
     record_id: id("record"),
     filename: z.string().trim().min(1).max(200).describe("File name with its extension: pdf, png, jpg, webp, gif, heic, docx, xlsx, pptx, csv or txt."),
-    content_base64: z.string().min(1).describe("The file's bytes, base64-encoded."),
+    content_base64: z
+      .string()
+      .min(1, "content_base64 is empty.")
+      .max(MAX_BASE64_CHARS, "That file is too big to send here (about 3 MB at most, the request size limit). Ask her to upload it in the app, or add a link to it instead.")
+      .describe("The file's bytes, base64-encoded. At most about 3 MB of file (4,400,000 base64 characters)."),
     label: z.string().trim().max(200).optional().describe("A short name to show instead of the file name."),
+    request_id: requestId,
   },
   move_to_trash: {
     record_type: z.enum(["entry", "task"]).describe("entry (journal entry, experiment or feedback) or task."),

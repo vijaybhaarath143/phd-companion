@@ -9,6 +9,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
+import { assertLocal } from "./lib/local-only.mjs";
+
+assertLocal("The seed script");
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
   auth: { persistSession: false },
@@ -32,7 +35,7 @@ for (const id of [scholar, newbie, other]) {
   await sql`delete from public.profiles where user_id = ${id}`;
   for (const t of ["tasks", "goals", "milestones", "credit_recognitions", "courses", "requirements",
                    "submissions", "manuscript_phase_events", "attachments", "blockers"]) {
-    await sql`delete from ${sql("public." + t)} where owner_id = ${id}`.catch(() => {});
+    await sql`delete from ${sql("public." + t)} where owner_id = ${id}`;
   }
   await sql`delete from public.entries where owner_id = ${id}`;
   await sql`delete from public.manuscripts where owner_id = ${id}`;

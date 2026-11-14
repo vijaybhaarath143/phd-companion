@@ -1,8 +1,10 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { run, ValidationError, creditsOrNull, oneOf, required, text, dateOrNull, uuidOrNull } from "@/server/actions/run";
+import { run, ValidationError, creditsOrNull, oneOf, required, text, dateOrNull, uuidOrNull, versionOf, expectRow } from "@/server/actions/run";
 import { readPartialDate } from "@/lib/dates";
+
+const COURSE_STATUSES = ["planned", "enrolled", "completed", "dropped"] as const;
 
 export async function saveRequirement(form: FormData) {
   return run(async (tx) => {
@@ -11,7 +13,9 @@ export async function saveRequirement(form: FormData) {
     const credits = creditsOrNull(form.get("credits"));
     const [existing] = await tx<{ id: string }[]>`select id from public.requirements order by created_at limit 1`;
     if (existing) {
-      await tx`update public.requirements set label = ${label}, period_label = ${period}, required_credits = ${credits}, version = version + 1 where id = ${existing.id}`;
+      const version = versionOf(form.get("version"));
+      expectRow(await tx`update public.requirements set label = ${label}, period_label = ${period}, required_credits = ${credits}, version = version + 1
+                         where id = ${existing.id} and version = ${version} returning id`);
     } else {
       await tx`insert into public.requirements (label, period_label, required_credits) values (${label}, ${period}, ${credits})`;
     }
@@ -24,21 +28,32 @@ export async function addCourse(form: FormData) {
     await tx`insert into public.courses (name, provider, credits, status)
              values (${required(form.get("name"), "Course name")}, ${text(form.get("provider"), 200)},
                      ${creditsOrNull(form.get("credits"))},
-                     ${oneOf(form.get("status"), ["planned", "enrolled", "completed", "dropped"] as const, "enrolled")})`;
+                     ${oneOf(form.get("status"), COURSE_STATUSES, "enrolled")})`;
     refresh();
   });
 }
 
 export async function updateCourse(id: string, form: FormData) {
   return run(async (tx) => {
-    const status = oneOf(form.get("status"), ["planned", "enrolled", "completed", "dropped"] as const, "enrolled")!;
+    const version = versionOf(form.get("version"));
+    const status = oneOf(form.get("status"), COURSE_STATUSES, "enrolled")!;
+    const fields: Record<string, unknown> = { status, credits: creditsOrNull(form.get("credits")) };
+    if (form.has("name")) fields.name = required(form.get("name"), "Course name");
+    if (form.has("provider")) fields.provider = text(form.get("provider"), 200);
     // Completing a course never records recognition — that's a separate, explicit step.
-    await tx`update public.courses set
-               status = ${status},
-               credits = ${creditsOrNull(form.get("credits"))},
-               completed_on = case when ${status} = 'completed' then coalesce(completed_on, current_date) else null end,
+    // "Completed on" is her own day, not the database's (UTC).
+    expectRow(await tx`update public.courses set ${tx(fields)},
+               completed_on = case when ${status} = 'completed' then coalesce(completed_on, app.user_today()) else null end,
                version = version + 1
-             where id = ${id}`;
+             where id = ${id} and version = ${version} and deleted_at is null
+             returning id`);
+    refresh();
+  });
+}
+
+export async function trashCourse(id: string) {
+  return run(async (tx) => {
+    expectRow(await tx`update public.courses set deleted_at = now(), version = version + 1 where id = ${id} and deleted_at is null returning id`);
     refresh();
   });
 }
@@ -65,11 +80,21 @@ export async function addMilestone(form: FormData) {
   });
 }
 
-export async function setMilestoneStatus(id: string, form: FormData) {
+/** A milestone's "Update": title, target date, status and (when done) the day or month it was done. */
+export async function updateMilestone(id: string, form: FormData) {
   return run(async (tx) => {
+    const version = versionOf(form.get("version"));
     const status = oneOf(form.get("status"), ["not_started", "done", "skipped"] as const, "not_started")!;
     const done = status === "done" ? readPartialDate(form, "done") : { date: null, precision: "none" as const };
-    await tx`update public.milestones set status = ${status}, done_on = ${done.date}, done_precision = ${done.precision}, version = version + 1 where id = ${id}`;
+    const fields: Record<string, unknown> = { status, doneOn: done.date, donePrecision: done.precision };
+    if (form.has("title")) fields.title = required(form.get("title"), "Milestone");
+    if (form.has("targetPrecision")) {
+      const target = readPartialDate(form, "target");
+      fields.targetDate = target.date;
+      fields.targetPrecision = target.precision;
+    }
+    expectRow(await tx`update public.milestones set ${tx(fields)}, version = version + 1
+                       where id = ${id} and version = ${version} returning id`);
     refresh();
   });
 }
@@ -77,18 +102,26 @@ export async function setMilestoneStatus(id: string, form: FormData) {
 export async function addEnquiry(form: FormData) {
   return run(async (tx) => {
     const title = required(form.get("title"), "What you asked");
+    // dated today on her own clock, not the database's (UTC)
     const [e] = await tx<{ id: string }[]>`
       insert into public.entries (title, kind, category, entry_date, entry_precision)
-      values (${title}, 'enquiry', 'administrative', current_date, 'day') returning id`;
+      values (${title}, 'enquiry', 'administrative', app.user_today(), 'day') returning id`;
     await tx`insert into public.enquiries (entry_id, office, contact, follow_up_date)
              values (${e.id}, ${text(form.get("office"), 200)}, ${text(form.get("contact"), 200)}, ${dateOrNull(form.get("followUp"))})`;
     refresh();
   });
 }
 
+/**
+ * Academics' "Update" for an enquiry. Checks (and moves on) the enquiry's journal entry
+ * version, which is what the Entry page saves against, so neither screen overwrites the other.
+ */
 export async function updateEnquiry(entryId: string, form: FormData) {
   return run(async (tx) => {
+    const version = versionOf(form.get("version"));
     const status = oneOf(form.get("status"), ["open", "waiting", "closed"] as const, "open")!;
+    expectRow(await tx`update public.entries set version = version + 1
+                       where id = ${entryId} and version = ${version} and deleted_at is null returning id`);
     // Enquiries only close when the person closes them.
     await tx`update public.enquiries set
                response = ${text(form.get("response"), 5000)},

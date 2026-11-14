@@ -52,6 +52,24 @@ export function withHeaders(res: Response, extra: Record<string, string> = {}) {
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
+/** JSON-RPC error body (no request id: the request wasn't read). */
+function rpcError(status: number, code: number, message: string, extra: Record<string, string> = {}) {
+  return withHeaders(Response.json({ jsonrpc: "2.0", error: { code, message }, id: null }, { status }), extra);
+}
+
+/**
+ * GET (a server-to-client event stream) and DELETE (ending a session) aren't offered: the
+ * endpoint is stateless. A plain 405 tells MCP clients not to keep reopening a stream.
+ */
+export function methodNotAllowed() {
+  return rpcError(405, -32000, "Method not allowed. Send MCP requests with POST.", { Allow: "POST" });
+}
+
+/** Supabase Auth or the database is briefly unavailable: try again, the sign-in is still fine. */
+export function unavailable(message = "PhD Companion couldn't check this sign-in just now. Try again in a moment.") {
+  return rpcError(503, -32002, message, { "Retry-After": "30" });
+}
+
 /** 401 that tells ChatGPT / Codex where to sign in (RFC 6750 + RFC 9728). */
 export function unauthorized(origin: string, description: string, error: "invalid_token" | null = null) {
   const params = [

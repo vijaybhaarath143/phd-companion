@@ -5,7 +5,9 @@
 export function csvCell(v: unknown): string {
   if (v === null || v === undefined) return "";
   let s = v instanceof Date ? v.toISOString() : typeof v === "object" ? JSON.stringify(v) : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  // plain numbers (including negative ones like -5 or -0.25) stay numbers
+  const isNumber = typeof v === "number" || /^-\d+(\.\d+)?$/.test(s);
+  if (!isNumber && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

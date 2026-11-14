@@ -18,6 +18,7 @@ import { categories } from "@/lib/labels";
 import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
 import { fileProblem, uploadEvidence } from "@/lib/upload";
 import { isFuture, type PartialDate } from "@/lib/dates";
+import { callAction, copyToClipboard } from "@/components/app/call-action";
 import type { ProjectOption } from "@/server/profile";
 
 type Mode = "entry" | "task";
@@ -41,20 +42,32 @@ function useIsDesktop() {
 
 export function QuickAddProvider({ projects, today, children }: { projects: ProjectOption[]; today: string; children: ReactNode }) {
   const [opts, setOpts] = useState<OpenOptions | null>(null);
+  // Has she typed something that isn't saved yet? Then closing asks first.
+  const [dirty, setDirty] = useState(false);
   const open = useCallback((o?: OpenOptions) => setOpts(o ?? {}), []);
   const value = useMemo(() => ({ open }), [open]);
   const desktop = useIsDesktop();
   const isOpen = opts !== null;
 
+  const close = useCallback(() => {
+    setOpts(null);
+    setDirty(false);
+  }, []);
+  /** Esc, a click outside, a swipe down or Cancel: never throw away a draft without asking. */
+  const requestClose = useCallback(() => {
+    if (dirty && !window.confirm("Discard this draft? What you typed hasn't been saved.")) return;
+    close();
+  }, [dirty, close]);
+
   const body = isOpen ? (
-    <QuickAddForm key={JSON.stringify(opts)} projects={projects} today={today} initial={opts!} onClose={() => setOpts(null)} />
+    <QuickAddForm key={JSON.stringify(opts)} projects={projects} today={today} initial={opts!} onCancel={requestClose} onSaved={close} onDirtyChange={setDirty} />
   ) : null;
 
   return (
     <QuickAddContext value={value}>
       {children}
       {desktop ? (
-        <Dialog open={isOpen} onOpenChange={(o) => !o && setOpts(null)}>
+        <Dialog open={isOpen} onOpenChange={(o) => !o && requestClose()}>
           <DialogContent
             className="max-h-[calc(100dvh-4rem)] overflow-y-auto p-0 sm:max-w-[560px]"
             showCloseButton
@@ -68,7 +81,8 @@ export function QuickAddProvider({ projects, today, children }: { projects: Proj
           </DialogContent>
         </Dialog>
       ) : (
-        <Drawer open={isOpen} onOpenChange={(o) => !o && setOpts(null)}>
+        // With a draft, swiping down or tapping outside doesn't close the sheet; Cancel asks first.
+        <Drawer open={isOpen} dismissible={!dirty} onOpenChange={(o) => !o && requestClose()}>
           <DrawerContent className="max-h-[92dvh]">
             <div className="overflow-y-auto">{body}</div>
           </DrawerContent>
@@ -80,7 +94,21 @@ export function QuickAddProvider({ projects, today, children }: { projects: Proj
 
 const EMPTY_DATE = (today: string): PartialDate => ({ date: today, precision: "day" });
 
-function QuickAddForm({ projects, today, initial, onClose }: { projects: ProjectOption[]; today: string; initial: OpenOptions; onClose: () => void }) {
+function QuickAddForm({
+  projects,
+  today,
+  initial,
+  onCancel,
+  onSaved,
+  onDirtyChange,
+}: {
+  projects: ProjectOption[];
+  today: string;
+  initial: OpenOptions;
+  onCancel: () => void;
+  onSaved: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const router = useRouter();
   const desktop = useIsDesktop();
   const [mode, setMode] = useState<Mode>(initial.mode ?? "entry");
@@ -101,6 +129,9 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
+  const dirty = Boolean(title.trim() || notes.trim() || people.trim() || files.length);
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
   function pickFiles(list: FileList | null) {
     const picked = Array.from(list ?? []);
     const problems = picked.map(fileProblem).filter((p): p is string => Boolean(p));
@@ -116,10 +147,14 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
   function save(another: boolean) {
     setError(null);
     start(async () => {
-      const r =
+      // A dropped connection comes back as a message here — the draft stays in the form.
+      // (The record's id is chosen here, so retrying can't create it twice.)
+      const r = await callAction(() =>
         mode === "entry"
-          ? await createEntry({ id, title, date, category: category || null, projectId: projectId || null, notes, people, planned })
-          : await createTask({ id, title, dueDate: dueDate || null, priority, projectId: projectId || null, notes });
+          ? createEntry({ id, title, date, category: category || null, projectId: projectId || null, notes, people, planned })
+          : createTask({ id, title, dueDate: dueDate || null, priority, projectId: projectId || null, notes }),
+      );
+      if (!r) return;
       if (!r.ok) {
         setError(r.error.message);
         return;
@@ -131,7 +166,12 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
       if (mode === "entry") {
         for (const [i, file] of files.entries()) {
           setUploading(files.length > 1 ? `Uploading ${i + 1} of ${files.length}: ${file.name}…` : `Uploading ${file.name}…`);
-          const problem = await uploadEvidence("entry", savedId, file);
+          let problem: string | null;
+          try {
+            problem = await uploadEvidence("entry", savedId, file);
+          } catch {
+            problem = `Couldn't upload ${file.name} — check your connection.`;
+          }
           if (problem) toast.error(`${problem} The entry was saved — open it to try the file again.`);
           else added++;
         }
@@ -154,7 +194,7 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
         // keep date, category and project — handy when backfilling several past entries
         document.getElementById("qa-title")?.focus();
       } else {
-        onClose();
+        onSaved();
       }
     });
   }
@@ -296,7 +336,7 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
         {error && (
           <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">
             <span className="flex-1">{error}</span>
-            <Button type="button" size="sm" variant="outline" onClick={() => navigator.clipboard.writeText([title, notes].filter(Boolean).join("\n\n"))}>
+            <Button type="button" size="sm" variant="outline" onClick={() => copyToClipboard([title, notes, people].filter(Boolean).join("\n\n"))}>
               Copy text
             </Button>
           </div>
@@ -304,7 +344,7 @@ function QuickAddForm({ projects, today, initial, onClose }: { projects: Project
       </div>
 
       <div className="flex flex-wrap justify-end gap-2 border-t px-6 py-4">
-        <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>Cancel</Button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>Cancel</Button>
         <Button type="button" variant="outline" onClick={() => save(true)} disabled={pending || !title.trim()}>Save &amp; add another</Button>
         <Button type="submit" disabled={pending || !title.trim()}>{uploading ? "Uploading…" : pending ? "Saving…" : "Save"}</Button>
       </div>
