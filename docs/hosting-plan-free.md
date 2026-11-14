@@ -62,7 +62,8 @@ My suggestion: **start with B** for the trial (zero cost, zero setup), move to *
 ### 4. Create her account (you or me, ~2 min)
 Sign-up is off, so: Supabase → Authentication → Users → **Invite user** with her email (and add her to the Supabase team if using option B).
 
-### 5. Deploy on Vercel (you click, I supply values, ~15 min)
+### 5. Deploy on Vercel (you click, I supply values, ~15 min) — 🔄 in progress: project `phd-companion` (team `ph-d-companion`), address `phd-companion-lac.vercel.app`, the three variables saved for Production, only `master` builds
+*Note:* Vercel Hobby only builds commits whose author email belongs to the Vercel account, so this repo commits as the `vijaybhaarath143` GitHub no-reply address (set in the repo's own git config).
 1. vercel.com → sign up with GitHub (`vijaybhaarath143`) → **Add New Project** → import `vijaybhaarath143/phd-companion`.
 2. Environment variables (I'll give you the exact values from the Supabase dashboard):
 
