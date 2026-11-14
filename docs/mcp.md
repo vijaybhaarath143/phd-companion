@@ -118,6 +118,7 @@ Read-only (marked `readOnlyHint`, so ChatGPT doesn't ask before using them):
 |---|---|
 | `search` | Search everything: journal entries (incl. experiments, feedback, enquiries), projects, manuscripts, journal submissions, tasks, courses, files and links |
 | `get_home_summary` | The Home page: needs attention, coming up, working on, recent entries, credits |
+| `get_timeline` | The Timeline page: everything in date order, newest first (entries, experiments, tasks, manuscript phases and submissions, feedback, courses, milestones, enquiries, goals, projects, files), filtered by kind, project, or this month / this year; partial dates kept, undated things listed separately, upcoming ones marked |
 | `list_journal_entries` | Journal entries, newest first, filtered by words / category / project / months; partial dates shown as "14 Nov 2026", "January 2027 · day not known" or "No date yet" |
 | `get_journal_entry` | One entry in full: notes, people, outcome, event / feedback / enquiry details, tasks from it, files |
 | `list_projects`, `get_project` | Projects; one project's manuscripts, experiments, open tasks, entries, milestones, files |
@@ -242,13 +243,10 @@ path-inserted form only exists on the hosted project). The consent page is built
 
 Verified end-to-end locally on 14 Nov 2026: dynamic registration → authorize with PKCE and
 `resource` → signed-out redirect to sign-in → emailed link → back to consent → Allow → code →
-token (ES256, `client_id`, refresh token) → all 23 tools over HTTP, including uploading and
+token (ES256, `client_id`, refresh token) → all 23 tools of the first version over HTTP, including uploading and
 reading PDF / Word / Excel / PowerPoint / CSV files (dev server and production build) →
 "via ChatGPT" / "via Codex" labels in the app → refresh token → Disconnect in Settings →
 next call 401 and refresh refused.
 
-## 8. Later
-
-- A `get_timeline` tool once the Timeline tab (separate branch, `src/server/timeline.ts`) is merged.
-- If she wants ChatGPT to remember her choices per tool, ChatGPT's own per-conversation
-  approvals cover it; no server change needed.
+`get_timeline` (added after the Timeline tab was merged) reuses `src/server/timeline.ts` and is
+covered by `tests/db/mcp.test.ts`, which calls it through a real MCP client.

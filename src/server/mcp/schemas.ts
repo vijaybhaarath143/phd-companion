@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PartialDate } from "@/lib/dates";
 import { categories, phases } from "@/lib/labels";
+import { TIMELINE_TYPES } from "@/server/timeline";
 
 /**
  * Inputs for every connector tool, with descriptions written for the assistant.
@@ -37,6 +38,7 @@ const recordType = z
   .describe("What kind of record: entry (journal entry, experiment or feedback), project, manuscript, course or milestone.");
 
 const categoryKeys = Object.keys(categories) as [keyof typeof categories, ...(keyof typeof categories)[]];
+const timelineTypes = Object.keys(TIMELINE_TYPES) as [keyof typeof TIMELINE_TYPES, ...(keyof typeof TIMELINE_TYPES)[]];
 const phaseKeys = Object.keys(phases) as [keyof typeof phases, ...(keyof typeof phases)[]];
 
 export const schemas = {
@@ -65,6 +67,12 @@ export const schemas = {
   },
   list_goals: {},
   get_academics: {},
+  get_timeline: {
+    type: z.enum(timelineTypes).optional().describe("Only one kind of thing: " + Object.entries(TIMELINE_TYPES).map(([k, v]) => `${k} (${v})`).join(", ") + "."),
+    project_id: id("project").optional().describe("Only things belonging to this project."),
+    period: z.enum(["month", "year", "all"]).optional().describe("this month, this year, or all (default) — 'all' also lists things with no date yet."),
+    limit: z.number().int().min(1).max(300).optional().describe("Most dated items to return, newest first (default 100)."),
+  },
   list_files_and_links: { record_type: recordType, record_id: id("record") },
   read_file_text: {
     file_id: id("file"),

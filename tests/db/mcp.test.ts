@@ -103,6 +103,7 @@ describe("an assistant connected to one account", () => {
     const readOnly = tools.filter((t) => t.annotations?.readOnlyHint).map((t) => t.name);
     expect(readOnly).toContain("search");
     expect(readOnly).toContain("read_file_text");
+    expect(readOnly).toContain("get_timeline");
     expect(readOnly).not.toContain("create_task");
     for (const t of tools.filter((t) => t.name.startsWith("create_") || t.name.startsWith("add_") || t.name.startsWith("move_"))) {
       expect(t.annotations?.readOnlyHint, t.name).toBe(false);
@@ -118,6 +119,18 @@ describe("an assistant connected to one account", () => {
     const text = await aliceGpt.call("read_file_text", { file_id: ids.file });
     expect(text.isError, text.text).toBe(false);
     expect(text.json().text).toContain("Alice confidential results");
+  });
+
+  it("shows her timeline in date order, keeping partial dates", async () => {
+    await withUser(alice, (tx) => tx`insert into public.entries (title, entry_date, entry_precision) values ('Alice conference', '2026-09-01', 'month'), ('Alice viva prep', '2026-10-05', 'day')`);
+    const r = await aliceGpt.call("get_timeline", { type: "entry" });
+    expect(r.isError, r.text).toBe(false);
+    const t = r.json();
+    const titles = t.items.map((i: { title: string }) => i.title);
+    expect(titles.indexOf("Alice viva prep")).toBeLessThan(titles.indexOf("Alice conference"));
+    expect(t.items.find((i: { title: string }) => i.title === "Alice conference")).toMatchObject({ date_precision: "month", date_label: "September 2026 · day not known" });
+    expect(t.undated_items.map((i: { title: string }) => i.title)).toContain("Alice private entry");
+    expect((await aliceGpt.call("get_timeline", { period: "month" })).json().undated_items).toEqual([]);
   });
 
   it("labels what it adds and changes with the assistant's name", async () => {
@@ -189,11 +202,15 @@ describe("another account's assistant", () => {
       expect(r.text, tool).toMatch(notFound);
       expect(r.text, tool).not.toMatch(/Alice|secret|confidential/);
     }
-    for (const tool of ["list_projects", "list_manuscripts", "list_experiments", "list_tasks", "list_goals", "get_academics", "list_journal_entries", "get_home_summary"]) {
+    for (const tool of ["list_projects", "list_manuscripts", "list_experiments", "list_tasks", "list_goals", "get_academics", "list_journal_entries", "get_home_summary", "get_timeline"]) {
       const r = await bobGpt.call(tool);
       expect(r.isError, `${tool}: ${r.text}`).toBe(false);
       expect(r.text, tool).not.toMatch(/Alice/);
     }
+    // filtering the timeline by her project id shows nothing either
+    const byProject = await bobGpt.call("get_timeline", { project_id: ids.project });
+    expect(byProject.json().items).toEqual([]);
+    expect(byProject.json().undated_items).toEqual([]);
   });
 
   it("can't change, attach to or trash her records", async () => {

@@ -15,6 +15,7 @@ import { getJournal, getEntry } from "@/server/journal";
 import { listProjects, getProjectBundle, getManuscriptBundle, getExperimentBundle } from "@/server/research";
 import { listTasks, listGoals } from "@/server/planner";
 import { getAcademics } from "@/server/academics";
+import { getTimeline, type TimelineItem } from "@/server/timeline";
 import { evidenceFor } from "@/server/evidence";
 import { getProfile } from "@/server/profile";
 import { formatPartialDate, todayIn, type Precision } from "@/lib/dates";
@@ -205,6 +206,37 @@ export function createConnectorServer(ctx: ConnectorContext) {
         milestones: a.milestones.map((m) => ({ ...m, target_label: formatPartialDate(m.targetDate, m.targetPrecision), done_label: m.doneOn ? formatPartialDate(m.doneOn, m.donePrecision) : null })),
         enquiries: a.enquiries.map((q) => ({ ...q, link: link(`/journal/${q.entryId}`) })),
         link: link("/academics"),
+      };
+    }),
+  );
+
+  tool("get_timeline", "Get the timeline", "Everything she has recorded in date order, newest first — journal entries, experiments, tasks (added, due, done), manuscript phases and journal submissions, guide feedback, courses, milestones, office enquiries, goals, projects and files. Each item keeps its partial date (a day, or a month with the day not known); with period 'all', things with no date yet are listed separately. Future items are marked.", READ, async ({ type, project_id, period, limit }) =>
+    db(async (tx) => {
+      const profile = await getProfile(tx);
+      const timezone = profile?.timezone ?? "Asia/Kolkata";
+      const today = todayIn(timezone);
+      const want = limit ?? 100;
+      const t = await getTimeline(tx, { type, project: project_id, period, limit: Math.max(want, 50), today, timezone });
+      const item = (i: TimelineItem) => ({
+        type: i.type,
+        what: i.label,
+        title: i.title,
+        date: i.date,
+        date_precision: i.precision,
+        date_label: formatPartialDate(i.date, i.precision),
+        detail: i.detail || undefined,
+        status: i.status,
+        upcoming: i.future || undefined,
+        files: i.attachments.length ? i.attachments.map((a) => ({ id: a.id, kind: a.kind, name: a.label || a.filename || a.url })) : undefined,
+        link: link(i.href),
+      });
+      return {
+        today,
+        period: t.period,
+        items: t.dated.slice(0, want).map(item),
+        more_older_items: t.hasOlder || t.dated.length > want,
+        undated_items: t.undated.slice(0, 100).map(item),
+        link: link("/timeline"),
       };
     }),
   );

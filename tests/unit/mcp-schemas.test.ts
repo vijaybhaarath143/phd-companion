@@ -57,6 +57,14 @@ describe("checking tool inputs", () => {
     expect(parse("move_to_trash", { record_type: "project", record_id: ID }).success).toBe(false);
   });
 
+  it("takes only known timeline filters", () => {
+    expect(parse("get_timeline", {}).success).toBe(true);
+    expect(parse("get_timeline", { type: "manuscript", period: "year", limit: 20, project_id: ID }).success).toBe(true);
+    expect(parse("get_timeline", { type: "party" }).success).toBe(false);
+    expect(parse("get_timeline", { period: "week" }).success).toBe(false);
+    expect(parse("get_timeline", { limit: 1000 }).success).toBe(false);
+  });
+
   it("caps search and list sizes", () => {
     expect(parse("search", { query: "a" }).success).toBe(false);
     expect(parse("search", { query: "starch", limit: 500 }).success).toBe(false);
