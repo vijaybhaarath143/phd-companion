@@ -2,40 +2,15 @@
 
 import { refresh } from "next/cache";
 import { run, ValidationError, oneOf, uuidOrNull, dateOrNull, text } from "@/server/actions/run";
+import { insertTask, type NewTaskInput } from "@/server/writes";
 
-export type NewTask = {
-  id: string;
-  title: string;
-  dueDate: string | null;
-  priority: "normal" | "important";
-  projectId: string | null;
-  notes: string | null;
-  originEntryId?: string | null;
-  manuscriptId?: string | null;
-};
+export type NewTask = NewTaskInput;
 
 export async function createTask(input: NewTask) {
   return run(async (tx) => {
-    const id = uuidOrNull(input.id);
-    if (!id) throw new ValidationError("Something went wrong — please try again.");
-    const title = typeof input.title === "string" ? input.title.trim() : "";
-    if (!title) throw new ValidationError("Add a title.");
-    if (title.length > 300) throw new ValidationError("Please keep the title under 300 characters.");
-
-    // A task keeps its origin; its project comes from what was chosen, never silently swapped.
-    let projectId = uuidOrNull(input.projectId);
-    const originEntryId = uuidOrNull(input.originEntryId);
-    if (originEntryId && !projectId) {
-      const [origin] = await tx<{ projectId: string | null }[]>`select project_id from public.entries where id = ${originEntryId}`;
-      projectId = origin?.projectId ?? null;
-    }
-    await tx`
-      insert into public.tasks (id, title, due_date, priority, project_id, notes, origin_entry_id, manuscript_id)
-      values (${id}, ${title}, ${dateOrNull(input.dueDate)}, ${oneOf(input.priority, ["normal", "important"] as const, "normal")},
-              ${projectId}, ${input.notes?.trim() || null}, ${originEntryId}, ${uuidOrNull(input.manuscriptId)})
-      on conflict (id) do nothing`;
+    const r = await insertTask(tx, input);
     refresh();
-    return { id };
+    return r;
   });
 }
 

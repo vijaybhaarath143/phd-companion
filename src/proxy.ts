@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { CONSENT_PATH, RETURN_TO_COOKIE } from "@/lib/return-to";
+
 const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
 
 /**
@@ -45,7 +47,12 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     url.search = "";
-    return withCookies(NextResponse.redirect(url));
+    const res = withCookies(NextResponse.redirect(url));
+    // Connecting ChatGPT / Codex: come back to the consent page after signing in.
+    if (path === CONSENT_PATH) {
+      res.cookies.set(RETURN_TO_COOKIE, CONSENT_PATH + request.nextUrl.search, { httpOnly: true, sameSite: "lax", maxAge: 900, path: "/" });
+    }
+    return res;
   }
   if (signedIn && (path === "/sign-in" || path === "/verify")) {
     const url = request.nextUrl.clone();
@@ -90,6 +97,8 @@ function contentSecurityPolicy(nonce: string, https: boolean) {
   ].join("; ");
 }
 
+// Not run for the ChatGPT / Codex connector (/mcp) or its sign-in metadata (/.well-known/…):
+// those check their own bearer token, return JSON rather than pages, and use no cookies.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.*\\.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon.*\\.png|mcp$|mcp/|\\.well-known/).*)"],
 };

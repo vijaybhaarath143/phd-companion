@@ -19,6 +19,8 @@ export type TaskRow = {
   originTitle: string | null;
   courseName: string | null;
   completedAt: Date | null;
+  createdVia: string;
+  changedVia: string | null;
   version: number;
 };
 

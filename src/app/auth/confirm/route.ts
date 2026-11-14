@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { RETURN_TO_COOKIE, safeReturnTo } from "@/lib/return-to";
 
 /**
  * Where the emailed sign-in link lands. Supabase sends either a one-time `code`
@@ -24,9 +25,11 @@ export async function GET(request: NextRequest) {
   const to = request.nextUrl.clone();
   to.search = "";
   if (ok) {
-    to.pathname = "/";
-    const res = NextResponse.redirect(to);
+    // Back to the ChatGPT / Codex consent page if that's where she was going; otherwise Home.
+    const returnTo = safeReturnTo(request.cookies.get(RETURN_TO_COOKIE)?.value);
+    const res = NextResponse.redirect(returnTo ? new URL(returnTo, to.origin) : new URL("/", to.origin));
     res.cookies.delete("pending_sign_in");
+    res.cookies.delete(RETURN_TO_COOKIE);
     return res;
   }
   to.pathname = "/sign-in";

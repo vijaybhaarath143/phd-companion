@@ -5,7 +5,8 @@ import { signOut } from "@/server/actions/auth";
 import { PageHeader } from "@/components/app/ui";
 import { signInMode } from "@/lib/sign-in-mode";
 import { Button } from "@/components/ui/button";
-import { ProfileForm, RemindersToggle, TrashList } from "./settings-client";
+import { createSupabaseServer } from "@/lib/supabase/server";
+import { ConnectedApps, ProfileForm, RemindersToggle, TrashList } from "./settings-client";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -34,6 +35,8 @@ export default async function SettingsPage() {
       order by archived_at desc limit 50`;
     return { profile, email: user.email, trash, archived };
   });
+  // ChatGPT / Codex connections she approved (empty if the connector isn't switched on).
+  const { data: grants } = await (await createSupabaseServer()).auth.oauth.listGrants();
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
@@ -65,6 +68,10 @@ export default async function SettingsPage() {
           <p className="text-[13px] text-muted-foreground">Items in Trash can be restored. {data.trash.length ? "" : "Trash is empty."}</p>
           <TrashList items={data.trash} kind="trash" />
         </div>
+      </Block>
+
+      <Block title="Connected apps" hint="Assistants you allowed to read and add to your records, such as ChatGPT or Codex.">
+        <ConnectedApps apps={(grants ?? []).map((g) => ({ id: g.client.id, name: g.client.name || "Unnamed app", grantedAt: g.granted_at }))} />
       </Block>
 
       <Block title="Account">

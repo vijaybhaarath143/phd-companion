@@ -3,78 +3,19 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/db";
-import { run, ValidationError, oneOf, uuidOrNull, dateOrNull } from "@/server/actions/run";
+import { run, oneOf, uuidOrNull, dateOrNull } from "@/server/actions/run";
 import { getProfile } from "@/server/profile";
-import { isFuture, todayIn, type PartialDate } from "@/lib/dates";
-import { categories } from "@/lib/labels";
+import { todayIn, type PartialDate } from "@/lib/dates";
+import { CATEGORY_KEYS, checkPartial, cleanText, cleanTitle, insertEntry, insertLink, type NewEntryInput } from "@/server/writes";
 
-const CATEGORY_KEYS = Object.keys(categories) as (keyof typeof categories)[];
-
-function kindFor(category: string | null) {
-  if (category === "experiment") return "experiment";
-  if (category === "conference" || category === "training" || category === "competition") return "event";
-  if (category === "guide_meeting") return "meeting";
-  if (category === "decision") return "decision";
-  return "note";
-}
-
-function checkPartial(d: PartialDate): PartialDate {
-  if (d.precision === "none") return { date: null, precision: "none" };
-  if (d.precision === "day" && dateOrNull(d.date)) return d;
-  if (d.precision === "month" && typeof d.date === "string" && /^\d{4}-\d{2}-01$/.test(d.date)) return d;
-  throw new ValidationError("That date isn't valid.");
-}
-
-function cleanTitle(v: unknown) {
-  const s = typeof v === "string" ? v.trim() : "";
-  if (!s) throw new ValidationError("Add a title.");
-  if (s.length > 300) throw new ValidationError("Please keep the title under 300 characters.");
-  return s;
-}
-
-function cleanText(v: unknown, max = 20000) {
-  if (v === null || v === undefined) return null;
-  const s = String(v).trim();
-  if (s.length > max) throw new ValidationError(`Please keep this under ${max} characters.`);
-  return s || null;
-}
-
-export type NewEntry = {
-  id: string; // generated in the browser so a retry can't create a duplicate
-  title: string;
-  date: PartialDate;
-  category: string | null;
-  projectId: string | null;
-  notes: string | null;
-  people: string | null;
-  planned: boolean;
-};
+export type NewEntry = NewEntryInput;
 
 export async function createEntry(input: NewEntry) {
   return run(async (tx) => {
-    const id = uuidOrNull(input.id);
-    if (!id) throw new ValidationError("Something went wrong — please try again.");
-    const title = cleanTitle(input.title);
-    const date = checkPartial(input.date);
-    const category = oneOf(input.category, CATEGORY_KEYS);
-    const kind = kindFor(category);
     const profile = await getProfile(tx);
-    const today = todayIn(profile?.timezone ?? "Asia/Kolkata");
-    // Never infer completion from a date; a future date only gets "Planned" if the person keeps that suggestion.
-    const status = input.planned && isFuture(date.date, date.precision, today) ? "planned" : null;
-
-    const [row] = await tx`
-      insert into public.entries (id, title, kind, category, entry_date, entry_precision, status, description, people, project_id)
-      values (${id}, ${title}, ${kind}, ${category}, ${date.date}, ${date.precision}, ${status},
-              ${cleanText(input.notes)}, ${cleanText(input.people, 500)}, ${uuidOrNull(input.projectId)})
-      on conflict (id) do nothing
-      returning id`;
-    if (row) {
-      if (kind === "experiment") await tx`insert into public.experiments (entry_id) values (${id})`;
-      if (kind === "event") await tx`insert into public.events (entry_id) values (${id})`;
-    }
+    const result = await insertEntry(tx, input, todayIn(profile?.timezone ?? "Asia/Kolkata"));
     refresh();
-    return { id, kind };
+    return { id: result.id, kind: result.kind };
   });
 }
 
@@ -178,10 +119,7 @@ export async function restoreEntry(id: string) {
 
 export async function addLink(parentType: "entry" | "project" | "manuscript", parentId: string, form: FormData) {
   return run(async (tx) => {
-    const url = String(form.get("url") ?? "").trim();
-    if (!/^https?:\/\/\S+$/i.test(url)) throw new ValidationError("Paste a full link starting with https://");
-    const label = cleanText(form.get("label"), 200);
-    await tx`insert into public.attachments (parent_type, parent_id, kind, url, label) values (${parentType}, ${parentId}, 'link', ${url}, ${label})`;
+    await insertLink(tx, parentType, parentId, String(form.get("url") ?? ""), String(form.get("label") ?? ""));
     refresh();
   });
 }

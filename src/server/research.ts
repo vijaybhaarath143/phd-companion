@@ -60,8 +60,8 @@ export async function getManuscriptBundle(tx: Tx, id: string) {
   const [project] = manuscript.projectId
     ? await tx<{ id: string; title: string }[]>`select id, title from public.projects where id = ${manuscript.projectId}`
     : [null];
-  const history = await tx<{ id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; kind: string; note: string | null }[]>`
-    select id, phase, effective_date, effective_precision, recorded_at, kind, note
+  const history = await tx<{ id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; kind: string; note: string | null; createdVia: string }[]>`
+    select id, phase, effective_date, effective_precision, recorded_at, kind, note, created_via
     from public.manuscript_phase_events where manuscript_id = ${id}
     order by coalesce(effective_date, recorded_at::date) desc, recorded_at desc`;
   const submissions = await tx<{

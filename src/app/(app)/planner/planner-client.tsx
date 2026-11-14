@@ -12,7 +12,7 @@ import { ActionForm } from "@/components/app/action-form";
 import { createTask, toggleTask, trashTask, updateTask } from "@/server/actions/tasks";
 import { addGoal, setGoalOutcome } from "@/server/actions/settings";
 import { formatFullDay } from "@/lib/dates";
-import { goalHorizons, goalOutcomes, taskStatuses } from "@/lib/labels";
+import { goalHorizons, goalOutcomes, taskStatuses, viaLabel } from "@/lib/labels";
 import type { GoalRow, TaskRow } from "@/server/planner";
 import type { ProjectOption } from "@/server/profile";
 
@@ -76,6 +76,7 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                   <span className="block text-[13px] text-muted-foreground">
                     {[...bits, t.dueDate ? `due ${formatFullDay(t.dueDate)}` : "no due date"].join(" · ")}
                     {t.status === "waiting" && (t.waitingReason || t.waitingOnTitle) ? ` · ${t.waitingOnTitle ? `waiting on “${t.waitingOnTitle}”` : t.waitingReason}` : ""}
+                    {viaLabel(t.changedVia) ? ` · updated via ${viaLabel(t.changedVia)}` : viaLabel(t.createdVia) ? ` · added via ${viaLabel(t.createdVia)}` : ""}
                   </span>
                 </button>
                 {overdue && <Badge variant="attention">Overdue</Badge>}

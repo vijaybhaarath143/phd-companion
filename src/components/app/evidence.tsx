@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Download, FileText, ImageIcon, Link2, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { FilePreview, type PreviewFile } from "@/components/app/file-preview";
+import { viaLabel } from "@/lib/labels";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
                   </button>
                 )}
                 {it.kind === "file" && <span className="shrink-0 text-[12px] text-muted-foreground">{formatBytes(it.sizeBytes)}</span>}
+                {viaLabel(it.createdVia) && <span className="shrink-0 text-[12px] text-muted-foreground">via {viaLabel(it.createdVia)}</span>}
                 {it.kind === "file" && (
                   <a href={`/api/files/${it.id}`} download aria-label={`Download ${name}`} title="Download" className="ml-auto rounded p-1.5 text-muted-foreground hover:bg-muted">
                     <Download className="size-4" />

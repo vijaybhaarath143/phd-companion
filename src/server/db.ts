@@ -40,10 +40,20 @@ const sql: Sql =
 
 if (process.env.NODE_ENV !== "production") globalForDb.__sql = sql;
 
-export type SessionUser = { id: string; email: string };
+/**
+ * `clientId` / `sessionId` are set only for requests from a connected assistant
+ * (ChatGPT, Codex — see src/server/mcp). The database uses them to label what the
+ * assistant adds or changes, and to check the connection hasn't been removed.
+ */
+export type SessionUser = { id: string; email: string; clientId?: string; sessionId?: string };
 
 export async function withUser<T>(user: SessionUser, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  const claims = JSON.stringify({ sub: user.id, role: "authenticated", email: user.email });
+  const claims = JSON.stringify({
+    sub: user.id,
+    role: "authenticated",
+    email: user.email,
+    ...(user.clientId ? { client_id: user.clientId, session_id: user.sessionId } : {}),
+  });
   return sql.begin(async (tx) => {
     await tx`select set_config('request.jwt.claims', ${claims}, true)`;
     await tx`set local role authenticated`;

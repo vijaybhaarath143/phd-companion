@@ -4,6 +4,7 @@ A private place for a PhD scholar to record what happened, organise it into proj
 manuscripts, experiments, courses and tasks, and find it again later.
 
 - Plan: [docs/technical-plan.md](docs/technical-plan.md)
+- ChatGPT / Codex connector (MCP): [docs/mcp.md](docs/mcp.md)
 - Stack: Next.js 16 (App Router) · Tailwind 4 · shadcn/ui · Supabase (Postgres, Auth, Storage) · postgres.js
 
 ## Run it locally
@@ -37,6 +38,7 @@ src/app/(auth)        sign-in and code entry
 src/app/welcome       onboarding (3 skippable steps)
 src/app/(app)         the app: Home, Journal, Research, Planner, Academics, Settings
 src/app/api/export    "Export everything" (ZIP: data.json + CSV per table + manifest)
+src/app/mcp           connector for ChatGPT / Codex (see docs/mcp.md); src/server/mcp has its tools
 src/server/*.ts       read queries, one file per area
 src/server/actions/   writes (server actions) — validation, plain-language errors
 src/server/db.ts      withUser(): every query runs as the signed-in user, so
