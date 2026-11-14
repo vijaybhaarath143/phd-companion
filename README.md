@@ -9,7 +9,7 @@ manuscripts, experiments, courses and tasks, and find it again later.
 
 ## Run it locally
 
-Needs Node 20+ and Docker Desktop running.
+Needs Node 22.13+ (pdf.js and supabase-js require it) and Docker Desktop running.
 
 ```bash
 npm install
