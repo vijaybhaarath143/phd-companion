@@ -143,10 +143,11 @@ Adding and changing (ChatGPT asks her to confirm):
 | `add_file` | Attach a file sent as base64 — same rules as the app: allowed types, 20 MB, real-type check (`sniff()`), SHA-256. In practice keep under ~3 MB: Vercel limits a request to 4.5 MB and base64 adds a third |
 | `move_to_trash` | Move a journal entry or task to Trash (restorable for 30 days). Nothing is ever permanently deleted through the connector |
 
-## 4. Turning it on for the live site (needs your OK — not done yet)
+## 4. Turning it on for the live site — ✅ done 14 Nov 2026
 
-These change the hosted project, so they were **not** done from the development branch.
-Do them in this order, after reviewing the branch `claude/mcp-f9701a`:
+Steps 1, 2 and 4 were done on 14 Nov 2026: migration pushed, OAuth server on (Site URL
+`https://phd-companion-lac.vercel.app`, the only allowed redirect), branch merged into `master`
+and deployed. Kept here for reference, in the order they must run:
 
 1. **Database migration.** Apply `supabase/migrations/20261115000001_mcp_connector.sql` to the
    hosted database (adds the source labels and the two checking functions; no data changes):
