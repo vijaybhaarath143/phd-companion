@@ -24,12 +24,13 @@ The two gaps that matter — no backups and the email limit — are handled in s
 
 ## Steps
 
-### 0. Get the code ready (me, ~30 min)
+### 0. Get the code ready (me, ~30 min) — ✅ done
 - Commit and push the current work.
 - `vercel.json`: run the server code in **Mumbai (`bom1`)**, next to the database. *This matters:* Home makes ~10 small database calls; from a US region each one adds ~0.2 s.
 - Security headers in `next.config.ts`: HTTPS only, no embedding in other sites, no MIME sniffing, strict referrer, a content security policy.
 - Auth settings and the sign-in email template set up so `supabase config push` can send them to the hosted project (sign-up off, 6-digit code, 10-minute expiry).
 - A tiny `/api/health` check for the live test.
+- Every page renders per request so each one carries a fresh security nonce; database connections use TLS when not local; `.env.example` lists the settings.
 
 ### 1. Create the Supabase project (you, ~5 min)
 1. supabase.com → sign up (GitHub sign-in as `bhaarathvijay` is easiest).
@@ -41,7 +42,8 @@ The two gaps that matter — no backups and the email limit — are handled in s
 ### 2. Set up the database (me, ~10 min)
 - `npx supabase link --project-ref <ref>` (asks you for the database password once)
 - `npx supabase db push` — creates every table, access rule, history rule, the private file bucket and the nightly Trash job.
-- `npx supabase config push` — sign-in settings and email template.
+- `npx supabase config push` — sign-in settings and email template (sign-up off, 6-digit code, 10-minute expiry).
+  *Note:* this also sends the local Site URL (`localhost`), so it runs **before** step 5.5 sets the real Site URL — and must not be re-run afterwards without updating `site_url` in `supabase/config.toml` first.
 - **No seed data** — the test accounts and examples stay local.
 - Quick check with two temporary accounts that neither can see the other's data, then delete them.
 

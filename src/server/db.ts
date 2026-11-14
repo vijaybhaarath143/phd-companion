@@ -15,6 +15,8 @@ const sql: Sql =
   globalForDb.__sql ??
   postgres(process.env.DATABASE_URL!, {
     max: 5,
+    // the hosted database is reached over TLS; the local Docker one isn't
+    ssl: /@(127\.0\.0\.1|localhost)[:/]/.test(process.env.DATABASE_URL ?? "") ? false : "require",
     prepare: false,
     // snake_case columns ⇄ camelCase in TypeScript
     transform: postgres.camel,
@@ -52,5 +54,15 @@ export async function withUser<T>(user: SessionUser, fn: (tx: Tx) => Promise<T>)
 export class ConflictError extends Error {
   constructor() {
     super("This was changed somewhere else (another tab or device).");
+  }
+}
+
+/** Liveness check for /api/health — touches no user data. */
+export async function ping(): Promise<boolean> {
+  try {
+    await sql`select 1`;
+    return true;
+  } catch {
+    return false;
   }
 }
