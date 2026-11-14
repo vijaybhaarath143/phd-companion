@@ -63,7 +63,7 @@ My suggestion: **start with B** for the trial (zero cost, zero setup), move to *
 Sign-up is off, so: Supabase → Authentication → Users → **Invite user** with her email (and add her to the Supabase team if using option B).
 
 ### 5. Deploy on Vercel (you click, I supply values, ~15 min) — ✅ done: live at https://phd-companion-lac.vercel.app (project `phd-companion`, team `ph-d-companion`), server code in Mumbai, the three variables saved for Production, only `master` builds
-*Note:* Vercel Hobby only builds commits whose author email belongs to the Vercel account, so this repo commits as the `vijaybhaarath143` GitHub no-reply address (set in the repo's own git config).
+*Note:* Vercel Hobby only builds commits whose author email belongs to the Vercel account, so this repo commits as the `vijaybhaarath143` GitHub no-reply address (set in the repo's own git config). Merging a pull request on GitHub stamps the merge commit with the GitHub account's main email instead — if Vercel says the deployment was blocked, either add that email to the Vercel account (Account Settings → Authentication / Emails) or push any follow-up commit from this repo.
 1. vercel.com → sign up with GitHub (`vijaybhaarath143`) → **Add New Project** → import `vijaybhaarath143/phd-companion`.
 2. Environment variables (I'll give you the exact values from the Supabase dashboard):
 
