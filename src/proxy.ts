@@ -79,6 +79,8 @@ function contentSecurityPolicy(nonce: string, https: boolean) {
     "font-src 'self'",
     // uploads go straight from the browser to Supabase storage
     `connect-src 'self' ${supabase}${dev ? " ws: wss:" : ""}`,
+    // the PDF preview renders pages in a background worker served from the app itself
+    "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

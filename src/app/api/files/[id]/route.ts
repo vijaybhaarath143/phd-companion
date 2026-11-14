@@ -4,9 +4,13 @@ import { withUser } from "@/server/db";
 
 /**
  * Open an evidence file: checks the person may see it (row-level security),
- * then redirects to a link that works for 60 seconds. Files never have public URLs.
+ * then redirects to a download link that works for 60 seconds. Files never have public URLs.
+ *
+ * `?preview=1` instead returns `{ url }`: a 2-minute link the app's preview reads the file
+ * from, so it can be shown inside the app. Nothing is sent to an outside viewer.
  */
-export async function GET(_req: Request, { params }: RouteContext<"/api/files/[id]">) {
+export async function GET(req: Request, { params }: RouteContext<"/api/files/[id]">) {
+  const preview = new URL(req.url).searchParams.get("preview") === "1";
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new NextResponse("Not found", { status: 404 });
 
@@ -20,8 +24,11 @@ export async function GET(_req: Request, { params }: RouteContext<"/api/files/[i
   );
   if (!file) return new NextResponse("Not found", { status: 404 });
 
-  const { data, error } = await supabase.storage.from("evidence").createSignedUrl(file.storagePath, 60, { download: file.label ?? file.filename });
+  const { data, error } = preview
+    ? await supabase.storage.from("evidence").createSignedUrl(file.storagePath, 120)
+    : await supabase.storage.from("evidence").createSignedUrl(file.storagePath, 60, { download: file.label ?? file.filename });
   if (error || !data) return new NextResponse("File unavailable", { status: 404 });
+  if (preview) return NextResponse.json({ url: data.signedUrl }, { headers: { "Cache-Control": "private, no-store" } });
   const res = NextResponse.redirect(data.signedUrl, 302);
   res.headers.set("Cache-Control", "private, no-store");
   return res;

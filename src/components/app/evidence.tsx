@@ -2,7 +2,9 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { FileText, ImageIcon, Link2, Loader2, Paperclip, Plus, X } from "lucide-react";
+import { Download, FileText, ImageIcon, Link2, Loader2, Paperclip, Plus, X } from "lucide-react";
+import { FilePreview, type PreviewFile } from "@/components/app/file-preview";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ActionForm } from "@/components/app/action-form";
@@ -24,6 +26,7 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
   const [busy, setBusy] = useState<string | null>(null);
   const [addingLink, setAddingLink] = useState(false);
   const [pending, start] = useTransition();
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
 
   async function upload(files: File[]) {
     try {
@@ -52,15 +55,26 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
             return (
               <li key={it.id} className="flex min-h-10 items-center gap-2">
                 <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                <a
-                  href={it.kind === "link" ? it.url! : `/api/files/${it.id}`}
-                  target={it.kind === "link" ? "_blank" : undefined}
-                  rel={it.kind === "link" ? "noreferrer noopener" : undefined}
-                  className="min-w-0 truncate underline underline-offset-4"
-                >
-                  {name}
-                </a>
+                {it.kind === "link" ? (
+                  <a href={it.url!} target="_blank" rel="noreferrer noopener" className="min-w-0 truncate underline underline-offset-4">
+                    {name}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setPreview({ id: it.id, name, filename: it.filename, sizeBytes: it.sizeBytes })}
+                    className="min-w-0 truncate text-left underline underline-offset-4"
+                    title="Preview"
+                  >
+                    {name}
+                  </button>
+                )}
                 {it.kind === "file" && <span className="shrink-0 text-[12px] text-muted-foreground">{formatBytes(it.sizeBytes)}</span>}
+                {it.kind === "file" && (
+                  <a href={`/api/files/${it.id}`} download aria-label={`Download ${name}`} title="Download" className="ml-auto rounded p-1.5 text-muted-foreground hover:bg-muted">
+                    <Download className="size-4" />
+                  </a>
+                )}
                 <button
                   type="button"
                   aria-label={`Remove ${name}`}
@@ -72,7 +86,7 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
                       if (!r.ok) toast.error(r.error.message);
                     })
                   }
-                  className="ml-auto rounded p-1.5 text-muted-foreground hover:bg-muted"
+                  className={cn("rounded p-1.5 text-muted-foreground hover:bg-muted", it.kind === "link" && "ml-auto")}
                 >
                   <X className="size-4" />
                 </button>
@@ -81,6 +95,8 @@ export function Evidence({ items, parentType, parentId, hint }: { items: Evidenc
           })}
         </ul>
       )}
+
+      <FilePreview file={preview} onClose={() => setPreview(null)} />
 
       {busy && (
         <p role="status" className="flex items-center gap-2 text-[13px] text-muted-foreground">
