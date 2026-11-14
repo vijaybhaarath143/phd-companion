@@ -12,12 +12,12 @@ import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
 import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback } from "@/server/actions/research";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
-import { phases, submissionStatuses, type Phase } from "@/lib/labels";
+import { phases, submissionStatuses, type Phase, viaLabel } from "@/lib/labels";
 
 type Props = {
   manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null };
   project: { id: string; title: string } | null;
-  history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; kind: string; note: string | null }[];
+  history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; kind: string; note: string | null; createdVia: string }[];
   submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null }[];
   feedback: { entryId: string; title: string; source: string | null; requestedChanges: string | null; resolutionStatus: string; entryDate: string | null; entryPrecision: Precision; taskCount: number }[];
   waitingTasks: { id: string; title: string; waitingReason: string | null }[];
@@ -276,6 +276,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, feed
                   <span className="block text-[13px] text-muted-foreground">
                     {h.effectivePrecision === "none" ? "Date not known" : formatPartialDate(h.effectiveDate, h.effectivePrecision)}
                     {h.kind === "earlier_change" ? " · added later" : ""}
+                    {viaLabel(h.createdVia) ? ` · via ${viaLabel(h.createdVia)}` : ""}
                     {" · recorded "}{new Date(h.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </span>
                   {h.note && <span className="block text-[13px] text-zinc-700">{h.note}</span>}

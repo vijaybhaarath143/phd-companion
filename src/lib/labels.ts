@@ -132,3 +132,11 @@ export const suggestedMilestones = [
   "Thesis submission",
   "Viva",
 ];
+
+/** Where a record came from: the app itself, or a connected assistant (see docs/mcp.md). */
+export function viaLabel(source: string | null | undefined): string | null {
+  if (!source || source === "app") return null;
+  if (source === "chatgpt") return "ChatGPT";
+  if (source === "codex") return "Codex";
+  return "an assistant";
+}

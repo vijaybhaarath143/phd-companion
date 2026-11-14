@@ -378,14 +378,14 @@ enabled = false
 # Obtain from https://clerk.com/setup/supabase
 # domain = "example.clerk.accounts.dev"
 
-# OAuth server configuration
+# OAuth server: lets ChatGPT and Codex connect to her account (see docs/mcp.md).
+# She signs in as usual, then approves the app on the consent page at site_url + this path.
 [auth.oauth_server]
-# Enable OAuth server functionality
-enabled = false
-# Path for OAuth consent flow UI
+enabled = true
 authorization_url_path = "/oauth/consent"
-# Allow dynamic client registration
-allow_dynamic_registration = false
+# ChatGPT and Codex register themselves (dynamic client registration); nothing can be
+# read until she approves the app on the consent page.
+allow_dynamic_registration = true
 
 [edge_runtime]
 enabled = true
@@ -436,3 +436,9 @@ project_id = "ezdkpiepuzgsbtjqmpyi"
 [remotes.production.auth]
 site_url = "https://phd-companion-lac.vercel.app"
 additional_redirect_urls = ["https://phd-companion-lac.vercel.app/**"]
+
+# Connector for ChatGPT / Codex (docs/mcp.md): same as local.
+[remotes.production.auth.oauth_server]
+enabled = true
+authorization_url_path = "/oauth/consent"
+allow_dynamic_registration = true

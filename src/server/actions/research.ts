@@ -5,9 +5,7 @@ import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/db";
 import { run, ValidationError, oneOf, required, text, uuidOrNull } from "@/server/actions/run";
 import { readPartialDate } from "@/lib/dates";
-import { phases } from "@/lib/labels";
-
-const PHASES = Object.keys(phases) as (keyof typeof phases)[];
+import { insertFeedback, insertPhaseEvent } from "@/server/writes";
 const PROJECT_TYPES = ["systematic_review", "narrative_review", "experimental", "method_development",
   "instrument_development", "collaboration", "other"] as const;
 
@@ -57,18 +55,13 @@ export async function createManuscript(projectId: string, form: FormData) {
  */
 export async function recordPhase(manuscriptId: string, kind: "change" | "earlier_change", form: FormData) {
   return run(async (tx) => {
-    const phase = oneOf(form.get("phase"), PHASES);
-    if (!phase) throw new ValidationError("Choose a phase.");
-    const date = readPartialDate(form, "when");
-    if (kind === "earlier_change" && date.precision === "none") {
-      throw new ValidationError("Add when it happened — a month is enough.");
-    }
-    await tx`
-      insert into public.manuscript_phase_events (manuscript_id, phase, effective_date, effective_precision, kind, note)
-      values (${manuscriptId}, ${phase}, ${date.date}, ${date.precision}, ${kind}, ${text(form.get("note"), 1000)})`;
-    if (kind === "change" && phase === "stopped") {
-      await tx`update public.manuscripts set stopped_reason = ${oneOf(form.get("stoppedReason"), ["withdrawn", "abandoned"] as const)} where id = ${manuscriptId}`;
-    }
+    await insertPhaseEvent(tx, manuscriptId, {
+      kind,
+      phase: String(form.get("phase") ?? ""),
+      date: readPartialDate(form, "when"),
+      note: text(form.get("note"), 1000),
+      stoppedReason: String(form.get("stoppedReason") ?? ""),
+    });
     refresh();
   });
 }
@@ -111,25 +104,13 @@ export async function recordDecision(submissionId: string, form: FormData) {
 /** Guide feedback: one entry, its requested changes, and one linked task per change. */
 export async function recordFeedback(manuscriptId: string, form: FormData) {
   return run(async (tx) => {
-    const [m] = await tx<{ title: string; projectId: string | null }[]>`select title, project_id from public.manuscripts where id = ${manuscriptId}`;
-    if (!m) throw new ValidationError("Manuscript not found.");
-    const source = text(form.get("source"), 200);
-    const changes = text(form.get("changes"), 20000);
-    const date = readPartialDate(form, "received");
-    const [e] = await tx<{ id: string }[]>`
-      insert into public.entries (title, kind, category, entry_date, entry_precision, project_id, people)
-      values (${`Feedback on ${m.title}`}, 'feedback', 'guide_meeting', ${date.date}, ${date.precision}, ${m.projectId}, ${source})
-      returning id`;
-    await tx`
-      insert into public.feedback (entry_id, manuscript_id, source, received_via, requested_changes)
-      values (${e.id}, ${manuscriptId}, ${source}, ${text(form.get("via"), 200)}, ${changes})`;
-    const lines = (changes ?? "").split("\n").map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter(Boolean);
-    if (form.get("makeTasks") === "on") {
-      for (const line of lines.slice(0, 30)) {
-        await tx`insert into public.tasks (title, project_id, origin_entry_id, manuscript_id)
-                 values (${line.slice(0, 300)}, ${m.projectId}, ${e.id}, ${manuscriptId})`;
-      }
-    }
+    await insertFeedback(tx, manuscriptId, {
+      source: text(form.get("source"), 200),
+      via: text(form.get("via"), 200),
+      changes: text(form.get("changes"), 20000),
+      date: readPartialDate(form, "received"),
+      makeTasks: form.get("makeTasks") === "on",
+    });
     refresh();
   });
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ActionForm } from "@/components/app/action-form";
 import { restoreFromTrash, setReminders, updateProfile } from "@/server/actions/settings";
+import { disconnectApp } from "@/server/actions/connections";
 import { monthNames } from "@/lib/dates";
 import { TIMEZONES } from "@/lib/timezones";
 import type { Profile } from "@/server/profile";
@@ -78,6 +79,29 @@ export function TrashList({ items, kind }: { items: { table: "entries" | "tasks"
           <Button size="sm" variant="outline" disabled={pending}
             onClick={() => start(async () => { const r = await restoreFromTrash(it.table, it.id); if (r.ok) toast.success("Restored"); else toast.error(r.error.message); })}>
             Restore
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ConnectedApps({ apps }: { apps: { id: string; name: string; grantedAt: string }[] }) {
+  const [pending, start] = useTransition();
+  if (!apps.length) {
+    return <p className="text-[13px] text-muted-foreground">None. To connect ChatGPT or Codex, add PhD Companion there — you&apos;ll approve it here first.</p>;
+  }
+  return (
+    <ul className="flex flex-col divide-y divide-zinc-100">
+      {apps.map((a) => (
+        <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5 first:pt-0">
+          <div>
+            <p className="font-medium">{a.name}</p>
+            <p className="text-[13px] text-muted-foreground">Connected {new Date(a.grantedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+          </div>
+          <Button variant="outline" size="sm" disabled={pending}
+            onClick={() => start(async () => { const r = await disconnectApp(a.id); if (r.ok) toast.success(`${a.name} disconnected`); else toast.error(r.error.message); })}>
+            Disconnect
           </Button>
         </li>
       ))}

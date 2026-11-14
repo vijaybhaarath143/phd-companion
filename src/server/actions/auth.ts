@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { signInMode } from "@/lib/sign-in-mode";
+import { RETURN_TO_COOKIE, safeReturnTo } from "@/lib/return-to";
 
 const PENDING = "pending_sign_in";
 
@@ -52,7 +53,9 @@ export async function verifyCode(_prev: AuthState, form: FormData): Promise<Auth
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
   if (error) return { error: "That code didn't work. Check it, or send a new one." };
   jar.delete(PENDING);
-  redirect("/");
+  const returnTo = safeReturnTo(jar.get(RETURN_TO_COOKIE)?.value);
+  jar.delete(RETURN_TO_COOKIE);
+  redirect(returnTo ?? "/");
 }
 
 export async function resendCode(_prev?: AuthState): Promise<AuthState> {

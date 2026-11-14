@@ -1,0 +1,141 @@
+import { z } from "zod";
+import type { PartialDate } from "@/lib/dates";
+import { categories, phases } from "@/lib/labels";
+
+/**
+ * Inputs for every connector tool, with descriptions written for the assistant.
+ * Kept apart from the handlers so they can be tested on their own.
+ */
+
+const id = (what: string) => z.string().uuid(`That isn't a valid ${what} id.`).describe(`The ${what}'s id (from a list or search result).`);
+
+/** "2026-11-14" (day known), "2026-11" (only the month known), or nothing (no date yet). */
+export const partialDate = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?$/, "Use YYYY-MM-DD, or YYYY-MM when only the month is known.")
+  .refine((s) => s.length === 7 || isRealDay(s), "That day doesn't exist in that month.");
+
+function isRealDay(s: string) {
+  const [y, m, d] = s.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** Turn the connector's date text into the app's partial date. Never invents a day. */
+export function toPartialDate(s: string | null | undefined): PartialDate {
+  if (!s) return { date: null, precision: "none" };
+  if (s.length === 7) return { date: `${s}-01`, precision: "month" };
+  return { date: s, precision: "day" };
+}
+
+const dateHelp =
+  "When it happened or will happen: YYYY-MM-DD if the day is known, YYYY-MM if only the month is known. Leave out if unknown — never guess a day.";
+
+const recordType = z
+  .enum(["entry", "project", "manuscript", "course", "milestone"])
+  .describe("What kind of record: entry (journal entry, experiment or feedback), project, manuscript, course or milestone.");
+
+const categoryKeys = Object.keys(categories) as [keyof typeof categories, ...(keyof typeof categories)[]];
+const phaseKeys = Object.keys(phases) as [keyof typeof phases, ...(keyof typeof phases)[]];
+
+export const schemas = {
+  search: {
+    query: z.string().trim().min(2, "Search for at least 2 characters.").max(200).describe("Words to look for, e.g. a person, method, journal or topic."),
+    limit: z.number().int().min(1).max(50).optional().describe("Most journal entries to return (default 20)."),
+  },
+  get_home_summary: {},
+  list_journal_entries: {
+    query: z.string().trim().max(200).optional().describe("Only entries mentioning these words."),
+    category: z.enum(categoryKeys).optional().describe("Only this kind of entry."),
+    project_id: id("project").optional(),
+    from_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use YYYY-MM.").optional().describe("Only entries from this month on (YYYY-MM)."),
+    to_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use YYYY-MM.").optional().describe("Only entries up to the end of this month (YYYY-MM)."),
+    limit: z.number().int().min(1).max(200).optional().describe("Most dated entries to return, newest first (default 50)."),
+  },
+  get_journal_entry: { entry_id: id("journal entry") },
+  list_projects: {},
+  get_project: { project_id: id("project") },
+  list_manuscripts: { project_id: id("project").optional().describe("Only manuscripts in this project.") },
+  get_manuscript: { manuscript_id: id("manuscript") },
+  list_experiments: { project_id: id("project").optional().describe("Only experiments in this project.") },
+  get_experiment: { experiment_id: id("experiment") },
+  list_tasks: {
+    show: z.enum(["open", "waiting", "done"]).optional().describe("open (default: to do, doing and waiting), waiting only, or done (done and cancelled)."),
+  },
+  list_goals: {},
+  get_academics: {},
+  list_files_and_links: { record_type: recordType, record_id: id("record") },
+  read_file_text: {
+    file_id: id("file"),
+    start: z.number().int().min(0).optional().describe("Character to start from, to read a long file in parts (use next_start from the previous result)."),
+  },
+
+  create_journal_entry: {
+    title: z.string().trim().min(1, "Add a title.").max(300),
+    date: partialDate.optional().describe(dateHelp),
+    category: z.enum(categoryKeys).optional().describe("What kind of entry this is."),
+    project_id: id("project").optional().describe("The project it belongs to, if any."),
+    notes: z.string().max(20000).optional().describe("What happened, in her words."),
+    people: z.string().max(500).optional().describe("People involved, e.g. her guide."),
+    planned: z.boolean().optional().describe("True if this is something planned for a future date (marks it Planned)."),
+  },
+  create_task: {
+    title: z.string().trim().min(1, "Add a title.").max(300),
+    due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("Due date, YYYY-MM-DD."),
+    priority: z.enum(["normal", "important"]).optional(),
+    project_id: id("project").optional(),
+    manuscript_id: id("manuscript").optional(),
+    from_entry_id: id("journal entry").optional().describe("The journal entry this task came out of, if any."),
+    notes: z.string().max(5000).optional(),
+  },
+  update_task_status: {
+    task_id: id("task"),
+    status: z.enum(["todo", "doing", "waiting", "done", "cancelled"]).describe("todo = to do, doing, waiting (blocked on someone or something), done, cancelled."),
+    waiting_reason: z.string().trim().max(300).optional().describe("Required when status is waiting: what or who it is waiting for."),
+    waiting_on_task_id: id("task").optional().describe("When waiting on another of her tasks, that task's id."),
+  },
+  add_link: {
+    record_type: recordType,
+    record_id: id("record"),
+    url: z.string().trim().url("Give a full link starting with https://").max(2000).refine((u) => /^https?:\/\//i.test(u), "Links must start with https:// or http://"),
+    label: z.string().trim().max(200).optional().describe("A short name for the link."),
+  },
+  add_guide_feedback: {
+    manuscript_id: id("manuscript"),
+    requested_changes: z.string().trim().min(1, "Add what was asked for.").max(20000).describe("What the guide asked to change. One change per line if there are several."),
+    from: z.string().trim().max(200).optional().describe("Who gave the feedback (default: her guide)."),
+    received_via: z.string().trim().max(200).optional().describe("How it came, e.g. meeting, email, comments on the draft."),
+    received_date: partialDate.optional().describe(dateHelp),
+    make_tasks: z.boolean().optional().describe("Also create one task per line of requested changes (default false)."),
+  },
+  move_manuscript_to_phase: {
+    manuscript_id: id("manuscript"),
+    phase: z.enum(phaseKeys).describe("The phase to record."),
+    date: partialDate.optional().describe(dateHelp),
+    note: z.string().trim().max(1000).optional(),
+    history_only: z.boolean().optional().describe("True to record an earlier phase change for the history without moving the manuscript's current phase (needs a date)."),
+    stopped_reason: z.enum(["withdrawn", "abandoned"]).optional().describe("Only when the phase is stopped."),
+  },
+  add_file: {
+    record_type: recordType,
+    record_id: id("record"),
+    filename: z.string().trim().min(1).max(200).describe("File name with its extension: pdf, png, jpg, webp, gif, heic, docx, xlsx, pptx, csv or txt."),
+    content_base64: z.string().min(1).describe("The file's bytes, base64-encoded."),
+    label: z.string().trim().max(200).optional().describe("A short name to show instead of the file name."),
+  },
+  move_to_trash: {
+    record_type: z.enum(["entry", "task"]).describe("entry (journal entry, experiment or feedback) or task."),
+    record_id: id("record"),
+  },
+} satisfies Record<string, z.ZodRawShape>;
+
+export type ToolName = keyof typeof schemas;
+export type ToolInput<N extends ToolName> = z.infer<z.ZodObject<(typeof schemas)[N]>>;
+
+/** Decode a base64 file body strictly (an optional data: URL prefix and line breaks are fine). */
+export function decodeBase64(s: string): Uint8Array | null {
+  const body = s.replace(/^data:[^;,]*;base64,/, "").replace(/\s+/g, "");
+  if (!body || body.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(body)) return null;
+  return new Uint8Array(Buffer.from(body, "base64"));
+}

@@ -15,7 +15,7 @@ import { Breadcrumb } from "@/components/app/ui";
 import { archiveEntry, setEntryDate, trashEntry, updateEntry } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
 import { quickTask, toggleTask } from "@/server/actions/tasks";
-import { categories, entryStatuses, participation, registration, enquiryStatuses } from "@/lib/labels";
+import { categories, entryStatuses, participation, registration, enquiryStatuses, viaLabel } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
 import type { EntryDetail } from "@/server/journal";
 import type { ProjectOption } from "@/server/profile";
@@ -96,7 +96,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
           className="field-sizing-content w-full resize-none bg-transparent text-2xl leading-8 font-semibold tracking-[-0.015em] outline-offset-4"
           maxLength={300}
         />
-        {entry.createdVia !== "app" && <Badge variant="muted" className="mt-2">Added via {entry.createdVia === "chatgpt" ? "ChatGPT" : entry.createdVia}</Badge>}
+        {viaLabel(entry.createdVia) && <Badge variant="muted" className="mt-2">Added via {viaLabel(entry.createdVia)}</Badge>}
       </div>
 
       <section className="rounded-xl border bg-card">
