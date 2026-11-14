@@ -32,14 +32,14 @@ The two gaps that matter — no backups and the email limit — are handled in s
 - A tiny `/api/health` check for the live test.
 - Every page renders per request so each one carries a fresh security nonce; database connections use TLS when not local; `.env.example` lists the settings.
 
-### 1. Create the Supabase project (you, ~5 min)
-1. supabase.com → sign up (GitHub sign-in as `bhaarathvijay` is easiest).
+### 1. Create the Supabase project (you, ~5 min) — ✅ done: `ezdkpiepuzgsbtjqmpyi`, Mumbai (ap-south-1), Free
+1. supabase.com → sign up with GitHub as `vijaybhaarath143`.
 2. New project → **Free**, region **South Asia (Mumbai)**, name `phd-companion`.
 3. Save the **database password** in your password manager.
 4. In a terminal in this folder: `npx supabase login` (opens the browser).
 5. Tell me the project's **reference ID** (Settings → General).
 
-### 2. Set up the database (me, ~10 min)
+### 2. Set up the database (me, ~10 min) — ✅ done (schema, 19/19 tables with access rules, private storage, nightly Trash job)
 - `npx supabase link --project-ref <ref>` (asks you for the database password once)
 - `npx supabase db push` — creates every table, access rule, history rule, the private file bucket and the nightly Trash job.
 - `npx supabase config push` — sign-in settings and email template (sign-up off, 6-digit code, 10-minute expiry).
@@ -47,7 +47,9 @@ The two gaps that matter — no backups and the email limit — are handled in s
 - **No seed data** — the test accounts and examples stay local.
 - Quick check with two temporary accounts that neither can see the other's data, then delete them.
 
-### 3. Choose how sign-in codes reach her (you decide)
+### 3. Choose how sign-in reaches her — ✅ decided: **sign-in link** (option B below)
+
+The free tier won't accept a custom email template with the built-in email service, so the default email (a sign-in link) is used. The app runs in `SIGN_IN_MODE=link` (the default): the link returns to `/auth/confirm`, works once, for 10 minutes, and only in the same browser that asked for it. Switching to 6-digit codes later = connect custom SMTP (option A), restore the template block in `supabase/config.toml`, set `SIGN_IN_MODE=code` on Vercel.
 
 | Option | Cost | Notes |
 |---|---|---|
@@ -61,7 +63,7 @@ My suggestion: **start with B** for the trial (zero cost, zero setup), move to *
 Sign-up is off, so: Supabase → Authentication → Users → **Invite user** with her email (and add her to the Supabase team if using option B).
 
 ### 5. Deploy on Vercel (you click, I supply values, ~15 min)
-1. vercel.com → sign up with GitHub (`bhaarathvijay`) → **Add New Project** → import `bhaarathvijay/phd-companion`.
+1. vercel.com → sign up with GitHub (`vijaybhaarath143`) → **Add New Project** → import `vijaybhaarath143/phd-companion`.
 2. Environment variables (I'll give you the exact values from the Supabase dashboard):
 
 | Name | Where it comes from |
@@ -74,7 +76,7 @@ Sign-up is off, so: Supabase → Authentication → Users → **Invite user** wi
    - The **secret key is not added** — the live app never needs it.
 3. **Turn off preview deployments** for other branches (Settings → Git), so test branches never touch her real database.
 4. Deploy. You get an address like `phd-companion.vercel.app` (a custom domain can be added later).
-5. Supabase → Authentication → URL configuration → set **Site URL** to that address.
+5. Supabase → Authentication → URL configuration → set **Site URL** to that address, and add `https://<that address>/**` under **Redirect URLs** (sign-in links can only return to listed addresses).
 
 ### 6. Live check before she uses it (me + you, ~15 min)
 - Sign in with a code; record an entry; upload a file; open it; export.

@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/sign-in", "/verify", "/api/health"];
+const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
 
 /**
  * Runs before every request:
