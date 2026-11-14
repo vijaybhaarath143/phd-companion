@@ -1,6 +1,7 @@
 import "server-only";
 import type { Tx } from "@/server/db";
 import type { Precision } from "@/lib/dates";
+import { evidenceFor, type EvidenceItem } from "@/server/evidence";
 
 export type JournalRow = {
   id: string;
@@ -27,6 +28,7 @@ export type JournalFilters = {
   project?: string;
   from?: string; // YYYY-MM
   to?: string; // YYYY-MM
+  limit?: number; // dated entries to show (older ones via "Show older")
 };
 
 function endOfMonth(ym: string) {
@@ -40,6 +42,7 @@ export async function getJournal(tx: Tx, f: JournalFilters) {
   const like = q ? `%${q}%` : null;
   const from = f.from && /^\d{4}-\d{2}$/.test(f.from) ? `${f.from}-01` : null;
   const to = f.to && /^\d{4}-\d{2}$/.test(f.to) ? endOfMonth(f.to) : null;
+  const limit = Math.min(Math.max(f.limit ?? 200, 50), 5000);
 
   const base = (dated: boolean) => tx<JournalRow[]>`
     select e.id, e.title, e.kind, e.category, e.status, e.entry_date, e.entry_precision, e.date_from, e.date_to,
@@ -67,9 +70,11 @@ export async function getJournal(tx: Tx, f: JournalFilters) {
       and (${from}::date is null or e.date_to >= ${from})
       and (${to}::date is null or e.date_from <= ${to})
     order by e.date_from desc nulls last, (e.entry_precision = 'month'), e.entry_date desc, e.created_at desc
-    limit 400`;
+    limit ${dated ? limit + 1 : 1000}`;
 
-  const dated = await base(true);
+  const datedPlusOne = await base(true);
+  const hasOlder = datedPlusOne.length > limit;
+  const dated = datedPlusOne.slice(0, limit);
   // Undated entries can't match a date-range filter, so they're hidden when one is set.
   const undated = from || to ? [] : await base(false);
 
@@ -97,7 +102,7 @@ export async function getJournal(tx: Tx, f: JournalFilters) {
       limit 12`;
   }
 
-  return { dated, undated, partial, otherMatches };
+  return { dated, undated, partial, otherMatches, hasOlder, limit };
 }
 
 export type EntryDetail = {
@@ -138,7 +143,7 @@ export type EntryDetail = {
   enquiry: { office: string | null; contact: string | null; response: string | null; followUpDate: string | null; status: string } | null;
   hasExperiment: boolean;
   tasks: { id: string; title: string; status: string }[];
-  links: { id: string; url: string; label: string | null }[];
+  evidence: EvidenceItem[];
 };
 
 export async function getEntry(tx: Tx, id: string): Promise<EntryDetail | null> {
@@ -149,7 +154,7 @@ export async function getEntry(tx: Tx, id: string): Promise<EntryDetail | null> 
   const [enquiry] = await tx`select office, contact, response, follow_up_date, status from public.enquiries where entry_id = ${id}`;
   const [exp] = await tx`select 1 from public.experiments where entry_id = ${id}`;
   const tasks = await tx`select id, title, status from public.tasks where origin_entry_id = ${id} and deleted_at is null order by created_at`;
-  const links = await tx`select id, url, label from public.attachments where parent_type = 'entry' and parent_id = ${id} and kind = 'link' and replaced_by_id is null order by created_at`;
+  const evidence = await evidenceFor(tx, "entry", id);
   return {
     ...(e as unknown as EntryDetail),
     event: (event as EntryDetail["event"]) ?? null,
@@ -157,6 +162,6 @@ export async function getEntry(tx: Tx, id: string): Promise<EntryDetail | null> 
     enquiry: (enquiry as EntryDetail["enquiry"]) ?? null,
     hasExperiment: Boolean(exp),
     tasks: tasks as unknown as EntryDetail["tasks"],
-    links: links as unknown as EntryDetail["links"],
+    evidence,
   };
 }

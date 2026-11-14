@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ActionForm } from "@/components/app/action-form";
 import { createExperiment, createManuscript, updateProject } from "@/server/actions/research";
-import { addLink, removeLink } from "@/server/actions/entries";
 import { quickTask, toggleTask } from "@/server/actions/tasks";
 import { projectStatuses } from "@/lib/labels";
 import type { ProjectRow } from "@/server/research";
@@ -17,8 +16,7 @@ import type { ProjectRow } from "@/server/research";
 type Props =
   | { kind: "manuscript" | "experiment"; projectId: string }
   | { kind: "tasks"; projectId: string; tasks: { id: string; title: string; status: string; waitingReason: string | null }[] }
-  | { kind: "about"; projectId: string; project: ProjectRow }
-  | { kind: "evidence"; projectId: string; links: { id: string; url: string; label: string | null }[] };
+  | { kind: "about"; projectId: string; project: ProjectRow };
 
 export function ProjectActions(props: Props) {
   const [open, setOpen] = useState(false);
@@ -88,22 +86,5 @@ export function ProjectActions(props: Props) {
     );
   }
 
-  if (props.kind !== "evidence") return null;
-  return (
-    <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
-      <h2 className="text-[15px] font-semibold">Evidence</h2>
-      {props.links.length === 0 && <p className="text-[13px] text-muted-foreground">No links yet. Add drafts, figures or a shared folder.</p>}
-      {props.links.map((l) => (
-        <div key={l.id} className="flex items-center gap-2">
-          <a href={l.url} target="_blank" rel="noreferrer noopener" className="min-w-0 truncate underline underline-offset-4">{l.label || l.url}</a>
-          <button type="button" aria-label="Remove link" onClick={() => start(async () => void (await removeLink(l.id)))} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
-        </div>
-      ))}
-      <ActionForm action={addLink.bind(null, "project", props.projectId)} success="Link added" className="flex flex-col gap-2">
-        <Input name="url" type="url" required placeholder="https://…" aria-label="Link" />
-        <Input name="label" placeholder="Label (optional)" aria-label="Link label" />
-        <Button type="submit" variant="outline" className="self-start"><Plus className="size-4" aria-hidden /> Add link</Button>
-      </ActionForm>
-    </section>
-  );
+  return null;
 }

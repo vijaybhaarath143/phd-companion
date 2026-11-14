@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Empty, Rows, RowLink, Section } from "@/components/app/ui";
 import { QuickAddButton } from "@/components/app/quick-add";
 import { ProjectActions } from "./project-actions";
+import { Evidence } from "@/components/app/evidence";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -23,7 +24,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
     return { bundle: await getProjectBundle(tx, id), projects: await listProjects(tx) };
   });
   if (!data.bundle) notFound();
-  const { project, manuscripts, experiments, tasks, entries, links } = data.bundle;
+  const { project, manuscripts, experiments, tasks, entries, evidence } = data.bundle;
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
@@ -119,7 +120,10 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
           <ProjectActions kind="about" projectId={project.id} project={project} />
-          <ProjectActions kind="evidence" projectId={project.id} links={links} />
+          <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+            <h2 className="text-[15px] font-semibold">Evidence</h2>
+            <Evidence items={evidence} parentType="project" parentId={project.id} hint="Drafts, figures, or a link to a shared folder." />
+          </section>
         </div>
       </div>
     </div>

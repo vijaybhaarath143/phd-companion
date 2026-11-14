@@ -52,8 +52,8 @@ function EntryRow({ e, partial }: { e: JournalRow; partial: boolean }) {
 export default async function JournalPage({ searchParams }: PageProps<"/journal">) {
   const sp = await searchParams;
   const pick = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
-  const filters = { q: pick("q"), category: pick("category"), status: pick("status"), project: pick("project"), from: pick("from"), to: pick("to") };
-  const filtering = Object.values(filters).some(Boolean);
+  const filters = { q: pick("q"), category: pick("category"), status: pick("status"), project: pick("project"), from: pick("from"), to: pick("to"), limit: Number(pick("limit")) || undefined };
+  const filtering = [filters.q, filters.category, filters.status, filters.project, filters.from, filters.to].some(Boolean);
 
   const { journal, projects, today } = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
@@ -160,6 +160,16 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
         </section>
       ))}
 
+      {journal.hasOlder && (
+        <Link
+          href={`/journal?${new URLSearchParams({ ...Object.fromEntries(Object.entries(filters).filter(([k, v]) => v && k !== "limit")), limit: String(journal.limit + 200) } as Record<string, string>).toString()}`}
+          scroll={false}
+          className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+        >
+          Show older entries
+        </Link>
+      )}
+
       {journal.undated.length > 0 && (
         <section id="needs-date" className="scroll-mt-6 rounded-xl border bg-card">
           <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4 pb-2">
@@ -169,7 +179,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
             {journal.undated.map((e) => (
               <li key={e.id}>
-                <Link href={e.kind === "experiment" ? `/research/experiments/${e.id}` : `/journal/${e.id}`} className="flex min-h-14 items-center gap-4 px-5 py-3 hover:bg-zinc-50">
+                <Link href={e.kind === "experiment" ? `/research/experiments/${e.id}?date=1` : `/journal/${e.id}?date=1`} className="flex min-h-14 items-center gap-4 px-5 py-3 hover:bg-zinc-50">
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium">{e.title}</span>
                     <span className="block text-[13px] text-muted-foreground">{meta(e) || " "}</span>

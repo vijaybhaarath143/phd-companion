@@ -1,20 +1,13 @@
 import { strToU8, zipSync } from "fflate";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { withUser } from "@/server/db";
+import { toCsv } from "@/lib/csv";
 
 const TABLES = [
   "profiles", "projects", "entries", "experiments", "experiment_revisions", "feedback", "enquiries", "events",
   "manuscripts", "manuscript_phase_events", "submissions", "blockers", "tasks", "goals", "requirements",
   "courses", "credit_recognitions", "milestones", "attachments",
 ] as const;
-
-/** CSV cell, with formula-looking values escaped so spreadsheets don't run them. */
-function cell(v: unknown) {
-  if (v === null || v === undefined) return "";
-  let s = v instanceof Date ? v.toISOString() : typeof v === "object" ? JSON.stringify(v) : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 export async function GET() {
   const supabase = await createSupabaseServer();
@@ -39,18 +32,28 @@ export async function GET() {
   files["data.json"] = strToU8(JSON.stringify({ format: "phd-companion-export", version: 1, exportedAt, tables }, null, 2));
   for (const [t, rows] of Object.entries(tables)) {
     if (!rows.length) continue;
-    const cols = Object.keys(rows[0]);
-    files[`csv/${t}.csv`] = strToU8("﻿" + [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n"));
+    files[`csv/${t}.csv`] = strToU8(toCsv(rows));
   }
+  // Uploaded evidence, including files hidden from the page (they're kept, not erased).
+  const fileList: { id: unknown; path: string; sha256: unknown; ok: boolean }[] = [];
+  for (const a of tables.attachments) {
+    if (a.kind !== "file" || a.status !== "verified" || typeof a.storagePath !== "string") continue;
+    const path = `files/${a.id}/${a.filename}`;
+    const { data: blob } = await supabase.storage.from("evidence").download(a.storagePath);
+    if (blob) files[path] = new Uint8Array(await blob.arrayBuffer());
+    fileList.push({ id: a.id, path, sha256: a.sha256, ok: Boolean(blob) });
+  }
+
   files["manifest.json"] = strToU8(JSON.stringify({
     format: "phd-companion-export",
     version: 1,
     exportedAt,
     counts: Object.fromEntries(Object.entries(tables).map(([t, r]) => [t, r.length])),
+    files: fileList,
     notes: [
       "data.json is the complete copy, including history tables and date precision.",
       "Dates with precision 'month' are stored as the 1st of the month; the day is not known.",
-      "Uploaded files are not included yet — evidence is stored as links.",
+      "files/ holds uploaded evidence; each file's SHA-256 is listed here so it can be checked.",
     ],
   }, null, 2));
 

@@ -8,8 +8,9 @@ import { EntryEditor } from "./entry-editor";
 
 export const metadata: Metadata = { title: "Entry" };
 
-export default async function EntryPage({ params }: PageProps<"/journal/[id]">) {
+export default async function EntryPage({ params, searchParams }: PageProps<"/journal/[id]">) {
   const { id } = await params;
+  const openDate = (await searchParams).date === "1";
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
@@ -17,6 +18,6 @@ export default async function EntryPage({ params }: PageProps<"/journal/[id]">) 
     return { entry, projects: await projectOptions(tx), today: todayIn(profile.timezone) };
   });
   if (!data.entry) notFound();
-  if (data.entry.hasExperiment) redirect(`/research/experiments/${id}`);
-  return <EntryEditor key={id} entry={data.entry} projects={data.projects} today={data.today} />;
+  if (data.entry.hasExperiment) redirect(`/research/experiments/${id}${openDate ? "?date=1" : ""}`);
+  return <EntryEditor key={id} entry={data.entry} projects={data.projects} today={data.today} openDate={openDate} />;
 }

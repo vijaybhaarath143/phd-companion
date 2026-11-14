@@ -185,10 +185,3 @@ export async function addLink(parentType: "entry" | "project" | "manuscript", pa
     refresh();
   });
 }
-
-export async function removeLink(id: string) {
-  return run(async (tx) => {
-    await tx`delete from public.attachments where id = ${id} and kind = 'link'`;
-    refresh();
-  });
-}

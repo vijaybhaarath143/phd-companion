@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,9 @@ import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { Breadcrumb } from "@/components/app/ui";
 import { addBlocker, resolveBlocker, setExperimentStatus, updateExperiment } from "@/server/actions/research";
-import { addLink, removeLink, setEntryDate } from "@/server/actions/entries";
+import { setEntryDate } from "@/server/actions/entries";
+import { Evidence } from "@/components/app/evidence";
+import type { EvidenceItem } from "@/server/evidence";
 import { blockerCategories, experimentStatuses } from "@/lib/labels";
 import { formatFullDay, formatPartialDate, type PartialDate, type Precision } from "@/lib/dates";
 
@@ -40,16 +41,18 @@ export function ExperimentEditor({
   project,
   revisions,
   blockers,
-  links,
+  evidence,
   today,
+  openDate = false,
 }: {
   entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; version: number };
   experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number; updatedAt: Date };
   project: { id: string; title: string } | null;
   revisions: Revision[];
   blockers: { id: string; category: string; description: string; openedOn: string; resolvedOn: string | null }[];
-  links: { id: string; url: string; label: string | null }[];
+  evidence: EvidenceItem[];
   today: string;
+  openDate?: boolean;
 }) {
   const [f, setF] = useState<Fields>({
     objective: experiment.objective ?? "",
@@ -69,8 +72,8 @@ export function ExperimentEditor({
   const [pending, start] = useTransition();
   const [viewing, setViewing] = useState<string | null>(null);
   const [date, setDate] = useState<PartialDate>({ date: entry.entryDate, precision: entry.entryPrecision });
-  const [editingDate, setEditingDate] = useState(false);
-  const [draftDate, setDraftDate] = useState<PartialDate>(date);
+  const [editingDate, setEditingDate] = useState(openDate);
+  const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [entryVersion, setEntryVersion] = useState(entry.version);
 
   const set = (k: keyof Fields, value: string) => {
@@ -227,17 +230,7 @@ export function ExperimentEditor({
 
           <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
             <h2 className="text-[15px] font-semibold">Evidence</h2>
-            {links.length === 0 && <p className="text-[13px] text-muted-foreground">Photos, data files or a link to the instrument output.</p>}
-            {links.map((l) => (
-              <div key={l.id} className="flex items-center gap-2">
-                <a href={l.url} target="_blank" rel="noreferrer noopener" className="min-w-0 truncate underline underline-offset-4">{l.label || l.url}</a>
-                <button type="button" aria-label="Remove link" onClick={() => start(async () => void (await removeLink(l.id)))} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
-              </div>
-            ))}
-            <ActionForm action={addLink.bind(null, "entry", entry.id)} success="Link added" className="flex flex-col gap-2">
-              <Input name="url" type="url" required placeholder="https://…" aria-label="Link" />
-              <Button type="submit" variant="outline" className="self-start"><Plus className="size-4" aria-hidden /> Add link</Button>
-            </ActionForm>
+            <Evidence items={evidence} parentType="entry" parentId={entry.id} hint="Photos, data files or a link to the instrument output." />
           </section>
         </div>
       </div>

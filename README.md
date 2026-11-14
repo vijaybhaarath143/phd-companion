@@ -51,10 +51,22 @@ Rules the database itself enforces (not just the UI):
 - experiment edits from a new editing session keep the earlier version (read-only)
 - manuscript phase history is append-only; "Record an earlier change" never moves the current phase
 - a task can't wait on itself, directly or through other tasks
+- Trash is emptied nightly (03:30) for items deleted more than 30 days ago
+
+Evidence files go straight from the browser into the person's own private storage folder
+through a one-time link. The server then checks the real file type (not just the name),
+size (20 MB max) and records a SHA-256 fingerprint before showing it. Files open through
+60-second links, never public URLs. "Remove" hides a file but keeps it, and the export
+ZIP includes every stored file.
 
 ## Checks
 
 ```bash
 npm run typecheck
 npm run lint
+npm test              # needs local Supabase running (npm run db:start)
 ```
+
+`tests/unit` covers dates, credits, CSV safety and file-type checks. `tests/db` runs
+against the local database as two real accounts and checks that one person's records
+never reach another — every table, search, Home, files — plus the history rules above.

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +12,8 @@ import { SaveStatus, useAutosave } from "@/components/app/autosave";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { ActionForm } from "@/components/app/action-form";
 import { Breadcrumb } from "@/components/app/ui";
-import { addLink, archiveEntry, removeLink, setEntryDate, trashEntry, updateEntry } from "@/server/actions/entries";
+import { archiveEntry, setEntryDate, trashEntry, updateEntry } from "@/server/actions/entries";
+import { Evidence } from "@/components/app/evidence";
 import { quickTask, toggleTask } from "@/server/actions/tasks";
 import { categories, entryStatuses, participation, registration, enquiryStatuses } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
@@ -42,7 +42,7 @@ function Row({ label, htmlFor, children, top }: { label: string; htmlFor?: strin
   );
 }
 
-export function EntryEditor({ entry, projects, today }: { entry: EntryDetail; projects: ProjectOption[]; today: string }) {
+export function EntryEditor({ entry, projects, today, openDate = false }: { entry: EntryDetail; projects: ProjectOption[]; today: string; openDate?: boolean }) {
   const [v, setV] = useState({
     title: entry.title,
     category: entry.category ?? "",
@@ -66,8 +66,8 @@ export function EntryEditor({ entry, projects, today }: { entry: EntryDetail; pr
   });
   const auto = useAutosave<Patch>(entry.version, (version, patch) => updateEntry(entry.id, version, patch), merge);
   const [date, setDate] = useState<PartialDate>({ date: entry.entryDate, precision: entry.entryPrecision });
-  const [editingDate, setEditingDate] = useState(false);
-  const [draftDate, setDraftDate] = useState<PartialDate>(date);
+  const [editingDate, setEditingDate] = useState(openDate);
+  const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [pending, start] = useTransition();
 
   const set = (key: keyof typeof v, section: keyof Patch, column: string, value: string, delay?: number) => {
@@ -233,20 +233,7 @@ export function EntryEditor({ entry, projects, today }: { entry: EntryDetail; pr
           )}
 
           <Row label="Evidence" top>
-            <div className="flex flex-col gap-2">
-              {entry.links.map((l) => (
-                <div key={l.id} className="flex items-center gap-2">
-                  <a href={l.url} target="_blank" rel="noreferrer noopener" className="truncate underline underline-offset-4">{l.label || l.url}</a>
-                  <button type="button" aria-label="Remove link" onClick={() => start(async () => void (await removeLink(l.id)))} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="size-4" /></button>
-                </div>
-              ))}
-              <ActionForm action={addLink.bind(null, "entry", entry.id)} success="Link added" className="flex flex-wrap gap-2">
-                <Input name="url" type="url" required placeholder="Paste a link (certificate, photo, document)" aria-label="Link" className="min-w-0 flex-[1_1_240px]" />
-                <Input name="label" placeholder="Label (optional)" aria-label="Link label" className="min-w-0 flex-[1_1_140px]" />
-                <Button type="submit" variant="outline"><Plus className="size-4" aria-hidden /> Add link</Button>
-              </ActionForm>
-              <p className="text-[13px] text-muted-foreground">File uploads come next; for now, link to a file in your Drive or email.</p>
-            </div>
+            <Evidence items={entry.evidence} parentType="entry" parentId={entry.id} hint="Certificates, photos, documents or a link to them." />
           </Row>
         </dl>
       </section>

@@ -2,6 +2,7 @@ import "server-only";
 import type { Tx } from "@/server/db";
 import type { Precision } from "@/lib/dates";
 import type { Phase } from "@/lib/labels";
+import { evidenceFor } from "@/server/evidence";
 
 export type ProjectRow = {
   id: string;
@@ -44,12 +45,10 @@ export async function getProjectBundle(tx: Tx, id: string) {
     select id, title, entry_date, entry_precision, category from public.entries
     where project_id = ${id} and deleted_at is null and archived_at is null and kind <> 'experiment'
     order by date_from desc nulls last, created_at desc limit 8`;
-  const links = await tx<{ id: string; url: string; label: string | null }[]>`
-    select id, url, label from public.attachments
-    where parent_type = 'project' and parent_id = ${id} and kind = 'link' and replaced_by_id is null order by created_at`;
+  const evidence = await evidenceFor(tx, "project", id);
   const milestones = await tx<{ id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision }[]>`
     select id, title, status, target_date, target_precision from public.milestones where project_id = ${id} order by sort, created_at`;
-  return { project, manuscripts, experiments, tasks, entries, links, milestones };
+  return { project, manuscripts, experiments, tasks, entries, evidence, milestones };
 }
 
 export async function getManuscriptBundle(tx: Tx, id: string) {
@@ -97,7 +96,6 @@ export async function getExperimentBundle(tx: Tx, id: string) {
     select * from public.experiment_revisions where entry_id = ${id} order by revision_no desc`;
   const blockers = await tx<{ id: string; category: string; description: string; openedOn: string; resolvedOn: string | null }[]>`
     select id, category, description, opened_on, resolved_on from public.blockers where entry_id = ${id} order by (resolved_on is not null), opened_on desc`;
-  const links = await tx<{ id: string; url: string; label: string | null }[]>`
-    select id, url, label from public.attachments where parent_type = 'entry' and parent_id = ${id} and kind = 'link' and replaced_by_id is null order by created_at`;
-  return { entry, experiment, project, revisions, blockers, links };
+  const evidence = await evidenceFor(tx, "entry", id);
+  return { entry, experiment, project, revisions, blockers, evidence };
 }

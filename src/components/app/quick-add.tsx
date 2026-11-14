@@ -53,7 +53,15 @@ export function QuickAddProvider({ projects, today, children }: { projects: Proj
       {children}
       {desktop ? (
         <Dialog open={isOpen} onOpenChange={(o) => !o && setOpts(null)}>
-          <DialogContent className="max-h-[calc(100dvh-4rem)] overflow-y-auto p-0 sm:max-w-[560px]" showCloseButton>
+          <DialogContent
+            className="max-h-[calc(100dvh-4rem)] overflow-y-auto p-0 sm:max-w-[560px]"
+            showCloseButton
+            onOpenAutoFocus={(e) => {
+              // start typing straight into the title
+              e.preventDefault();
+              document.getElementById("qa-title")?.focus();
+            }}
+          >
             {body}
           </DialogContent>
         </Dialog>
