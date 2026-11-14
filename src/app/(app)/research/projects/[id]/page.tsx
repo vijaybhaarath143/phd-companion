@@ -28,7 +28,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <nav aria-label="Projects" className="flex flex-wrap gap-2">
+      <nav aria-label="Projects" data-guide="projects" className="flex flex-wrap gap-2">
         {data.projects.map((p) => (
           <Link
             key={p.id}
@@ -57,7 +57,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <Section title="Manuscripts" action={<ProjectActions kind="manuscript" projectId={project.id} />}>
+          <Section guide="manuscripts" title="Manuscripts" action={<ProjectActions kind="manuscript" projectId={project.id} />}>
             {manuscripts.length ? (
               <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
                 {manuscripts.map((m) => (
@@ -79,7 +79,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
             )}
           </Section>
 
-          <Section title="Open tasks" action={<Link href="/planner" className="text-[13px] hover:underline">All tasks</Link>}>
+          <Section guide="project-tasks" title="Open tasks" action={<Link href="/planner" className="text-[13px] hover:underline">All tasks</Link>}>
             {tasks.length ? (
               <ProjectActions kind="tasks" projectId={project.id} tasks={tasks} />
             ) : (
@@ -90,7 +90,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
             )}
           </Section>
 
-          <Section title="Experiments" action={<ProjectActions kind="experiment" projectId={project.id} />}>
+          <Section guide="experiments" title="Experiments" action={<ProjectActions kind="experiment" projectId={project.id} />}>
             {experiments.length ? (
               <Rows>
                 {experiments.map((x) => (
@@ -120,7 +120,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
           <ProjectActions kind="about" projectId={project.id} project={project} />
-          <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+          <section data-guide="evidence" className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
             <h2 className="text-[15px] font-semibold">Evidence</h2>
             <Evidence items={evidence} parentType="project" parentId={project.id} hint="Drafts, figures, or a link to a shared folder." />
           </section>

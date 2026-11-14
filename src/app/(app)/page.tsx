@@ -6,6 +6,7 @@ import { getHome } from "@/server/home";
 import { greeting, longToday, todayIn } from "@/lib/dates";
 import { describeBucket, formatCredits } from "@/lib/credits";
 import { Empty, PageHeader, RowLink, Rows, Section } from "@/components/app/ui";
+import { GuideInvite } from "@/components/app/guide";
 import { QuickAddButton } from "@/components/app/quick-add";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,7 @@ export default async function HomePage() {
     return (
       <div className="mx-auto flex max-w-[960px] flex-col gap-6">
         <PageHeader eyebrow={longToday(tz)} title={name ? `Welcome, ${name}` : "Welcome"} />
+        <GuideInvite />
         <section className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-10 text-center">
           <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
             <BookOpen className="size-5 text-zinc-700" />
@@ -32,7 +34,7 @@ export default async function HomePage() {
           <QuickAddButton label="Quick Add" variant="default" />
         </section>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-          <Section title="Your projects" action={<Link href="/research" className="text-[13px] hover:underline">Open Research</Link>}>
+          <Section guide="working-on" title="Your projects" action={<Link href="/research" className="text-[13px] hover:underline">Open Research</Link>}>
             {home.workingOn.length ? (
               <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail="No entries yet" />)}</Rows>
             ) : (
@@ -52,12 +54,13 @@ export default async function HomePage() {
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
       <PageHeader eyebrow={longToday(tz)} title={greeting(tz)} />
-      <Link href="/journal?search=1" className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground md:hidden">
+      <GuideInvite />
+      <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground md:hidden">
         <Search className="size-4" aria-hidden /> Search everything
       </Link>
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <Section title="Needs attention" action={home.attentionTotal > 0 && <span className="text-[13px] text-muted-foreground">{home.attentionTotal} {home.attentionTotal === 1 ? "item" : "items"}</span>}>
+          <Section guide="attention" title="Needs attention" action={home.attentionTotal > 0 && <span className="text-[13px] text-muted-foreground">{home.attentionTotal} {home.attentionTotal === 1 ? "item" : "items"}</span>}>
             {home.attention.length ? (
               <Rows>{home.attention.map((a, i) => <RowLink key={i} href={a.href} title={a.title} detail={a.detail} badge={a.badge} attention={a.attention} />)}</Rows>
             ) : (
@@ -65,7 +68,7 @@ export default async function HomePage() {
             )}
           </Section>
 
-          <Section title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All projects</Link>}>
+          <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All projects</Link>}>
             {home.workingOn.length ? (
               <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail={p.detail} />)}</Rows>
             ) : (

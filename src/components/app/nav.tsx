@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "cn";
 import { BookOpen, CalendarDays, FlaskConical, GraduationCap, Home, Menu, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useQuickAdd } from "@/components/app/quick-add";
+import { GuideMeButton } from "@/components/app/guide";
 
 const items = [
   { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
@@ -24,15 +25,16 @@ export function Sidebar({ name, department }: { name: string; department: string
         <button
           type="button"
           onClick={() => open()}
+          data-guide="quick-add"
           className="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground transition-colors hover:bg-primary/85"
         >
           <Plus className="size-4" aria-hidden /> Quick Add
         </button>
-        <Link href="/journal?search=1" className="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground transition-colors hover:text-foreground">
+        <Link href="/journal?search=1" data-guide="search" className="flex h-10 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground transition-colors hover:text-foreground">
           <Search className="size-4" aria-hidden /> Search everything
         </Link>
       </div>
-      <ul className="flex flex-col gap-0.5">
+      <ul data-guide="nav" className="flex flex-col gap-0.5">
         {items.map((it) => {
           const active = it.match(path);
           return (
@@ -52,6 +54,7 @@ export function Sidebar({ name, department }: { name: string; department: string
         })}
       </ul>
       <div className="mt-auto flex flex-col gap-0.5 border-t pt-3">
+        <GuideMeButton className="flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-zinc-700 transition-colors hover:bg-zinc-100" />
         <Link
           href="/settings"
           aria-current={path.startsWith("/settings") ? "page" : undefined}
@@ -91,12 +94,13 @@ export function MobileNav() {
   );
   const moreActive = ["/research", "/academics", "/settings", "/more"].some((p) => path.startsWith(p));
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t bg-background px-2 pb-[max(env(safe-area-inset-bottom),8px)] md:hidden">
+    <nav aria-label="Main" data-guide="nav" className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t bg-background px-2 pb-[max(env(safe-area-inset-bottom),8px)] md:hidden">
       {tab("/", "Home", Home, path === "/")}
       {tab("/journal", "Journal", BookOpen, path.startsWith("/journal"))}
       <button
         type="button"
         aria-label="Quick Add"
+        data-guide="quick-add"
         onClick={() => open()}
         className="mx-2 flex size-13 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
       >

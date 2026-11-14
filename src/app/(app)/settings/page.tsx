@@ -3,6 +3,7 @@ import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
 import { signOut } from "@/server/actions/auth";
 import { PageHeader } from "@/components/app/ui";
+import { signInMode } from "@/lib/sign-in-mode";
 import { Button } from "@/components/ui/button";
 import { ProfileForm, RemindersToggle, TrashList } from "./settings-client";
 
@@ -47,7 +48,7 @@ export default async function SettingsPage() {
       </Block>
 
       <Block title="Your data" hint="Everything you record belongs to you.">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div data-guide="export" className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex-[1_1_260px]">
             <p className="font-medium">Export everything</p>
             <p className="text-[13px] text-muted-foreground">One download with all your records and their history — spreadsheet files (CSV) you can open in Excel, plus a full copy (JSON) for safekeeping.</p>
@@ -59,7 +60,7 @@ export default async function SettingsPage() {
           <p className="text-[13px] text-muted-foreground">Archived entries are hidden from the Journal but kept. {data.archived.length ? "" : "Nothing archived."}</p>
           <TrashList items={data.archived} kind="archive" />
         </div>
-        <div className="border-t border-zinc-100 pt-4">
+        <div data-guide="trash" className="border-t border-zinc-100 pt-4">
           <p className="font-medium">Trash</p>
           <p className="text-[13px] text-muted-foreground">Items in Trash can be restored. {data.trash.length ? "" : "Trash is empty."}</p>
           <TrashList items={data.trash} kind="trash" />
@@ -70,7 +71,7 @@ export default async function SettingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-medium">Sign-in email</p>
-            <p className="text-[13px] text-muted-foreground">{data.email} · you sign in with a code, no password</p>
+            <p className="text-[13px] text-muted-foreground">{data.email} · {signInMode() === "code" ? "you sign in with a code" : "you sign in with a link sent to this address"}, no password</p>
           </div>
           <form action={signOut}><Button type="submit" variant="outline">Sign out</Button></form>
         </div>

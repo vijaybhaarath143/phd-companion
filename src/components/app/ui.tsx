@@ -19,9 +19,9 @@ export function PageHeader({ title, subtitle, eyebrow, actions }: { title: React
   );
 }
 
-export function Section({ title, action, children, className, id, padded }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; id?: string; padded?: boolean }) {
+export function Section({ title, action, children, className, id, padded, guide }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; id?: string; padded?: boolean; guide?: string }) {
   return (
-    <section id={id} className={cn("scroll-mt-6 rounded-xl border bg-card", className)}>
+    <section id={id} data-guide={guide} className={cn("scroll-mt-6 rounded-xl border bg-card", className)}>
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
           {title && <h2 className="text-[15px] leading-6 font-semibold">{title}</h2>}

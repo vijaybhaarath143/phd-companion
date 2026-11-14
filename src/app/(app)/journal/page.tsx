@@ -73,7 +73,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
     <div className="mx-auto flex max-w-[860px] flex-col gap-5">
       <PageHeader title="Journal" subtitle="Everything you've recorded, newest first." />
 
-      <form className="flex flex-col gap-2.5" role="search">
+      <form className="flex flex-col gap-2.5" role="search" data-guide="journal-search">
         <label className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3.5 focus-within:ring-3 focus-within:ring-ring/50">
           <Search className="size-4 text-muted-foreground" aria-hidden />
           <input
@@ -133,13 +133,13 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       )}
 
       {groups.size === 0 && journal.undated.length === 0 && (
-        <p className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">
+        <p data-guide="journal-timeline" className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">
           {!filtering ? "Nothing recorded yet. Use Quick Add to record your first entry." : journal.otherMatches.length ? "No journal entries match — see the other matches above." : "Nothing matches. Try fewer filters or other words."}
         </p>
       )}
 
       {[...groups.entries()].map(([k, g]) => (
-        <section key={k} className="rounded-xl border bg-card">
+        <section key={k} data-guide="journal-timeline" className="rounded-xl border bg-card">
           <div className="flex items-center justify-between px-5 pt-4 pb-2">
             <h2 className="text-[15px] font-semibold">{monthLabel(k)}</h2>
             {k > thisMonth && <Badge variant="outline">Planned</Badge>}
@@ -171,7 +171,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       )}
 
       {journal.undated.length > 0 && (
-        <section id="needs-date" className="scroll-mt-6 rounded-xl border bg-card">
+        <section id="needs-date" data-guide="journal-undated" className="scroll-mt-6 rounded-xl border bg-card">
           <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4 pb-2">
             <h2 className="text-[15px] font-semibold">Needs a date</h2>
             <span className="text-[13px] text-muted-foreground">{journal.undated.length} · searchable and exported, but not on the timeline</span>

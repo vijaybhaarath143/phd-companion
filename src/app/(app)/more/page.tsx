@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, FlaskConical, GraduationCap, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Compass, FlaskConical, GraduationCap, SlidersHorizontal } from "lucide-react";
+import { GuideMeButton } from "@/components/app/guide";
 import { PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "More" };
@@ -26,6 +27,13 @@ export default function MorePage() {
           </li>
         ))}
       </ul>
+      <div className="rounded-xl border bg-card">
+        <GuideMeButton className="flex min-h-16 w-full items-center gap-3 px-5 py-3 text-left">
+          <Compass className="size-5 text-zinc-600" aria-hidden />
+          <span className="flex-1"><span className="block font-medium">Guide me</span><span className="block text-[13px] text-muted-foreground">A short tour of how everything works</span></span>
+          <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+        </GuideMeButton>
+      </div>
     </div>
   );
 }

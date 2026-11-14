@@ -38,7 +38,7 @@ export function CoursesSection({ courses, today }: { courses: Course[]; today: s
   const [editing, setEditing] = useState<string | null>(null);
   const [recognising, setRecognising] = useState<string | null>(null);
   return (
-    <section className="rounded-xl border bg-card">
+    <section data-guide="courses" className="rounded-xl border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-[15px] font-semibold">Courses</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}><Plus className="size-3.5" aria-hidden /> Add course</Button>
@@ -129,7 +129,7 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
   const [marking, setMarking] = useState<string | null>(null);
   const existing = new Set(milestones.map((m) => m.title.toLowerCase()));
   return (
-    <section className="min-w-0 flex-[3_1_420px] rounded-xl border bg-card">
+    <section data-guide="milestones" className="min-w-0 flex-[3_1_420px] rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-[15px] font-semibold">Milestones</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(adding === null ? "" : null)}>Add milestone</Button>
@@ -192,7 +192,7 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   return (
-    <section id="enquiries" className="min-w-0 flex-[2_1_300px] scroll-mt-6 rounded-xl border bg-card">
+    <section id="enquiries" data-guide="enquiries" className="min-w-0 flex-[2_1_300px] scroll-mt-6 rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
         <h2 className="text-[15px] font-semibold">Office enquiries</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}>Add enquiry</Button>

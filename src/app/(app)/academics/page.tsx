@@ -29,7 +29,7 @@ export default async function AcademicsPage() {
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <PageHeader title="Academics" subtitle={subtitle || undefined} />
 
-      <section className="rounded-xl border bg-card">
+      <section data-guide="credits" className="rounded-xl border bg-card">
         <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
           <div>
             <h2 className="text-[15px] font-semibold">{a.requirement?.label ?? "Coursework credits"}{a.requirement?.periodLabel ? ` — ${a.requirement.periodLabel.toLowerCase()}` : ""}</h2>

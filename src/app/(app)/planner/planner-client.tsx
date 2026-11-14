@@ -23,6 +23,7 @@ export function AddTask({ projects }: { projects: ProjectOption[] }) {
   const [pending, start] = useTransition();
   return (
     <form
+      data-guide="planner-add"
       className="flex flex-wrap gap-2"
       onSubmit={(e) => {
         e.preventDefault();

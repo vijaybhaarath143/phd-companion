@@ -53,7 +53,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
       <PageHeader title="Planner" subtitle="What needs doing, and when." />
-      <div role="tablist" aria-label="Planner views" className="flex gap-5 border-b">
+      <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex gap-5 border-b">
         {tab("tasks", "Tasks")}
         {tab("calendar", "Calendar")}
         {tab("goals", "Goals")}
@@ -62,7 +62,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       {view === "tasks" && (
         <>
           <AddTask projects={data.projects} />
-          <div role="group" aria-label="Show" className="flex w-fit flex-wrap gap-1 rounded-[10px] bg-muted p-1">
+          <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-1 rounded-[10px] bg-muted p-1">
             {([["open", `Open · ${data.counts.open}`], ["waiting", `Waiting · ${data.counts.waiting}`], ["done", "Done"]] as const).map(([k, label]) => (
               <Link key={k} href={k === "open" ? "/planner" : `/planner?show=${k}`} aria-current={show === k ? "true" : undefined}
                 className={cn("flex h-8 items-center rounded-md px-3 text-[13px] font-medium", show === k ? "bg-background text-foreground shadow-xs" : "text-zinc-600")}>
