@@ -86,6 +86,13 @@ src/components/app/sprig-bus.ts     how the rest of the app calls it
 src/app/globals.css (end)           the animations
 ```
 
+**The logo** is Sprig as a tile: the app's rounded square with a face, leaves growing out of the
+top. `brand.tsx` is the logo with the stacked "PhD / Companion" name (sidebar, sign-in, Admin,
+onboarding); it blinks, watches the pointer, wiggles its leaves on hover and hops when clicked.
+The drawing lives once, in `sprig-mark-art.mjs`, and the app icons are made from it: after
+changing it, run `npm run icons` to rewrite the favicon, the Apple icon and the install icons
+(a unit test checks their sizes and the manifest).
+
 How it hears about things:
 
 - **Toasts:** every `toast.success` gets a nod and every `toast.error` a worried face, on

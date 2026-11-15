@@ -8,6 +8,7 @@ import { asUser } from "@/server/auth";
 import { getProfile } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
 import { LiveSprig } from "@/components/app/sprig-live";
+import { Brand } from "@/components/app/brand";
 import { ContinueButton, SkipButton, WelcomeForm } from "./welcome-form";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -39,7 +40,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
 
   return (
     <div className="flex min-h-dvh flex-col bg-zinc-50 p-6">
-      <div className="text-[15px] font-semibold">PhD Companion</div>
+      <Brand size="sm" />
       <main className="flex flex-1 items-center justify-center py-10">
         <div className="flex w-full max-w-[520px] flex-col gap-6 rounded-2xl border-2 bg-card shadow-edge p-8">
           <Steps step={step} />

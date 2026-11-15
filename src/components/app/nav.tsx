@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
-import { BookOpen, CalendarDays, Sprout, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, CalendarDays, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { useQuickAdd } from "@/components/app/quick-add";
 import { GuideMeButton } from "@/components/app/guide";
 import { IconTile, type AreaTone } from "@/components/app/ui";
+import { Brand } from "@/components/app/brand";
 
 const items = [
   { tone: "leaf" as AreaTone, href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
@@ -24,12 +25,7 @@ export function Sidebar({ name, department, phdTitle, isAdmin = false }: { name:
   const { open } = useQuickAdd();
   return (
     <nav aria-label="Main" className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-5 overflow-y-auto border-r-2 bg-sidebar px-4 py-6 md:flex">
-      <Link href="/" className="flex items-center gap-2.5 px-1.5">
-        <span aria-hidden className="flex size-10 items-center justify-center rounded-[14px] bg-primary text-primary-foreground shadow-[0_3px_0_var(--primary-edge)]">
-          <Sprout className="size-5" strokeWidth={2.4} />
-        </span>
-        <span className="font-display text-[17px] leading-tight font-black">PhD Companion</span>
-      </Link>
+      <Brand href="/" className="px-1.5" />
       <div className="flex flex-col gap-2">
         <button
           type="button"

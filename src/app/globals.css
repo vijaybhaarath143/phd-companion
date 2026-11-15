@@ -359,3 +359,19 @@
   .sprig-trick[data-trick="nod"] { animation: sprig-trick-nod 500ms ease-in-out; }
   .sprig-trick[data-trick="startle"] { animation: sprig-trick-startle 700ms ease-out; }
 }
+
+/* The logo (components/app/brand.tsx): hovering the lockup wiggles Sprig's leaves. Motion-safe only. */
+@keyframes sprig-leaf-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-14deg); }
+  45% { transform: rotate(12deg); }
+  70% { transform: rotate(-7deg); }
+  85% { transform: rotate(4deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sprig-brand:hover .sprig-mark-leaves {
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+    animation: sprig-leaf-wiggle 700ms ease-in-out;
+  }
+}

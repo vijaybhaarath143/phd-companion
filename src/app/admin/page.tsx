@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft, KeyRound, ShieldCheck, Sprout } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
 import { accountToolsReady, adminLog, currentAdmin, listScholars, statusOf } from "@/server/admin";
 import { withUser } from "@/server/db";
 import { getProfile } from "@/server/profile";
@@ -10,6 +10,7 @@ import { formatTimestamp } from "@/lib/dates";
 import { IconTile, PageHeader, Rows, Section } from "@/components/app/ui";
 import { Badge } from "@/components/ui/badge";
 import { SprigDock } from "@/components/app/sprig-dock";
+import { Brand } from "@/components/app/brand";
 import { AddScholar, ScholarActions } from "./admin-client";
 
 export const metadata: Metadata = { title: "Admin" };
@@ -43,12 +44,7 @@ export default async function AdminPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="flex items-center justify-between gap-3 border-b-2 bg-card px-4 py-3 sm:px-6">
-        <Link href="/admin" className="flex items-center gap-2.5">
-          <span aria-hidden className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_3px_0_var(--primary-edge)]">
-            <Sprout className="size-5" strokeWidth={2.4} />
-          </span>
-          <span className="font-display text-[16px] font-black">PhD Companion</span>
-        </Link>
+        <Brand href="/admin" size="sm" />
         <Link href={profile?.onboardedAt ? "/" : "/welcome"} className="flex items-center gap-1.5 font-display text-sm font-extrabold text-sky hover:underline">
           <ArrowLeft className="size-4" aria-hidden /> {profile?.onboardedAt ? "Back to the app" : "Set up your own PhD space"}
         </Link>
