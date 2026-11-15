@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Plus } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronRight, Plus } from "lucide-react";
 import { cn } from "cn";
 import { asUser } from "@/server/auth";
 import { getProjectBundle, isReviewProject, listProjects, prismaNumbers } from "@/server/research";
@@ -11,7 +11,7 @@ import { requireProfile } from "@/server/profile";
 import { formatPartialDate } from "@/lib/dates";
 import { categories, experimentStatuses, phases, projectStatuses, projectTypes } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
-import { Empty, Rows, RowLink, Section } from "@/components/app/ui";
+import { Empty, IconLink, Rows, RowLink, Section } from "@/components/app/ui";
 import { QuickAddButton } from "@/components/app/quick-add";
 import { ProjectActions, RememberProject } from "./project-actions";
 import { isUuid } from "@/lib/utils";
@@ -86,7 +86,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
             )}
           </Section>
 
-          <Section guide="project-tasks" title="Open tasks" action={<Link href="/planner" className="text-[13px] hover:underline">All tasks</Link>}>
+          <Section guide="project-tasks" title="Open tasks" action={<IconLink href="/planner" label="All tasks in Planner"><CalendarDays /></IconLink>}>
             {tasks.length ? (
               <ProjectActions kind="tasks" projectId={project.id} tasks={tasks} />
             ) : (
@@ -111,7 +111,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
             )}
           </Section>
 
-          <Section title="Recent entries" action={<Link href={`/journal?project=${project.id}`} className="text-[13px] hover:underline">All entries</Link>}>
+          <Section title="Recent entries" action={<IconLink href={`/journal?project=${project.id}`} label="All entries in Journal"><BookOpen /></IconLink>}>
             {entries.length ? (
               <Rows>
                 {entries.map((e) => (

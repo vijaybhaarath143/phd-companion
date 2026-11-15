@@ -114,3 +114,28 @@ const TONES: Record<AreaTone, string> = {
   clay: "bg-clay-soft text-clay",
   neutral: "bg-muted text-zinc-700",
 };
+
+/**
+ * A card header's "go to" link as a small icon button showing the destination's icon.
+ * The label is read by screen readers and shown as a tooltip on hover and keyboard focus.
+ */
+export function IconLink({ href, label, children, className }: { href: string; label: string; children: ReactNode; className?: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className={cn(
+        "group/iconlink relative flex size-9 shrink-0 items-center justify-center rounded-lg border-2 bg-card text-zinc-700 shadow-[0_3px_0_var(--border)] transition-transform duration-75 outline-none hover:bg-zinc-50 hover:text-foreground focus-visible:ring-4 focus-visible:ring-sky-soft active:translate-y-[3px] active:shadow-none motion-reduce:transition-none [&_svg]:size-[18px]",
+        className,
+      )}
+    >
+      {children}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute top-full right-0 z-20 mt-2 rounded-lg bg-zinc-900 px-2 py-1 font-display text-xs font-bold whitespace-nowrap text-white opacity-0 transition-opacity group-hover/iconlink:opacity-100 group-focus-visible/iconlink:opacity-100"
+      >
+        {label}
+      </span>
+    </Link>
+  );
+}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, Download, Search } from "lucide-react";
+import { BookOpen, CalendarDays, Download, FlaskConical, History, Search } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
 import { getAreas, getHome, getHomeCalendar, getRecentUpdates, getReminders, needsBackupReminder } from "@/server/home";
@@ -7,7 +7,7 @@ import { formatTimestamp, greeting, longToday, monthLabel, todayIn } from "@/lib
 import { CreditBar } from "@/components/app/credit-bar";
 import { StepBar } from "@/components/app/step-bar";
 import { Areas, MiniMonth, RecentUpdates, Reminders } from "@/components/app/home-panels";
-import { Empty, PageHeader, RowLink, Rows, Section } from "@/components/app/ui";
+import { Empty, IconLink, PageHeader, RowLink, Rows, Section } from "@/components/app/ui";
 import { GuideInvite } from "@/components/app/guide";
 import { QuickAddButton } from "@/components/app/quick-add";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export default async function HomePage() {
           <QuickAddButton label="Quick Add" variant="default" />
         </section>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-          <Section guide="working-on" title="Your projects" action={<Link href="/research" className="text-[13px] hover:underline">Open Research</Link>}>
+          <Section guide="working-on" title="Your projects" action={<IconLink href="/research" label="Open Research"><FlaskConical /></IconLink>}>
             {home.workingOn.length ? (
               <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail="No entries yet" />)}</Rows>
             ) : (
@@ -105,7 +105,7 @@ export default async function HomePage() {
 
           {home.attention.length > 0 && <Attention home={home} />}
 
-          <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All research</Link>}>
+          <Section guide="working-on" title="Working on" action={<IconLink href="/research" label="All research"><FlaskConical /></IconLink>}>
             {home.workingOn.length ? (
               <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {home.workingOn.map((p) => (
@@ -125,11 +125,11 @@ export default async function HomePage() {
         </div>
 
         <div className="flex min-w-0 flex-[2_1_300px] flex-col gap-4">
-          <Section padded guide="home-calendar" title={monthLabel(calendar.month)} action={<Link href="/planner?view=calendar" className="text-[13px] hover:underline">Calendar</Link>}>
+          <Section padded guide="home-calendar" title={monthLabel(calendar.month)} action={<IconLink href="/planner?view=calendar" label="Open calendar"><CalendarDays /></IconLink>}>
             <MiniMonth cal={calendar} />
           </Section>
 
-          <Section title="Recent updates" action={<Link href="/timeline" className="text-[13px] hover:underline">Timeline</Link>}>
+          <Section title="Recent updates" action={<IconLink href="/timeline" label="Open timeline"><History /></IconLink>}>
             <RecentUpdates items={updates} />
           </Section>
 
