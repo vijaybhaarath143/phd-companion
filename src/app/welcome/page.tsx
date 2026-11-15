@@ -7,6 +7,7 @@ import { monthOptions, valueOptions } from "@/lib/options";
 import { asUser } from "@/server/auth";
 import { getProfile } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
+import { LiveSprig } from "@/components/app/sprig-live";
 import { ContinueButton, SkipButton, WelcomeForm } from "./welcome-form";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -46,6 +47,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 1 && (
             <WelcomeForm step={1}>
               <div className="flex flex-col gap-1.5">
+                <LiveSprig mood="hello" className="mb-2 w-20" />
                 <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Welcome. What should we call you?</h1>
                 <p className="text-muted-foreground">This is the only thing we need. Everything else can wait.</p>
               </div>
@@ -64,6 +66,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 2 && (
             <WelcomeForm step={2}>
               <div className="flex flex-col gap-1.5">
+                <LiveSprig mood="happy" className="mb-2 w-20" />
                 <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Your programme</h1>
                 <p className="text-muted-foreground">Fill in what you know. You can change any of this later in Settings.</p>
               </div>
@@ -100,6 +103,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 3 && (
             <WelcomeForm step={3}>
               <div className="flex flex-col gap-1.5">
+                <LiveSprig mood="curious" className="mb-2 w-20" />
                 <h1 className="text-[28px] leading-tight font-black md:text-[34px]">What&apos;s your PhD about?</h1>
                 <p className="text-muted-foreground">Your whole PhD is the one project here. A provisional title is fine — you can change it in Settings any time.</p>
               </div>

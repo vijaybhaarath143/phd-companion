@@ -7,6 +7,7 @@ import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { quickAction } from "@/components/app/call-action";
 import { toggleTask } from "@/server/actions/tasks";
+import { cueSprig } from "@/components/app/sprig-bus";
 
 /**
  * The reminder for tasks marked "Keep reminding me until it's done": on every page, until the
@@ -33,7 +34,7 @@ export function KeepReminding({ tasks }: { tasks: { id: string; title: string; t
           variant="outline"
           disabled={pending}
           className="h-7 border-attention-border bg-white text-attention-foreground hover:bg-white/80"
-          onClick={() => start(async () => { if (await quickAction(() => toggleTask(first.id, true))) toast.success("Marked done"); })}
+          onClick={() => start(async () => { if (await quickAction(() => toggleTask(first.id, true))) { toast.success("Marked done"); cueSprig({ kind: "done" }); } })}
         >
           Mark done
         </Button>

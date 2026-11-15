@@ -9,6 +9,7 @@ import { getProfile } from "@/server/profile";
 import { formatTimestamp } from "@/lib/dates";
 import { IconTile, PageHeader, Rows, Section } from "@/components/app/ui";
 import { Badge } from "@/components/ui/badge";
+import { SprigDock } from "@/components/app/sprig-dock";
 import { AddScholar, ScholarActions } from "./admin-client";
 
 export const metadata: Metadata = { title: "Admin" };
@@ -53,7 +54,7 @@ export default async function AdminPage() {
         </Link>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-4 pt-6 pb-16 sm:px-6 md:pt-8">
+      <main className="mx-auto flex w-full max-w-[880px] flex-col gap-6 px-4 pt-6 pb-36 sm:px-6 md:pt-8">
         <PageHeader
           eyebrow="Admin"
           title="Scholars"
@@ -115,6 +116,7 @@ export default async function AdminPage() {
           )}
         </Section>
       </main>
+      <SprigDock />
     </div>
   );
 }

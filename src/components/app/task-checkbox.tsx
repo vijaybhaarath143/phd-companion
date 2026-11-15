@@ -5,6 +5,7 @@ import { cn } from "cn";
 import { Check } from "lucide-react";
 import { toggleTask } from "@/server/actions/tasks";
 import { quickAction } from "@/components/app/call-action";
+import { cueSprig } from "@/components/app/sprig-bus";
 
 /**
  * "Done" checkbox for a task. Ticks at once; if the save fails it says so and un-ticks
@@ -32,7 +33,8 @@ export function TaskCheckbox({ id, title, done, className }: { id: string; title
           const next = e.target.checked;
           setChecked(next);
           start(async () => {
-            await quickAction(() => toggleTask(id, next), () => setChecked(!next));
+            const saved = await quickAction(() => toggleTask(id, next), () => setChecked(!next));
+            if (saved && next) cueSprig({ kind: "done" });
           });
         }}
       />

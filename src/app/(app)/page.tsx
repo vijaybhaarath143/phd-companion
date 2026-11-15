@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Ban, BookOpen, Building2, CalendarDays, Download, FileText, FlaskConical, GraduationCap, History, Hourglass, MessageSquare, Search, type LucideIcon } from "lucide-react";
+import { Ban, Building2, CalendarDays, Download, FileText, FlaskConical, GraduationCap, History, Hourglass, MessageSquare, Search, type LucideIcon } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
 import { getAreas, getHome, getHomeCalendar, getRecentUpdates, getReminders, needsBackupReminder } from "@/server/home";
@@ -8,6 +8,7 @@ import { CreditBar } from "@/components/app/credit-bar";
 import { PhaseBar, StepBar } from "@/components/app/step-bar";
 import { Areas, MiniMonth, RecentUpdates, Reminders } from "@/components/app/home-panels";
 import { Empty, IconLink, IconTile, PageHeader, RowLink, Rows, Section, type AreaTone } from "@/components/app/ui";
+import { LiveSprig } from "@/components/app/sprig-live";
 import { Badge } from "@/components/ui/badge";
 import { GuideInvite } from "@/components/app/guide";
 import { QuickAddButton } from "@/components/app/quick-add";
@@ -65,7 +66,7 @@ function NeedsYou({ home }: { home: Home }) {
           })}
         </ul>
       ) : (
-        <Empty>Nothing needs you today. Nice.</Empty>
+        <Empty sprig="cosy">Nothing needs you today. Nice.</Empty>
       )}
     </Section>
   );
@@ -120,9 +121,7 @@ export default async function HomePage() {
         <GuideInvite />
         {home.attention.length > 0 && <NeedsYou home={home} />}
         <section className="flex flex-col items-center gap-4 rounded-2xl border-2 bg-card shadow-edge px-8 py-10 text-center">
-          <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
-            <BookOpen className="size-7 text-primary" />
-          </div>
+          <LiveSprig stage="seed" className="w-24" />
           <div className="flex max-w-[460px] flex-col gap-1.5">
             <h2 className="text-lg font-extrabold">Record your first entry</h2>
             <p className="text-muted-foreground">Anything that happened — a meeting, a reading, an experiment, a deadline. A title and a date are enough.</p>

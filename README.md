@@ -68,6 +68,40 @@ size (20 MB max) and records a SHA-256 fingerprint before showing it. Files open
 ZIP includes every stored file. Storage only lets a file be removed once it is no longer
 evidence (a failed upload, or a record purged from Trash).
 
+## Sprig, the mascot
+
+Sprig is the app's sprout with a face. It's in the bottom-right corner of every signed-in
+page and of Admin (`SprigDock`), and in the page itself on sign-in, the code screen,
+onboarding, the first-day Home, some empty states, "Step done" and the not-found and error
+pages (`LiveSprig`). Every Sprig plays when clicked or tapped. Only the one in the corner is a
+keyboard stop and speaks to screen readers (its menu and lines); the ones in pages are decoration,
+so they never stand between her and a form.
+
+```
+src/components/app/sprig.tsx        the drawing: moods × growth stages (server-safe SVG)
+src/components/app/sprig-live.tsx   alive: breathing, blinking, eyes that follow, tap reactions
+src/components/app/sprig-dock.tsx   the companion in the corner: bubble, menu, idle life, dozing
+src/components/app/sprig-lines.ts   everything Sprig says
+src/components/app/sprig-bus.ts     how the rest of the app calls it
+src/app/globals.css (end)           the animations
+```
+
+How it hears about things:
+
+- **Toasts:** every `toast.success` gets a nod and every `toast.error` a worried face, on
+  their own (it watches Sonner). Nothing to add at call sites.
+- **Real milestones:** call `celebrate(title, detail)` (`components/app/celebrate.tsx`), or
+  pass `celebrate` to `ActionForm`. Sprig flips and throws confetti; where there's no Sprig
+  in the corner (or a dialog is covering it) a celebration toast shows instead.
+- **A task ticked off:** `cueSprig({ kind: "done" })`.
+
+Rules it keeps: it never nags or guilt-trips (unit tests check the lines); it greets each
+area once per visit and makes its "I wasn't sleeping" joke once per visit; a passing line never
+blocks a tap on the page under it; "Tuck me away" leaves only its leaves and eyes peeking out,
+remembered on that device; on a phone it ducks the same way while she types; it stops its idle
+movement while dozing or tucked; under reduced motion it keeps its faces and words but doesn't
+move; it isn't printed.
+
 ## Backups (the free plan has none)
 
 - **In the app:** Settings → *Download export* (records + files, streamed as one ZIP). Home

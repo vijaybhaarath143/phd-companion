@@ -9,6 +9,7 @@ import { QuickAddProvider } from "@/components/app/quick-add";
 import { MobileNav, Sidebar } from "@/components/app/nav";
 import { GuideProvider } from "@/components/app/guide";
 import { KeepReminding } from "@/components/app/keep-reminding";
+import { AppSprig } from "@/components/app/app-sprig";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const { profile, publications, overdue, nagging, isAdmin } = await asUser(async (tx) => {
@@ -49,10 +50,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 <Link href="/planner" className="font-medium underline underline-offset-2">Open Planner</Link>
               </div>
             )}
-            <main className="w-full flex-1 px-4 pt-6 pb-28 sm:px-6 md:px-10 md:pt-8 md:pb-12">{children}</main>
+            <main className="w-full flex-1 px-4 pt-6 pb-44 sm:px-6 md:px-10 md:pt-8 md:pb-32">{children}</main>
           </div>
         </div>
         <MobileNav />
+        <AppSprig />
       </GuideProvider>
     </QuickAddProvider>
   );

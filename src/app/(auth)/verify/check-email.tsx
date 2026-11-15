@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LiveSprig } from "@/components/app/sprig-live";
 import { resendCode } from "@/server/actions/auth";
 
 export function CheckEmail({ email }: { email: string }) {
   const [resent, resend, resending] = useActionState(resendCode, undefined);
   return (
     <div className="flex w-full max-w-[420px] flex-col gap-6 sm:rounded-3xl sm:border-2 sm:bg-card sm:p-8 sm:shadow-edge">
-      <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
-        <Mail className="size-7 text-primary" />
-      </div>
+      <LiveSprig mood={resent?.error ? "oops" : "curious"} className="w-24" />
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[30px] leading-tight font-black">Check your email</h1>
         <p className="text-muted-foreground">

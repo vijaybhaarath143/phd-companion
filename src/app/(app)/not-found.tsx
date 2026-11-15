@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { LiveSprig } from "@/components/app/sprig-live";
 
 /** A record that isn't there (wrong link, or moved to Trash), shown inside the app's frame. */
 export default function NotFound() {
   return (
     <div className="mx-auto flex max-w-[560px] flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-6">
+      <LiveSprig mood="curious" className="w-20" />
       <h1 className="text-2xl font-black">This wasn&apos;t found</h1>
       <p className="text-muted-foreground">
         The link may be mistyped or out of date, or the record was moved to Trash. Things in Trash can be restored from Settings for 30 days.

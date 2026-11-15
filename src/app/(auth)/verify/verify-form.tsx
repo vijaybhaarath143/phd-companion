@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LiveSprig } from "@/components/app/sprig-live";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { resendCode, verifyCode } from "@/server/actions/auth";
 
@@ -13,6 +14,7 @@ export function VerifyForm({ email }: { email: string }) {
   const error = state?.error ?? resent?.error;
   return (
     <div className="flex w-full max-w-[420px] flex-col gap-6 sm:rounded-3xl sm:border-2 sm:bg-card sm:p-8 sm:shadow-edge">
+      <LiveSprig mood={error ? "oops" : code.length === 6 ? "proud" : "curious"} className="w-24" />
       <div className="flex flex-col gap-1.5">
         <h1 className="text-[30px] leading-tight font-black">Check your email</h1>
         <p className="text-muted-foreground">We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>. It works for 10 minutes.</p>
