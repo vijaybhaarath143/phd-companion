@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, ChevronRight, Compass, FlaskConical, GraduationCap, NotebookPen, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, ChevronRight, Compass, FlaskConical, GraduationCap, NotebookPen, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { GuideMeButton } from "@/components/app/guide";
 import { PageHeader } from "@/components/app/ui";
+import { asUser } from "@/server/auth";
 
 export const metadata: Metadata = { title: "More" };
 
 /** Phone-only menu for the areas that don't fit in the bottom bar. */
-export default function MorePage() {
+export default async function MorePage() {
+  const [{ isAdmin }] = await asUser((tx) => tx<{ isAdmin: boolean }[]>`select app.is_admin() as is_admin`);
   const items = [
     { href: "/journal", label: "Journal", hint: "Your entries, search and dates to fill in", icon: BookOpen },
     { href: "/research", label: "Research", hint: "Publications and benchwork", icon: FlaskConical },
@@ -15,6 +17,7 @@ export default function MorePage() {
     { href: "/events", label: "Events", hint: "Conferences, workshops, training — upcoming and attended", icon: Users },
     { href: "/notes", label: "Notes", hint: "Scribbles and checklists", icon: NotebookPen },
     { href: "/settings", label: "Settings", hint: "Profile, export, trash, sign out", icon: SlidersHorizontal },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", hint: "Add, pause and remove scholars", icon: ShieldCheck }] : []),
   ];
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
