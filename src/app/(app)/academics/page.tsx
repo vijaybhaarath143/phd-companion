@@ -30,10 +30,10 @@ export default async function AcademicsPage() {
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <PageHeader title="Academics" subtitle={subtitle || undefined} />
 
-      <section data-guide="credits" className="rounded-xl border bg-card">
+      <section data-guide="credits" className="rounded-2xl border-2 bg-card shadow-edge">
         <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-4 pb-3">
           <div>
-            <h2 className="text-[15px] font-semibold">{a.requirement?.label ?? "Coursework credits"}{a.requirement?.periodLabel ? ` — ${a.requirement.periodLabel.toLowerCase()}` : ""}</h2>
+            <h2 className="text-[15px] font-extrabold">{a.requirement?.label ?? "Coursework credits"}{a.requirement?.periodLabel ? ` — ${a.requirement.periodLabel.toLowerCase()}` : ""}</h2>
             <p className="text-[13px] text-muted-foreground">Your requirement, set by you. Edit it if your department&apos;s rules change.</p>
           </div>
           <RequirementEditor requirement={a.requirement} />
@@ -48,7 +48,7 @@ export default async function AcademicsPage() {
             {stat(c ? formatCredits(c.recognised) : "0", "Officially recognised")}
           </div>
           {c?.incomplete && (
-            <p className="rounded-lg border border-attention-border bg-attention px-3 py-2.5 text-[13px] text-attention-foreground">
+            <p className="rounded-xl bg-attention px-3 py-2.5 text-[13px] text-attention-foreground">
               Totals are incomplete: {a.courses.filter((x) => x.credits === null && x.status !== "dropped").map((x) => `${x.name}${x.provider ? ` (${x.provider})` : ""}`).join(", ")} {a.courses.filter((x) => x.credits === null && x.status !== "dropped").length === 1 ? "has" : "have"} no credit value yet. Unknown is never counted as zero.
             </p>
           )}

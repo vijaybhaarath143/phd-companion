@@ -8,15 +8,15 @@ import { sendCode } from "@/server/actions/auth";
 export function SignInForm({ mode, linkFailed, captchaSiteKey }: { mode: "link" | "code"; linkFailed: boolean; captchaSiteKey: string | null }) {
   const [state, action, pending] = useActionState(sendCode, undefined);
   return (
-    <form action={action} className="flex w-full max-w-[400px] flex-col gap-5 rounded-xl border bg-card p-8">
+    <form action={action} className="flex w-full max-w-[400px] flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-8">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Sign in</h1>
+        <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Sign in</h1>
         <p className="text-muted-foreground">
           {mode === "link" ? "We'll email you a sign-in link. No password to remember." : "We'll email you a 6-digit code. No password to remember."}
         </p>
       </div>
       {linkFailed && !state?.error && (
-        <p role="alert" className="rounded-lg border border-attention-border bg-attention px-3 py-2.5 text-[13px] text-attention-foreground">
+        <p role="alert" className="rounded-xl bg-attention px-3 py-2.5 text-[13px] text-attention-foreground">
           That sign-in link didn&apos;t work. Links work once, for 10 minutes, and only on the device and browser that asked for them. Send a new one below.
         </p>
       )}

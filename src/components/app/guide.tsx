@@ -164,7 +164,7 @@ function GuideMenu({ open, onOpenChange, onStart }: { open: boolean; onOpenChang
                 >
                   <span
                     aria-hidden
-                    className={cn("flex size-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold", seen ? "border-transparent bg-zinc-900 text-white" : "text-zinc-600")}
+                    className={cn("flex size-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold", seen ? "border-transparent bg-primary text-white" : "text-zinc-600")}
                   >
                     {seen ? <Check className="size-3.5" /> : GUIDE_CHAPTERS.indexOf(c) + 1}
                   </span>
@@ -385,7 +385,7 @@ function StepView({
           aria-labelledby="guide-title"
           aria-describedby="guide-body"
           style={style}
-          className="absolute flex w-[min(380px,calc(100vw-24px))] flex-col gap-3 rounded-xl border bg-popover p-5 text-popover-foreground shadow-xl"
+          className="absolute flex w-[min(380px,calc(100vw-24px))] flex-col gap-3 rounded-2xl border-2 bg-popover p-5 text-popover-foreground shadow-xl"
         >
           <div className="flex items-start justify-between gap-3">
             <p className="pt-0.5 text-[12px] text-muted-foreground">{position}</p>
@@ -394,11 +394,11 @@ function StepView({
             </button>
           </div>
           <div className="flex flex-col gap-1.5">
-            <h2 ref={heading} id="guide-title" tabIndex={-1} className="text-[17px] leading-6 font-semibold outline-none">{step.title}</h2>
+            <h2 ref={heading} id="guide-title" tabIndex={-1} className="text-[17px] leading-6 font-extrabold outline-none">{step.title}</h2>
             <p id="guide-body" className="text-[14px] leading-[1.55] text-zinc-700">{body}</p>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <div className="h-full rounded-full bg-zinc-900 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
+            <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {canGoBack && <Button variant="ghost" onClick={onBack} className="mr-auto -ml-2">Back</Button>}
@@ -461,12 +461,12 @@ export function GuideInvite() {
   if (!hydrated || running || saved.dismissed || saved.seen.length > 0) return null;
 
   return (
-    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border bg-card px-5 py-4">
+    <section className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
       <div aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
         <Compass className="size-5 text-zinc-700" />
       </div>
       <div className="min-w-0 flex-[1_1_240px]">
-        <h2 className="font-semibold">New here? Let us show you around</h2>
+        <h2 className="font-extrabold">New here? Let us show you around</h2>
         <p className="text-[13px] text-muted-foreground">A short tour of each part of the app, one idea at a time. About 5 minutes.</p>
       </div>
       <div className="flex gap-2">

@@ -12,8 +12,8 @@ export default function AppError({ error, retry }: { error: unknown; retry: () =
   const digest = error instanceof Error && "digest" in error ? String((error as { digest?: string }).digest ?? "") : "";
 
   return (
-    <div className="mx-auto flex max-w-[560px] flex-col gap-4 rounded-xl border bg-card p-6">
-      <h1 className="text-xl font-semibold tracking-[-0.01em]">This page couldn&apos;t load</h1>
+    <div className="mx-auto flex max-w-[560px] flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-6">
+      <h1 className="text-2xl font-black">This page couldn&apos;t load</h1>
       <p className="text-muted-foreground">
         Usually the connection dropped or the app was just updated. Nothing you saved is lost. Try again — if it keeps happening, reload the page.
       </p>

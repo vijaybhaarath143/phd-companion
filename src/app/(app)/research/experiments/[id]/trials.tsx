@@ -26,10 +26,10 @@ export function Trials({ entryId, trials }: { entryId: string; trials: Trial[] }
   for (const t of trials) if (t.outcome) counts[t.outcome]++;
 
   return (
-    <section data-guide="trials" className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+    <section data-guide="trials" className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold">Trials{trials.length ? ` · ${trials.length}` : ""}</h2>
+          <h2 className="text-[15px] font-extrabold">Trials{trials.length ? ` · ${trials.length}` : ""}</h2>
           <p className="text-[13px] text-muted-foreground">
             {trials.length
               ? `${counts.worked} worked · ${counts.did_not_work} didn't work · ${counts.inconclusive} inconclusive`
@@ -50,7 +50,7 @@ export function Trials({ entryId, trials }: { entryId: string; trials: Trial[] }
         </Button>
       </div>
       {trials.length > 0 && (
-        <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+        <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
           {trials.map((t) => (
             <li key={t.id}>
               <button type="button" onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id} className="flex w-full items-center gap-3 py-3 text-left">
@@ -64,7 +64,7 @@ export function Trials({ entryId, trials }: { entryId: string; trials: Trial[] }
                 <Badge variant={t.outcome ? "outline" : "muted"}>{t.outcome ? OUTCOMES[t.outcome] : "Not recorded"}</Badge>
               </button>
               {open === t.id && (
-                <div className="mb-4 flex flex-col gap-4 rounded-lg border bg-zinc-50 p-4">
+                <div className="mb-4 flex flex-col gap-4 rounded-xl border-2 bg-zinc-50 p-4">
                   <ActionForm action={updateTrial.bind(null, t.id)} success="Trial saved" reset={false} onDone={() => setOpen(null)} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <input type="hidden" name="version" value={t.version} />
                     <div className="flex flex-col gap-1.5">

@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 /** One calm line, weekly: the free hosting keeps no backups, so her export is the backup. */
 function BackupReminder({ lastExportAt, tz }: { lastExportAt: Date | null; tz: string }) {
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border bg-card px-5 py-3 text-[13px] text-zinc-700">
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border-2 bg-card shadow-edge px-5 py-3 text-[13px] text-zinc-700">
       <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="flex-[1_1_240px]">
         Free hosting keeps no backups — download an export weekly.
@@ -61,12 +61,12 @@ export default async function HomePage() {
         <PageHeader eyebrow={longToday(tz)} title={name ? `Welcome, ${name}` : "Welcome"} />
         <GuideInvite />
         {home.attention.length > 0 && <Attention home={home} />}
-        <section className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-10 text-center">
-          <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
-            <BookOpen className="size-5 text-zinc-700" />
+        <section className="flex flex-col items-center gap-4 rounded-2xl border-2 bg-card shadow-edge px-8 py-10 text-center">
+          <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
+            <BookOpen className="size-7 text-primary" />
           </div>
           <div className="flex max-w-[460px] flex-col gap-1.5">
-            <h2 className="text-lg font-semibold">Record your first entry</h2>
+            <h2 className="text-lg font-extrabold">Record your first entry</h2>
             <p className="text-muted-foreground">Anything that happened — a meeting, a reading, an experiment, a deadline. A title and a date are enough.</p>
           </div>
           <QuickAddButton label="Quick Add" variant="default" />
@@ -94,7 +94,7 @@ export default async function HomePage() {
       <PageHeader eyebrow={longToday(tz)} title={greeting(tz) + (name ? `, ${name}` : "")} actions={<QuickAddButton label="Quick Add" variant="default" />} />
       <GuideInvite />
       {backup}
-      <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3 text-muted-foreground md:hidden">
+      <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-xl border-2 bg-card px-3.5 text-muted-foreground md:hidden">
         <Search className="size-4" aria-hidden /> Search everything
       </Link>
       <div className="flex flex-wrap items-start gap-4">
@@ -107,7 +107,7 @@ export default async function HomePage() {
 
           <Section guide="working-on" title="Working on" action={<Link href="/research" className="text-[13px] hover:underline">All research</Link>}>
             {home.workingOn.length ? (
-              <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {home.workingOn.map((p) => (
                   <li key={p.id}>
                     <Link href={p.href} className="block px-5 py-3 transition-colors hover:bg-zinc-50">

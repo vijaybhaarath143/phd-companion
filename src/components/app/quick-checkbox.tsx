@@ -27,7 +27,7 @@ export function QuickCheckbox({ checked, label, onToggle, disabled, className }:
   return (
     <input
       type="checkbox"
-      className={cn("size-[18px] shrink-0 accent-zinc-900", className)}
+      className={cn("size-5 shrink-0 accent-primary", className)}
       aria-label={label}
       checked={value}
       disabled={disabled || pending}

@@ -41,13 +41,13 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
     <div className="flex min-h-dvh flex-col bg-zinc-50 p-6">
       <div className="text-[15px] font-semibold">PhD Companion</div>
       <main className="flex flex-1 items-center justify-center py-10">
-        <div className="flex w-full max-w-[520px] flex-col gap-6 rounded-xl border bg-card p-8">
+        <div className="flex w-full max-w-[520px] flex-col gap-6 rounded-2xl border-2 bg-card shadow-edge p-8">
           <Steps step={step} />
 
           {step === 1 && (
             <WelcomeForm step={1}>
               <div className="flex flex-col gap-1.5">
-                <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Welcome. What should we call you?</h1>
+                <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Welcome. What should we call you?</h1>
                 <p className="text-muted-foreground">This is the only thing we need. Everything else can wait.</p>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -65,7 +65,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 2 && (
             <WelcomeForm step={2}>
               <div className="flex flex-col gap-1.5">
-                <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Your programme</h1>
+                <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Your programme</h1>
                 <p className="text-muted-foreground">Fill in what you know. You can change any of this later in Settings.</p>
               </div>
               <div className="flex flex-col gap-4">
@@ -101,7 +101,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 3 && (
             <WelcomeForm step={3}>
               <div className="flex flex-col gap-1.5">
-                <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Add something you&apos;re working on</h1>
+                <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Add something you&apos;re working on</h1>
                 <p className="text-muted-foreground">A project groups related notes, tasks and manuscripts. A title is all it needs.</p>
               </div>
               <div className="flex flex-col gap-4">

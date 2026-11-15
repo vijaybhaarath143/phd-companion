@@ -51,7 +51,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-2">
-          <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em] text-balance">{project.title}</h1>
+          <h1 className="text-[28px] leading-tight font-black md:text-[34px] text-balance">{project.title}</h1>
           <div className="flex flex-wrap gap-2">
             {project.type && <Badge variant="outline">{projectTypes[project.type as keyof typeof projectTypes]}</Badge>}
             <Badge variant="outline">{projectStatuses[project.status as keyof typeof projectStatuses]}</Badge>
@@ -66,7 +66,7 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
           <Section guide="manuscripts" title="Manuscripts" action={<ProjectActions kind="manuscript" projectId={project.id} />}>
             {manuscripts.length ? (
-              <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {manuscripts.map((m) => (
                   <li key={m.id}>
                     <Link href={`/research/manuscripts/${m.id}`} className="flex min-h-14 items-center gap-3 px-5 py-3 hover:bg-zinc-50">
@@ -127,8 +127,8 @@ export default async function ProjectPage({ params }: PageProps<"/research/proje
 
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
           <ProjectActions kind="about" projectId={project.id} project={project} />
-          <section data-guide="evidence" className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Evidence</h2>
+          <section data-guide="evidence" className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+            <h2 className="text-[15px] font-extrabold">Evidence</h2>
             <Evidence items={evidence} parentType="project" parentId={project.id} hint="Drafts, figures, or a link to a shared folder." />
           </section>
         </div>

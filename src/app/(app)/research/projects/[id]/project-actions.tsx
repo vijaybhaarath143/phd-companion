@@ -52,7 +52,7 @@ export function ProjectActions(props: Props) {
     return (
       <>
         {props.tasks.length > 0 && (
-          <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+          <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
             {props.tasks.map((t) => (
               <li key={t.id} className="flex min-h-12 items-center gap-3 px-5 py-2.5">
                 <TaskCheckbox id={t.id} title={t.title} done={t.status === "done"} />
@@ -62,7 +62,7 @@ export function ProjectActions(props: Props) {
             ))}
           </ul>
         )}
-        <ActionForm action={quickTask} className="flex gap-2 border-t border-zinc-100 px-5 py-3">
+        <ActionForm action={quickTask} className="flex gap-2 border-t-2 border-zinc-100 px-5 py-3">
           <input type="hidden" name="projectId" value={props.projectId} />
           <Input name="title" required placeholder="Add a task to this project…" aria-label="New task" />
           <Button type="submit" variant="outline">Add</Button>
@@ -74,8 +74,8 @@ export function ProjectActions(props: Props) {
   if (props.kind === "about") {
     const p = props.project;
     return (
-      <section className="rounded-xl border bg-card px-5 py-4">
-        <h2 className="mb-3 text-[15px] font-semibold">About</h2>
+      <section className="rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+        <h2 className="mb-3 text-[15px] font-extrabold">About</h2>
         <ActionForm action={updateProject.bind(null, p.id)} reset={false} success="Saved" className="flex flex-col gap-3">
           <input type="hidden" name="version" value={p.version} />
           <div className="flex flex-col gap-1.5">

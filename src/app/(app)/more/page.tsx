@@ -19,7 +19,7 @@ export default function MorePage() {
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">
       <PageHeader title="More" />
-      <ul className="divide-y divide-zinc-100 rounded-xl border bg-card">
+      <ul className="divide-y-2 divide-zinc-100 rounded-2xl border-2 bg-card shadow-edge">
         {items.map((it) => (
           <li key={it.href}>
             <Link href={it.href} className="flex min-h-16 items-center gap-3 px-5 py-3">
@@ -30,7 +30,7 @@ export default function MorePage() {
           </li>
         ))}
       </ul>
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-2xl border-2 bg-card shadow-edge">
         <GuideMeButton className="flex min-h-16 w-full items-center gap-3 px-5 py-3 text-left">
           <Compass className="size-5 text-zinc-600" aria-hidden />
           <span className="flex-1"><span className="block font-medium">Guide me</span><span className="block text-[13px] text-muted-foreground">A short tour of how everything works</span></span>

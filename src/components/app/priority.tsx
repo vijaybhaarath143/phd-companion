@@ -8,7 +8,7 @@ export function PriorityMark({ priority, className }: { priority: TaskPriority; 
   const high = priority === "high";
   const Icon = high ? ArrowUp : ArrowDown;
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-[12px] font-medium", high ? "text-zinc-900" : "text-zinc-500", className)}>
+    <span className={cn("inline-flex items-center gap-0.5 font-display text-[12px] font-extrabold", high ? "text-overdue-foreground" : "text-zinc-500", className)}>
       <Icon className="size-3.5" strokeWidth={2.25} aria-hidden />
       {high ? "High" : "Low"}
     </span>

@@ -17,10 +17,10 @@ export function CreditBar({ summary, className }: { summary: CreditSummary; clas
   const unknown = summary.completed.unknownCourses + summary.enrolled.unknownCourses + summary.planned.unknownCourses;
 
   const parts = [
-    { key: "recognised", label: "Recognised", value: recognised, swatch: "bg-zinc-900" },
-    { key: "completed", label: "Completed", value: completed, swatch: "bg-zinc-600" },
-    { key: "enrolled", label: "Enrolled", value: enrolled, swatch: "bg-zinc-400" },
-    { key: "planned", label: "Planned", value: planned, swatch: "bg-zinc-200 ring-1 ring-inset ring-zinc-300" },
+    { key: "recognised", label: "Recognised", value: recognised, swatch: "bg-grape" },
+    { key: "completed", label: "Completed", value: completed, swatch: "bg-grape-mid" },
+    { key: "enrolled", label: "Enrolled", value: enrolled, swatch: "bg-grape-light" },
+    { key: "planned", label: "Planned", value: planned, swatch: "bg-card ring-2 ring-inset ring-grape-light" },
   ];
   const spoken = [
     ...parts.map((p) => `${formatCredits(p.value)} ${p.label.toLowerCase()}`),
@@ -30,21 +30,21 @@ export function CreditBar({ summary, className }: { summary: CreditSummary; clas
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <div role="img" aria-label={`Credits: ${spoken}`} className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full bg-zinc-100">
+      <div role="img" aria-label={`Credits: ${spoken}`} className="flex h-4 w-full gap-1 overflow-hidden rounded-full bg-zinc-100">
         {parts.filter((p) => p.value > 0).map((p) => (
-          <span key={p.key} className={cn("h-full first:rounded-l-full last:rounded-r-full", p.swatch)} style={{ width: `${(p.value / total) * 100}%` }} />
+          <span key={p.key} className={cn("h-full rounded-full", p.swatch)} style={{ width: `${(p.value / total) * 100}%` }} />
         ))}
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-600" aria-hidden>
         {parts.map((p) => (
           <li key={p.key} className="inline-flex items-center gap-1.5">
-            <span className={cn("size-2.5 rounded-[3px]", p.swatch)} />
+            <span className={cn("size-3 rounded-[4px]", p.swatch)} />
             {p.label} · <span className="font-medium text-foreground tabular-nums">{formatCredits(p.value)}</span>
           </li>
         ))}
         {summary.required !== null && (
           <li className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-[3px] bg-zinc-100 ring-1 ring-inset ring-zinc-200" />
+            <span className="size-3 rounded-[4px] bg-zinc-100 ring-2 ring-inset ring-zinc-200" />
             Still needed · <span className="font-medium text-foreground tabular-nums">{formatCredits(needed)}</span>
           </li>
         )}

@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
 import { ActionForm } from "@/components/app/action-form";
 import { copyToClipboard, quickAction, trashWithUndo } from "@/components/app/call-action";
+import { celebrate } from "@/components/app/celebrate";
 import { undoRemove } from "@/server/actions/settings";
 import { toOptions } from "@/lib/options";
 import { formatFullDay } from "@/lib/dates";
@@ -35,8 +36,8 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
 
   if (!steps.length) {
     return (
-      <section id="progress" data-guide="review-steps" className="flex scroll-mt-6 flex-col items-start gap-3 rounded-xl border bg-card px-5 py-4">
-        <h2 className="text-[15px] font-semibold">Review milestones</h2>
+      <section id="progress" data-guide="review-steps" className="flex scroll-mt-6 flex-col items-start gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+        <h2 className="text-[15px] font-extrabold">Review milestones</h2>
         <p className="text-sm text-muted-foreground">
           Track this review step by step — protocol, search, screening, eligibility, extraction, PRISMA diagram, draft and feedback — with the
           numbers a PRISMA flow diagram needs. You can rename, skip or add steps afterwards.
@@ -55,9 +56,9 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
 
   return (
     <div id="progress" data-guide="review-steps" className="flex scroll-mt-6 flex-col gap-4">
-      <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+      <section className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[15px] font-semibold">Review milestones</h2>
+          <h2 className="text-[15px] font-extrabold">Review milestones</h2>
           <span className="text-[13px]">
             <span className="font-semibold">{done} of {counted.length} done</span>
             {current && <span className="text-muted-foreground"> · now: {current.title}</span>}
@@ -65,28 +66,28 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
         </div>
         <div role="img" aria-label={`${done} of ${counted.length} steps done${current ? `; now ${current.title}` : ""}`} className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
           {steps.map((s) => (
-            <span key={s.id} title={s.title} className={cn("h-2.5 rounded-[3px]", s.status === "done" ? "bg-zinc-900" : s.status === "in_progress" ? "bg-zinc-500" : s.status === "skipped" ? "bg-zinc-100 bg-[repeating-linear-gradient(135deg,transparent_0_3px,#d4d4d8_3px_4px)]" : "bg-zinc-200")} />
+            <span key={s.id} title={s.title} className={cn("h-3 rounded-full", s.status === "done" ? "bg-primary" : s.status === "in_progress" ? "bg-leaf-bright/60" : s.status === "skipped" ? "bg-zinc-100 bg-[repeating-linear-gradient(135deg,transparent_0_3px,#d6d3cb_3px_4px)]" : "bg-zinc-200")} />
           ))}
         </div>
       </section>
 
       <div className="flex flex-wrap items-start gap-4">
-        <section className="min-w-0 flex-[3_1_380px] rounded-xl border bg-card">
+        <section className="min-w-0 flex-[3_1_380px] rounded-2xl border-2 bg-card shadow-edge">
           <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-            <h3 className="text-[15px] font-semibold">Steps</h3>
+            <h3 className="text-[15px] font-extrabold">Steps</h3>
             <Button type="button" variant="outline" size="sm" onClick={() => setAdding(!adding)}><Plus aria-hidden /> Add step</Button>
           </div>
-          <ol className="divide-y divide-zinc-100 border-t border-zinc-100">
+          <ol className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
             {steps.map((s, i) => (
               <li key={s.id}>
                 <div className="flex min-h-12 items-center gap-3 px-5 py-2.5">
                   <input
                     type="checkbox"
-                    className="size-[18px] shrink-0 accent-zinc-900"
+                    className="size-[18px] shrink-0 accent-primary"
                     aria-label={`Done: ${s.title}`}
                     checked={s.status === "done"}
                     disabled={pending || s.status === "skipped"}
-                    onChange={(e) => { const next = e.target.checked; start(async () => { await quickAction(() => toggleReviewStep(s.id, next)); }); }}
+                    onChange={(e) => { const next = e.target.checked; start(async () => { if ((await quickAction(() => toggleReviewStep(s.id, next))) && next) celebrate("Step done", s.title); }); }}
                   />
                   <button type="button" onClick={() => setEditing(editing === s.id ? null : s.id)} className="min-w-0 flex-1 text-left">
                     <span className={cn("block font-medium", s.status === "skipped" && "text-muted-foreground line-through")}>
@@ -99,10 +100,10 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
                       ].filter(Boolean).join(" · ")}
                     </span>
                   </button>
-                  {s.status === "in_progress" && <Badge variant="outline">In progress</Badge>}
+                  {s.status === "in_progress" && <Badge variant="info">In progress</Badge>}
                 </div>
                 {editing === s.id && (
-                  <ActionForm action={updateReviewStep.bind(null, s.id)} success="Step saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-lg border bg-zinc-50 p-4 sm:grid-cols-2">
+                  <ActionForm action={updateReviewStep.bind(null, s.id)} success="Step saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-xl border-2 bg-zinc-50 p-4 sm:grid-cols-2">
                     <input type="hidden" name="version" value={s.version} />
                     <div className="flex flex-col gap-1.5 sm:col-span-2">
                       <label className="text-sm font-medium" htmlFor={`rs-t-${s.id}`}>Step</label>
@@ -150,7 +151,7 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
             ))}
           </ol>
           {adding && (
-            <ActionForm action={addReviewStep.bind(null, projectId)} success="Step added" onDone={() => setAdding(false)} className="flex flex-wrap gap-2 border-t border-zinc-100 px-5 py-3">
+            <ActionForm action={addReviewStep.bind(null, projectId)} success="Step added" onDone={() => setAdding(false)} className="flex flex-wrap gap-2 border-t-2 border-zinc-100 px-5 py-3">
               <label htmlFor="rs-new" className="sr-only">New step</label>
               <Input id="rs-new" name="title" required maxLength={200} placeholder="e.g. Second screener check" className="min-w-0 flex-[1_1_220px]" />
               <Button type="submit">Add</Button>
@@ -158,15 +159,15 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
           )}
         </section>
 
-        <section className="min-w-0 flex-[2_1_260px] rounded-xl border bg-card px-5 py-4">
+        <section className="min-w-0 flex-[2_1_260px] rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-[15px] font-semibold">PRISMA numbers</h3>
+            <h3 className="text-[15px] font-extrabold">PRISMA numbers</h3>
             <Button type="button" variant="outline" size="sm" onClick={() => copyToClipboard(prismaText)}><Copy aria-hidden /> Copy</Button>
           </div>
           <p className="mt-0.5 text-[12px] text-muted-foreground">From the numbers on the steps — ready for the flow diagram.</p>
           <dl className="mt-2 text-[13px]">
             {(Object.keys(prismaCounts) as PrismaCount[]).map((k) => (
-              <div key={k} className="flex justify-between gap-3 border-t border-zinc-100 py-2 first:border-t-0">
+              <div key={k} className="flex justify-between gap-3 border-t-2 border-zinc-100 py-2 first:border-t-0">
                 <dt>{prismaCounts[k]}</dt>
                 <dd className={cn("font-semibold tabular-nums", prisma[k] === null && "font-normal text-muted-foreground")}>
                   {prisma[k] ?? "—"}

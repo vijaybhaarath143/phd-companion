@@ -42,10 +42,10 @@ function context(t: TaskRow) {
 export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks: TaskRow[]; projects: ProjectOption[]; taskOptions: { id: string; title: string }[]; today: string; empty: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  if (!tasks.length) return <p className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">{empty}</p>;
+  if (!tasks.length) return <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">{empty}</p>;
   return (
-    <section className="rounded-xl border bg-card">
-      <ul className="divide-y divide-zinc-100">
+    <section className="rounded-2xl border-2 bg-card shadow-edge">
+      <ul className="divide-y-2 divide-zinc-100">
         {tasks.map((t) => {
           const overdue = t.dueDate && t.dueDate < today && !["done", "cancelled"].includes(t.status);
           const done = t.status === "done" || t.status === "cancelled";
@@ -64,11 +64,11 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                 </button>
                 {overdue && <Badge variant="overdue">Overdue</Badge>}
                 {t.status === "waiting" && <Badge variant="attention">Waiting</Badge>}
-                {t.status === "doing" && <Badge variant="outline">Doing</Badge>}
+                {t.status === "doing" && <Badge variant="info">Doing</Badge>}
                 {t.status === "cancelled" && <Badge variant="muted">Cancelled</Badge>}
               </div>
               {editing === t.id && (
-                <ActionForm action={updateTask.bind(null, t.id)} success="Task saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-lg border bg-zinc-50 p-4 sm:grid-cols-2">
+                <ActionForm action={updateTask.bind(null, t.id)} success="Task saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 grid grid-cols-1 gap-3 rounded-xl border-2 bg-zinc-50 p-4 sm:grid-cols-2">
                   <input type="hidden" name="version" value={t.version} />
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
                     <label className="text-sm font-medium" htmlFor={`t-title-${t.id}`}>Title</label>
@@ -99,7 +99,7 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                     <AppSelect id={`t-wo-${t.id}`} name="waitingOnTaskId" defaultValue={t.waitingOnTaskId ?? ""} options={rowOptions(taskOptions.filter((o) => o.id !== t.id), (o) => o.title, "No task")} />
                   </div>
                   <label className="flex cursor-pointer items-center gap-2.5 text-sm sm:col-span-2">
-                    <input type="checkbox" name="remindUntilDone" defaultChecked={t.remindUntilDone} className="size-[18px] accent-zinc-900" />
+                    <input type="checkbox" name="remindUntilDone" defaultChecked={t.remindUntilDone} className="size-[18px] accent-primary" />
                     Keep reminding me until it&apos;s done
                   </label>
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
@@ -160,8 +160,8 @@ export function Goals({ goals, today }: { goals: GoalRow[]; today: string }) {
   return (
     <div className="flex flex-col gap-4">
       {goals.length > 0 && (
-        <section className="rounded-xl border bg-card">
-          <ul className="divide-y divide-zinc-100">
+        <section className="rounded-2xl border-2 bg-card shadow-edge">
+          <ul className="divide-y-2 divide-zinc-100">
             {goals.map((g) => (
               <li key={g.id} className="flex flex-col">
                 <div className="flex flex-wrap items-center gap-3 px-5 py-3">
@@ -182,7 +182,7 @@ export function Goals({ goals, today }: { goals: GoalRow[]; today: string }) {
                   <Button size="sm" variant="ghost" onClick={() => setEditing(editing === g.id ? null : g.id)}>Edit</Button>
                 </div>
                 {editing === g.id && (
-                  <ActionForm action={updateGoal.bind(null, g.id)} success="Goal saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+                  <ActionForm action={updateGoal.bind(null, g.id)} success="Goal saved" reset={false} onDone={() => setEditing(null)} className="mx-5 mb-4 flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
                     <input type="hidden" name="version" value={g.version} />
                     <GoalFields goal={g} today={today} />
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -203,8 +203,8 @@ export function Goals({ goals, today }: { goals: GoalRow[]; today: string }) {
         </section>
       )}
       {adding ? (
-        <ActionForm action={addGoal} success="Goal added" onDone={() => setAdding(goals.length === 0)} className="flex flex-col gap-4 rounded-xl border bg-card p-5">
-          <h2 className="text-[15px] font-semibold">{goals.length ? "New goal" : "Set a goal"}</h2>
+        <ActionForm action={addGoal} success="Goal added" onDone={() => setAdding(goals.length === 0)} className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-5">
+          <h2 className="text-[15px] font-extrabold">{goals.length ? "New goal" : "Set a goal"}</h2>
           <p className="-mt-2 text-[13px] text-muted-foreground">For this week, month, semester or year. Mark it achieved or dropped when the time comes.</p>
           <GoalFields today={today} />
           <Button type="submit" className="self-start">Add goal</Button>

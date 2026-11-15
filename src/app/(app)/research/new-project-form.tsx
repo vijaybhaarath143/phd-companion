@@ -10,7 +10,7 @@ import { projectTypes } from "@/lib/labels";
 
 export function NewProjectForm() {
   return (
-    <ActionForm action={createProject} reset={false} className="flex flex-col gap-4 rounded-xl border bg-card p-6">
+    <ActionForm action={createProject} reset={false} className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-6">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="np-title" className="text-sm font-medium">Project title</label>
         <Input id="np-title" name="title" required maxLength={300} autoFocus />

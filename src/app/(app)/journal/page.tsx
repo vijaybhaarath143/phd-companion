@@ -19,10 +19,10 @@ function badgeFor(e: JournalRow) {
   if (e.registration || (e.participation && e.participation !== "unknown")) {
     const parts = [e.registration ? registration[e.registration as keyof typeof registration] : null,
       e.participation && e.participation !== "unknown" ? participation[e.participation as keyof typeof participation].toLowerCase() : null].filter(Boolean);
-    return parts.join(" · ").replace(/^./, (c) => c.toUpperCase());
+    return { label: parts.join(" · ").replace(/^./, (c) => c.toUpperCase()), variant: "clay" as const };
   }
-  if (e.experimentStatus) return experimentStatuses[e.experimentStatus as keyof typeof experimentStatuses];
-  if (e.status === "planned" || e.status === "cancelled" || e.status === "postponed") return entryStatuses[e.status];
+  if (e.experimentStatus) return { label: experimentStatuses[e.experimentStatus as keyof typeof experimentStatuses], variant: "success" as const };
+  if (e.status === "planned" || e.status === "cancelled" || e.status === "postponed") return { label: entryStatuses[e.status], variant: e.status === "planned" ? ("info" as const) : ("muted" as const) };
   return null;
 }
 
@@ -38,13 +38,13 @@ function EntryRow({ e, partial }: { e: JournalRow; partial: boolean }) {
       <Link href={href} className="flex min-h-14 items-center gap-4 px-5 py-3 hover:bg-zinc-50">
         <span className="w-14 shrink-0 text-[13px] text-zinc-600 tabular-nums">{e.entryPrecision === "day" && e.entryDate ? formatDay(e.entryDate) : "—"}</span>
         <span className="min-w-0 flex-1">
-          <span className="block font-medium">{e.title}</span>
+          <span className="block font-display text-[15px] font-bold">{e.title}</span>
           <span className="block text-[13px] text-muted-foreground">
             {meta(e) || " "}
             {partial && <span className="ml-1 text-attention-foreground">· only partly inside the dates you picked</span>}
           </span>
         </span>
-        {b && <Badge variant="outline">{b}</Badge>}
+        {b && <Badge variant={b.variant}>{b.label}</Badge>}
       </Link>
     </li>
   );
@@ -76,7 +76,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       <PageHeader title="Journal" subtitle="Everything you've recorded, newest first." />
 
       <form className="flex flex-col gap-2.5" role="search" data-guide="journal-search">
-        <label className="flex h-11 items-center gap-2 rounded-lg border bg-background px-3.5 focus-within:ring-3 focus-within:ring-ring/50">
+        <label className="flex h-11 items-center gap-2 rounded-xl border-2 bg-card px-3.5 focus-within:ring-4 focus-within:ring-sky-soft">
           <Search className="size-4 text-muted-foreground" aria-hidden />
           <input
             type="search"
@@ -100,8 +100,8 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       </form>
 
       {journal.otherMatches.length > 0 && (
-        <section className="rounded-xl border bg-card px-5 py-4">
-          <h2 className="text-[15px] font-semibold">Also matching</h2>
+        <section className="rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+          <h2 className="text-[15px] font-extrabold">Also matching</h2>
           <ul className="mt-2 flex flex-col gap-1.5">
             {journal.otherMatches.map((m, i) => (
               <li key={i} className="flex items-baseline gap-2">
@@ -114,7 +114,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       )}
 
       {!filtering && journal.undated.length > 0 && (
-        <a href="#needs-date" className="flex items-center gap-3 rounded-xl border border-attention-border bg-attention px-5 py-3.5 text-attention-foreground">
+        <a href="#needs-date" className="flex items-center gap-3 rounded-2xl bg-attention px-5 py-3.5 text-attention-foreground">
           <CalendarDays className="size-[18px] shrink-0" aria-hidden />
           <span className="flex-1"><b>{journal.undated.length} {journal.undated.length === 1 ? "entry needs" : "entries need"} a date.</b> They&apos;re kept below the timeline until you add a day or a month.</span>
           <span className="font-medium">Review</span>
@@ -122,26 +122,26 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
       )}
 
       {groups.size === 0 && journal.undated.length === 0 && (
-        <p data-guide="journal-timeline" className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">
+        <p data-guide="journal-timeline" className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">
           {!filtering ? "Nothing recorded yet. Use Quick Add to record your first entry." : journal.otherMatches.length ? "No journal entries match — see the other matches above." : "Nothing matches. Try fewer filters or other words."}
         </p>
       )}
 
       {[...groups.entries()].map(([k, g]) => (
-        <section key={k} data-guide="journal-timeline" className="rounded-xl border bg-card">
+        <section key={k} data-guide="journal-timeline" className="rounded-2xl border-2 bg-card shadow-edge">
           <div className="flex items-center justify-between px-5 pt-4 pb-2">
-            <h2 className="text-[15px] font-semibold">{monthLabel(k)}</h2>
-            {k > thisMonth && <Badge variant="outline">Planned</Badge>}
+            <h2 className="text-[15px] font-extrabold">{monthLabel(k)}</h2>
+            {k > thisMonth && <Badge variant="info">Planned</Badge>}
           </div>
           {g.exact.length > 0 && (
-            <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+            <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
               {g.exact.map((e) => <EntryRow key={e.id} e={e} partial={journal.partial.has(e.id)} />)}
             </ul>
           )}
           {g.month.length > 0 && (
             <>
               <p className="px-5 pt-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">Day not known</p>
-              <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {g.month.map((e) => <EntryRow key={e.id} e={e} partial={journal.partial.has(e.id)} />)}
               </ul>
             </>
@@ -153,19 +153,19 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
         <Link
           href={`/journal?${new URLSearchParams({ ...Object.fromEntries(Object.entries(filters).filter(([k, v]) => v && k !== "limit")), limit: String(journal.limit + 200) } as Record<string, string>).toString()}`}
           scroll={false}
-          className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+          className="self-center rounded-xl border-2 bg-card px-4 py-2 font-display text-sm font-extrabold shadow-edge transition-transform duration-75 hover:bg-zinc-50 active:translate-y-1 active:shadow-none"
         >
           Show older entries
         </Link>
       )}
 
       {journal.undated.length > 0 && (
-        <section id="needs-date" data-guide="journal-undated" className="scroll-mt-6 rounded-xl border bg-card">
+        <section id="needs-date" data-guide="journal-undated" className="scroll-mt-6 rounded-2xl border-2 bg-card shadow-edge">
           <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4 pb-2">
-            <h2 className="text-[15px] font-semibold">Needs a date</h2>
+            <h2 className="text-[15px] font-extrabold">Needs a date</h2>
             <span className="text-[13px] text-muted-foreground">{journal.undated.length} · searchable and exported, but not on the timeline</span>
           </div>
-          <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+          <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
             {journal.undated.map((e) => (
               <li key={e.id}>
                 <Link href={e.kind === "experiment" ? `/research/experiments/${e.id}?date=1` : `/journal/${e.id}?date=1`} className="flex min-h-14 items-center gap-4 px-5 py-3 hover:bg-zinc-50">
@@ -173,7 +173,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
                     <span className="block font-medium">{e.title}</span>
                     <span className="block text-[13px] text-muted-foreground">{meta(e) || " "}</span>
                   </span>
-                  <span className="rounded-lg border px-3 py-1.5 text-[13px] font-medium">Add date</span>
+                  <span className="rounded-xl border-2 bg-card px-3 py-1.5 font-display text-[13px] font-extrabold">Add date</span>
                 </Link>
               </li>
             ))}

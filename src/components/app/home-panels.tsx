@@ -44,7 +44,7 @@ export function Reminders({ groups, perGroup = 6 }: { groups: ReminderGroups; pe
   const any = GROUPS.some((g) => groups[g.key].length > 0);
   if (!any) return <p className="px-5 pb-5 text-sm text-muted-foreground">Nothing to do. Use Quick Add to plan your next step.</p>;
   return (
-    <div className="border-t border-zinc-100">
+    <div className="border-t-2 border-zinc-100">
       {GROUPS.filter((g) => groups[g.key].length > 0).map((g) => {
         const items = groups[g.key];
         return (
@@ -70,9 +70,9 @@ type Day = { key: string; n: number; name?: string; isToday: boolean; isLate: bo
 /** One day: a link when something is on it (to the calendar), plain text otherwise. */
 function DayCell({ d, tall }: { d: Day; tall?: boolean }) {
   const cls = cn(
-    "relative flex justify-center rounded-md text-[12px] tabular-nums",
+    "relative flex justify-center rounded-lg text-[12px] tabular-nums",
     tall ? "h-14 flex-col items-center pt-1.5" : "h-9 pt-1",
-    d.isToday ? "bg-primary font-semibold text-primary-foreground" : d.isLate ? "border border-overdue-border bg-overdue font-semibold text-overdue-foreground" : "bg-zinc-50 text-zinc-700",
+    d.isToday ? "bg-primary font-semibold text-primary-foreground shadow-[0_3px_0_var(--primary-edge)]" : d.isLate ? "bg-overdue font-semibold text-overdue-foreground" : "bg-zinc-50 text-zinc-700",
     d.dim && !d.isToday && "text-muted-foreground",
   );
   const body = (
@@ -80,7 +80,7 @@ function DayCell({ d, tall }: { d: Day; tall?: boolean }) {
       {d.name && <span aria-hidden className={cn("text-[10px] font-medium", d.isToday ? "text-primary-foreground/85" : d.isLate ? "text-overdue-foreground" : "text-zinc-600")}>{d.name}</span>}
       <span aria-hidden>{d.n}</span>
       <span className="sr-only">{d.spoken}</span>
-      {d.has && <span aria-hidden className={cn("absolute bottom-1.5 size-1 rounded-full", d.isToday ? "bg-primary-foreground" : d.isLate ? "bg-overdue-foreground" : "bg-zinc-900")} />}
+      {d.has && <span aria-hidden className={cn("absolute bottom-1.5 size-1 rounded-full", d.isToday ? "bg-primary-foreground" : d.isLate ? "bg-overdue-foreground" : "bg-sky")} />}
     </>
   );
   return (
@@ -122,7 +122,7 @@ export function MiniMonth({ cal }: { cal: HomeCalendar }) {
       </div>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
         <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] border border-overdue-border bg-overdue" />Overdue</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-zinc-900" />Something on</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-sky" />Something on</span>
         <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-primary" />Today</span>
       </p>
     </div>
@@ -163,7 +163,7 @@ export function RecentUpdates({ items }: { items: { key: string; title: string; 
         <li key={it.key} className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3">
           <span aria-hidden className="relative">
             <span className={cn("absolute left-[5.5px] w-px bg-zinc-200", i === 0 ? "top-3.5" : "top-0", i === items.length - 1 ? "h-3" : "bottom-0")} />
-            <span className={cn("absolute rounded-full ring-3 ring-card", i === 0 ? "top-2.5 left-px size-2.5 bg-zinc-900" : "top-[11px] left-0.5 size-2 bg-zinc-400")} />
+            <span className={cn("absolute rounded-full ring-3 ring-card", i === 0 ? "top-2.5 left-px size-2.5 bg-primary" : "top-[11px] left-0.5 size-2 bg-zinc-400")} />
           </span>
           <Link href={it.href} className="-ml-2 block rounded-md px-2 pt-1 pb-2 hover:bg-zinc-50">
             <span className="block font-medium">{it.title}</span>
@@ -177,7 +177,7 @@ export function RecentUpdates({ items }: { items: { key: string; title: string; 
 
 export function Areas({ areas }: { areas: Area[] }) {
   return (
-    <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+    <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
       {areas.map((a) => (
         <li key={a.key}>
           <Link href={a.href} className="flex items-center gap-3 px-5 py-2.5 hover:bg-zinc-50">

@@ -24,14 +24,14 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
     <div className="mx-auto flex max-w-[1060px] flex-col gap-5">
       <PageHeader title="Notes" subtitle="Scribbles and checklists — saved as you type." actions={<NewNoteButtons />} />
       {data.notes.length === 0 ? (
-        <section className="flex flex-col items-center gap-3 rounded-xl border bg-card px-6 py-12 text-center">
-          <h2 className="text-lg font-semibold">No notes yet</h2>
+        <section className="flex flex-col items-center gap-3 rounded-2xl border-2 bg-card shadow-edge px-6 py-12 text-center">
+          <h2 className="text-lg font-extrabold">No notes yet</h2>
           <p className="max-w-[460px] text-muted-foreground">A note is a blank page for half-formed ideas. A checklist is for things to tick off — like the journals you&apos;ve shortlisted.</p>
           <NewNoteButtons />
         </section>
       ) : (
         <div className="flex flex-wrap items-start gap-4">
-          <nav aria-label="Your notes" data-guide="notes-list" className="min-w-0 flex-[1_1_240px] rounded-xl border bg-card p-1.5">
+          <nav aria-label="Your notes" data-guide="notes-list" className="min-w-0 flex-[1_1_240px] rounded-2xl border-2 bg-card shadow-edge p-1.5">
             <ul className="flex flex-col gap-0.5">
               {data.notes.map((n) => {
                 const Icon = n.kind === "checklist" ? ListChecks : StickyNote;
@@ -57,7 +57,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
             {data.note ? (
               <NoteEditor key={data.note.id} note={data.note} projects={data.projects} />
             ) : (
-              <p className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">That note wasn&apos;t found — it may be in Trash.</p>
+              <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">That note wasn&apos;t found — it may be in Trash.</p>
             )}
           </div>
         </div>

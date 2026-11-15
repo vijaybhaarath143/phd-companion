@@ -21,7 +21,7 @@ export function TaskCheckbox({ id, title, done, className }: { id: string; title
   return (
     <input
       type="checkbox"
-      className={cn("size-[18px] shrink-0 accent-zinc-900", className)}
+      className={cn("size-5 shrink-0 accent-primary", className)}
       aria-label={`Done: ${title}`}
       checked={checked}
       disabled={pending}

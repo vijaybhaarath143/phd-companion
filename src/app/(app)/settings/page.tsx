@@ -17,9 +17,9 @@ const PAGE = 50;
 
 function Block({ title, hint, id, children }: { title: string; hint?: string; id?: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="flex scroll-mt-6 flex-wrap gap-x-8 gap-y-4 rounded-xl border bg-card p-5">
+    <section id={id} className="flex scroll-mt-6 flex-wrap gap-x-8 gap-y-4 rounded-2xl border-2 bg-card shadow-edge p-5">
       <div className="max-w-72 flex-[1_1_220px]">
-        <h2 className="text-[15px] font-semibold">{title}</h2>
+        <h2 className="text-[15px] font-extrabold">{title}</h2>
         {hint && <p className="text-[13px] text-muted-foreground">{hint}</p>}
       </div>
       <div className="flex min-w-0 flex-[999_1_320px] flex-col gap-4">{children}</div>
@@ -95,13 +95,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </div>
           <Button asChild><a href="/api/export" download>Download export</a></Button>
         </div>
-        <div id="archive" className="scroll-mt-6 border-t border-zinc-100 pt-4">
+        <div id="archive" className="scroll-mt-6 border-t-2 border-zinc-100 pt-4">
           <p className="font-medium">Archive</p>
           <p className="text-[13px] text-muted-foreground">Archived entries and experiments are hidden from the Journal and projects but kept. {archived.length ? "" : "Nothing archived."}</p>
           <TrashList items={archived} kind="archive" />
           {data.archived.length > archiveLimit && <ShowMore sp={sp} param="archive" current={archiveLimit} anchor="archive" />}
         </div>
-        <div id="trash" data-guide="trash" className="scroll-mt-6 border-t border-zinc-100 pt-4">
+        <div id="trash" data-guide="trash" className="scroll-mt-6 border-t-2 border-zinc-100 pt-4">
           <p className="font-medium">Trash</p>
           <p className="text-[13px] text-muted-foreground">Items in Trash can be restored. {trash.length ? "" : "Trash is empty."}</p>
           <TrashList items={trash} kind="trash" />

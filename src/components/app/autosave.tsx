@@ -144,7 +144,7 @@ export function SaveStatus({ state, message, onRetry, copyText }: { state: SaveS
     );
   }
   return (
-    <span role="alert" className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 py-1 pr-1 pl-3 text-[13px] text-red-800">
+    <span role="alert" className="inline-flex flex-wrap items-center gap-2 rounded-xl bg-overdue py-1 pr-1 pl-3 text-[13px] text-overdue-foreground">
       {state === "conflict" ? "Changed in another tab or device — copy your text, then reload to see the latest. Nothing was overwritten." : message ?? "Couldn't save. Your text is still here."}
       {state === "conflict" ? (
         <Button size="sm" variant="outline" className="h-7" onClick={() => window.location.reload()}>Reload</Button>

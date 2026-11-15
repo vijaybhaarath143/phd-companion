@@ -12,9 +12,9 @@ export function VerifyForm({ email }: { email: string }) {
   const [code, setCode] = useState("");
   const error = state?.error ?? resent?.error;
   return (
-    <div className="flex w-full max-w-[400px] flex-col gap-5 rounded-xl border bg-card p-8">
+    <div className="flex w-full max-w-[400px] flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-8">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Check your email</h1>
+        <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Check your email</h1>
         <p className="text-muted-foreground">We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>. It works for 10 minutes.</p>
       </div>
       <form action={action} className="flex flex-col gap-5">
@@ -24,7 +24,7 @@ export function VerifyForm({ email }: { email: string }) {
             containerClassName="justify-between" aria-invalid={Boolean(error)}>
             <InputOTPGroup className="gap-2">
               {[0, 1, 2, 3, 4, 5].map((i) => (
-                <InputOTPSlot key={i} index={i} className="size-12 rounded-lg border text-xl first:rounded-lg last:rounded-lg" />
+                <InputOTPSlot key={i} index={i} className="size-12 rounded-xl border-2 bg-card font-display text-xl font-black shadow-edge first:rounded-xl last:rounded-xl data-[active=true]:border-primary" />
               ))}
             </InputOTPGroup>
           </InputOTP>

@@ -79,7 +79,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
             <Link
               href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}
               scroll={false}
-              className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="self-center rounded-xl border-2 bg-card px-4 py-2 font-display text-sm font-extrabold shadow-edge transition-transform duration-75 hover:bg-zinc-50 active:translate-y-1 active:shadow-none"
             >
               Show more
             </Link>
@@ -88,9 +88,9 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       )}
 
       {view === "calendar" && data.calendar && (
-        <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
+        <section className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">{monthLabel(data.month)}</h2>
+            <h2 className="text-[15px] font-extrabold">{monthLabel(data.month)}</h2>
             <div className="flex gap-1.5">
               <Button asChild size="icon-sm" variant="outline"><Link href={`/planner?view=calendar&month=${shiftMonth(data.month, -1)}`} aria-label="Previous month"><ChevronLeft /></Link></Button>
               <Button asChild size="sm" variant="outline"><Link href="/planner?view=calendar">Today</Link></Button>
@@ -99,14 +99,14 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
           </div>
           <MonthGrid month={data.month} today={data.today} items={data.calendar.exact} />
           {data.calendar.exact.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing this month has an exact date. Dates come from your tasks, entries and milestones — nothing is entered twice.</p>}
-          <div className="border-t border-zinc-100 pt-3">
+          <div className="border-t-2 border-zinc-100 pt-3">
             <p className="font-medium">This month, no exact day</p>
             {data.calendar.monthOnly.length ? (
               <ul className="mt-1 flex flex-col gap-1">{data.calendar.monthOnly.map((m, i) => <li key={i}><Link href={m.href} className="underline-offset-4 hover:underline">{m.title}</Link></li>)}</ul>
             ) : <p className="text-[13px] text-muted-foreground">None.</p>}
           </div>
           {data.calendar.next && (
-            <div className="border-t border-zinc-100 pt-3">
+            <div className="border-t-2 border-zinc-100 pt-3">
               <p className="font-medium">Next planned</p>
               <Link href={data.calendar.next.href} className="text-[13px] underline-offset-4 hover:underline">
                 {formatPartialDate(data.calendar.next.date, data.calendar.next.precision)} · {data.calendar.next.title}

@@ -250,7 +250,7 @@ function QuickAddForm({
             <PartialDateInput name="qa" label="When did it happen?" today={today} defaultValue={date} onChange={setDate} />
             {future && (
               <label className="-mt-2 flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={planned} onChange={(e) => setPlanned(e.target.checked)} className="size-4 accent-zinc-900" />
+                <input type="checkbox" checked={planned} onChange={(e) => setPlanned(e.target.checked)} className="size-4 accent-primary" />
                 This is in the future — mark it as planned
               </label>
             )}
@@ -265,8 +265,8 @@ function QuickAddForm({
               <span className="text-sm font-medium">Priority</span>
               <Segmented name="priority" label="Priority" value={priority} onChange={setPriority} options={PRIORITY_OPTIONS} />
             </div>
-            <label className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 sm:col-span-2 has-checked:bg-zinc-50">
-              <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} className="mt-0.5 size-[18px] shrink-0 accent-zinc-900" />
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border-2 px-3 py-2.5 sm:col-span-2 has-checked:bg-zinc-50">
+              <input type="checkbox" checked={remind} onChange={(e) => setRemind(e.target.checked)} className="mt-0.5 size-[18px] shrink-0 accent-primary" />
               <span className="flex flex-col">
                 <span className="text-sm font-medium">Keep reminding me until it&apos;s done</span>
                 <span className="text-[13px] text-muted-foreground">Shows a reminder at the top of every page until you tick it off.</span>
@@ -340,7 +340,7 @@ function QuickAddForm({
         )}
 
         {error && (
-          <div role="alert" className="flex flex-wrap items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-800">
+          <div role="alert" className="flex flex-wrap items-center gap-2 rounded-xl bg-overdue px-3 py-2 text-[13px] text-overdue-foreground">
             <span className="flex-1">{error}</span>
             <Button type="button" size="sm" variant="outline" onClick={() => copyToClipboard([title, notes, people].filter(Boolean).join("\n\n"))}>
               Copy text

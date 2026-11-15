@@ -9,12 +9,12 @@ import { resendCode } from "@/server/actions/auth";
 export function CheckEmail({ email }: { email: string }) {
   const [resent, resend, resending] = useActionState(resendCode, undefined);
   return (
-    <div className="flex w-full max-w-[400px] flex-col gap-5 rounded-xl border bg-card p-8">
-      <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
-        <Mail className="size-5 text-zinc-700" />
+    <div className="flex w-full max-w-[400px] flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-8">
+      <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
+        <Mail className="size-7 text-primary" />
       </div>
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Check your email</h1>
+        <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Check your email</h1>
         <p className="text-muted-foreground">
           We sent a sign-in link to <span className="font-medium text-foreground">{email}</span>.
         </p>

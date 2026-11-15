@@ -46,14 +46,14 @@ export function PublicationsView({ rows, steps }: { rows: PublicationRow[]; step
     <div className="flex flex-col gap-4">
       <Section title={`Review articles · ${reviews.length}`} action={<span className="text-[12px] text-muted-foreground">Progress follows the review steps</span>}>
         {reviews.length ? (
-          <ul className="divide-y divide-zinc-100 border-t border-zinc-100">{reviews.map((p) => <PublicationItem key={p.key} p={p} steps={p.projectId ? steps.get(p.projectId) : undefined} />)}</ul>
+          <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">{reviews.map((p) => <PublicationItem key={p.key} p={p} steps={p.projectId ? steps.get(p.projectId) : undefined} />)}</ul>
         ) : (
           <Empty>No review articles yet. A systematic or narrative review project shows up here.</Empty>
         )}
       </Section>
       <Section title={`Original articles · ${originals.length}`} action={<span className="text-[12px] text-muted-foreground">Progress follows the manuscript phases</span>}>
         {originals.length ? (
-          <ul className="divide-y divide-zinc-100 border-t border-zinc-100">{originals.map((p) => <PublicationItem key={p.key} p={p} />)}</ul>
+          <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">{originals.map((p) => <PublicationItem key={p.key} p={p} />)}</ul>
         ) : (
           <Empty>No original articles yet. Add a manuscript to a project, or switch a manuscript&apos;s article type on its page.</Empty>
         )}
@@ -66,7 +66,7 @@ export function BenchworkView({ rows }: { rows: { id: string; title: string; sta
   return (
     <Section title={`Experiments · ${rows.length}`}>
       {rows.length ? (
-        <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+        <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
           {rows.map((x) => (
             <li key={x.id}>
               <Link href={`/research/experiments/${x.id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-zinc-50">
@@ -81,7 +81,7 @@ export function BenchworkView({ rows }: { rows: { id: string; title: string; sta
                   </span>
                 </span>
                 {x.openBlockers > 0 && <Badge variant="attention">Blocked</Badge>}
-                <Badge variant="outline">{x.status ? experimentStatuses[x.status as keyof typeof experimentStatuses] : "Status not set"}</Badge>
+                <Badge variant="success">{x.status ? experimentStatuses[x.status as keyof typeof experimentStatuses] : "Status not set"}</Badge>
               </Link>
             </li>
           ))}

@@ -55,7 +55,7 @@ export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOp
   const done = items.filter((i) => i.done).length;
 
   return (
-    <section className="flex min-h-[520px] flex-col gap-4 rounded-xl border bg-card px-5 py-4 sm:px-6">
+    <section className="flex min-h-[520px] flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge px-5 py-4 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
         <div className="flex flex-wrap items-center gap-2">
@@ -92,12 +92,12 @@ export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOp
       {note.kind === "checklist" ? (
         <div className="flex flex-col gap-1">
           <p className="text-[13px] text-muted-foreground">{done} of {items.length} ticked</p>
-          <ul className="flex flex-col divide-y divide-zinc-100 border-y border-zinc-100">
+          <ul className="flex flex-col divide-y-2 divide-zinc-100 border-y border-zinc-100">
             {items.map((it, i) => (
               <li key={it.id} className="group flex items-center gap-3 py-2">
                 <input
                   type="checkbox"
-                  className="size-[18px] shrink-0 accent-zinc-900"
+                  className="size-[18px] shrink-0 accent-primary"
                   aria-label={`Done: ${it.text || "item"}`}
                   checked={it.done}
                   onChange={(e) => setList(items.map((x, j) => (j === i ? { ...x, done: e.target.checked } : x)), 0)}

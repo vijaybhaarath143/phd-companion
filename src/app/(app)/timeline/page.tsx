@@ -44,6 +44,21 @@ const ICONS: Record<TimelineType, LucideIcon> = {
   file: Paperclip,
 };
 
+/** Each kind of record keeps its area's colour (Leaf research, Sky journal, Sun feedback, Grape academics). */
+const TONES: Record<TimelineType, string> = {
+  entry: "bg-sky-soft text-sky",
+  experiment: "bg-leaf-soft text-primary",
+  task: "bg-muted text-zinc-700",
+  manuscript: "bg-leaf-soft text-primary",
+  feedback: "bg-attention text-sun-strong",
+  course: "bg-grape-soft text-grape",
+  milestone: "bg-grape-soft text-grape",
+  enquiry: "bg-muted text-zinc-700",
+  goal: "bg-muted text-zinc-700",
+  project: "bg-leaf-soft text-primary",
+  file: "bg-muted text-zinc-700",
+};
+
 const PERIODS = { all: "Everything", month: "This month", year: "This year" } as const;
 
 const isOverdue = (it: TimelineItem, today: string) => it.type === "task" && it.event === "due" && Boolean(it.date) && it.date! < today;
@@ -68,7 +83,7 @@ type Row =
 const DOT_CENTER = "h-[18px]";
 
 function Line({ first, last, upperDashed, lowerDashed }: { first: boolean; last: boolean; upperDashed: boolean; lowerDashed: boolean }) {
-  const seg = (dashed: boolean) => cn("absolute left-1/2 -translate-x-1/2 border-l", dashed ? "border-dashed border-zinc-300" : "border-zinc-300");
+  const seg = (dashed: boolean) => cn("absolute left-1/2 -translate-x-1/2 border-l-2", dashed ? "border-dashed border-zinc-300" : "border-zinc-300");
   return (
     <>
       {!first && <span aria-hidden className={cn(seg(upperDashed), "top-0", DOT_CENTER)} />}
@@ -100,7 +115,7 @@ function TimelineRow({ row, first, last, planned, today }: { row: Row; first: bo
           <span aria-hidden className="relative mt-[13px] size-2.5 rounded-full bg-zinc-400 ring-4 ring-card" />
         </span>
         <div className="flex flex-wrap items-center gap-2 pt-1.5 pb-3">
-          <h2 className="text-[15px] leading-6 font-semibold">{monthLabel(row.month)}</h2>
+          <h2 className="text-[15px] leading-6 font-extrabold">{monthLabel(row.month)}</h2>
           {future && <Badge variant="outline">Planned</Badge>}
           {row.month === monthKey(today) && <span className="text-[13px] text-muted-foreground">This month</span>}
         </div>
@@ -124,11 +139,11 @@ function TimelineRow({ row, first, last, planned, today }: { row: Row; first: bo
         <span className={cn(DATE, "font-semibold text-foreground")}>{formatDay(today)}</span>
         <span className="relative flex justify-center">
           {line}
-          <span aria-hidden className="relative mt-3 size-3 rounded-full bg-foreground ring-4 ring-card" />
+          <span aria-hidden className="relative mt-2.5 size-4 rounded-full bg-primary shadow-[0_2px_0_var(--primary-edge)] ring-4 ring-card" />
         </span>
         <div className="flex items-center gap-3 pt-2 pb-4">
-          <span className="text-[13px] leading-5 font-semibold">Today</span>
-          <span aria-hidden className="h-px flex-1 bg-zinc-200" />
+          <span className="font-display text-[13px] leading-5 font-black text-leaf-strong">Today</span>
+          <span aria-hidden className="h-0.5 flex-1 rounded-full bg-leaf-soft" />
         </div>
       </li>
     );
@@ -145,12 +160,12 @@ function TimelineRow({ row, first, last, planned, today }: { row: Row; first: bo
         <span
           aria-hidden
           className={cn(
-            "relative mt-1 flex size-7 items-center justify-center rounded-full border",
+            "relative mt-0.5 flex size-8 items-center justify-center rounded-[10px] ring-4 ring-card",
             overdue
-              ? "border-attention-border bg-attention text-attention-foreground"
+              ? "bg-overdue text-overdue-foreground"
               : it.future
-                ? "border-dashed border-zinc-400 bg-card text-zinc-500"
-                : "border-zinc-300 bg-zinc-100 text-zinc-700",
+                ? "border-2 border-dashed border-zinc-300 bg-card text-zinc-500"
+                : TONES[it.type],
           )}
         >
           <Icon className="size-3.5" />
@@ -160,7 +175,7 @@ function TimelineRow({ row, first, last, planned, today }: { row: Row; first: bo
         <div className="relative -mx-2 flex items-start gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-zinc-50">
           <div className="min-w-0 flex-1">
             <span className="block text-[12px] leading-5 text-muted-foreground">{it.label}</span>
-            <Link href={it.href} className="block font-medium after:absolute after:inset-0">
+            <Link href={it.href} className="block font-display text-[15px] font-bold after:absolute after:inset-0">
               {it.title}
             </Link>
             {it.detail && <span className="block text-[13px] text-muted-foreground">{it.detail}</span>}
@@ -255,12 +270,12 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
       )}
 
       {nothingYet && (
-        <section data-guide="timeline" className="flex flex-col items-center gap-4 rounded-xl border bg-card px-8 py-10 text-center">
-          <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
-            <History className="size-5 text-zinc-700" />
+        <section data-guide="timeline" className="flex flex-col items-center gap-4 rounded-2xl border-2 bg-card shadow-edge px-8 py-10 text-center">
+          <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
+            <History className="size-7 text-primary" />
           </div>
           <div className="flex max-w-[460px] flex-col gap-1.5">
-            <h2 className="text-lg font-semibold">Your timeline starts here</h2>
+            <h2 className="text-lg font-extrabold">Your timeline starts here</h2>
             <p className="text-muted-foreground">
               Everything you record — entries, experiments, tasks, papers, courses and files — appears here in date order. Add the first thing that happened.
             </p>
@@ -270,13 +285,13 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
       )}
 
       {!nothingYet && timeline.dated.length === 0 && timeline.undated.length === 0 && (
-        <p data-guide="timeline" className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">
+        <p data-guide="timeline" className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">
           Nothing matches. Try another type, project or period.
         </p>
       )}
 
       {timeline.dated.length > 0 && (
-        <section data-guide="timeline" aria-label="Timeline" className="rounded-xl border bg-card px-3 pt-4 pb-1 sm:px-5">
+        <section data-guide="timeline" aria-label="Timeline" className="rounded-2xl border-2 bg-card shadow-edge px-3 pt-4 pb-1 sm:px-5">
           <ol>
             {rows.map((row, i) => (
               <TimelineRow key={row.key} row={row} first={i === 0} last={i === rows.length - 1} planned={i < todayAt} today={today} />
@@ -286,18 +301,18 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
       )}
 
       {timeline.hasOlder && (
-        <Link href={olderHref} scroll={false} className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
+        <Link href={olderHref} scroll={false} className="self-center rounded-xl border-2 bg-card px-4 py-2 font-display text-sm font-extrabold shadow-edge transition-transform duration-75 hover:bg-zinc-50 active:translate-y-1 active:shadow-none">
           Show older
         </Link>
       )}
 
       {timeline.undated.length > 0 && (
-        <section id="no-date" data-guide="timeline-undated" className="scroll-mt-6 rounded-xl border bg-card">
+        <section id="no-date" data-guide="timeline-undated" className="scroll-mt-6 rounded-2xl border-2 bg-card shadow-edge">
           <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4 pb-2">
-            <h2 className="text-[15px] font-semibold">No date yet</h2>
+            <h2 className="text-[15px] font-extrabold">No date yet</h2>
             <span className="text-[13px] text-muted-foreground">{timeline.undated.length} · not on the timeline until they have a day or a month</span>
           </div>
-          <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+          <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
             {timeline.undated.map((it) => <UndatedItem key={it.key} it={it} />)}
           </ul>
         </section>
@@ -310,7 +325,7 @@ function UndatedItem({ it }: { it: TimelineItem }) {
   const Icon = it.type === "file" && it.event === "link" ? Link2 : ICONS[it.type];
   return (
     <li className="relative flex min-h-14 items-start gap-3 px-5 py-3 transition-colors hover:bg-zinc-50">
-      <span aria-hidden className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-zinc-100 text-zinc-700">
+      <span aria-hidden className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[10px]", TONES[it.type])}>
         <Icon className="size-3.5" />
       </span>
       <span className="min-w-0 flex-1">
