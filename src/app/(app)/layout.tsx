@@ -11,8 +11,9 @@ import { GuideProvider } from "@/components/app/guide";
 import { KeepReminding } from "@/components/app/keep-reminding";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { profile, publications, overdue, nagging } = await asUser(async (tx) => {
+  const { profile, publications, overdue, nagging, isAdmin } = await asUser(async (tx) => {
     const profile = await getProfile(tx);
+    const [{ isAdmin }] = await tx<{ isAdmin: boolean }[]>`select app.is_admin() as is_admin`;
     const publications = await publicationOptions(tx);
     const tz = profile?.timezone ?? "Asia/Kolkata";
     const [{ overdue }] = await tx<{ overdue: number }[]>`
@@ -24,9 +25,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       where remind_until_done and deleted_at is null and status not in ('done','cancelled')
       order by due_date nulls last, case priority when 'high' then 0 when 'normal' then 1 else 2 end, created_at
       limit 1`;
-    return { profile, publications, overdue, nagging };
+    return { profile, publications, overdue, nagging, isAdmin };
   });
-  if (!profile?.onboardedAt) redirect("/welcome");
+  // An admin who hasn't set up a PhD space of their own lands on the Admin page instead.
+  if (!profile?.onboardedAt) redirect(isAdmin ? "/admin" : "/welcome");
 
   // In the background, after the page is sent: remove stored files that are no longer
   // evidence (failed uploads, files of records purged from Trash).
@@ -38,7 +40,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <QuickAddProvider publications={publications} today={today}>
       <GuideProvider>
         <div className="flex min-h-dvh">
-          <Sidebar name={profile.displayName ?? ""} department={profile.department} phdTitle={profile.phdTitle} />
+          <Sidebar name={profile.displayName ?? ""} department={profile.department} phdTitle={profile.phdTitle} isAdmin={isAdmin} />
           <div className="flex min-w-0 flex-1 flex-col">
             {nagging.length > 0 && <KeepReminding tasks={nagging} />}
             {profile.remindersEnabled && overdue > 0 && (

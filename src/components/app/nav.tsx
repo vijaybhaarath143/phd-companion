@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
-import { BookOpen, CalendarDays, Sprout, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, CalendarDays, Sprout, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { useQuickAdd } from "@/components/app/quick-add";
 import { GuideMeButton } from "@/components/app/guide";
 import { IconTile, type AreaTone } from "@/components/app/ui";
@@ -19,7 +19,7 @@ const items = [
   { tone: "neutral" as AreaTone, href: "/notes", label: "Notes", icon: NotebookPen, match: (p: string) => p.startsWith("/notes") },
 ];
 
-export function Sidebar({ name, department, phdTitle }: { name: string; department: string | null; phdTitle: string | null }) {
+export function Sidebar({ name, department, phdTitle, isAdmin = false }: { name: string; department: string | null; phdTitle: string | null; isAdmin?: boolean }) {
   const path = usePathname();
   const { open } = useQuickAdd();
   return (
@@ -78,6 +78,11 @@ export function Sidebar({ name, department, phdTitle }: { name: string; departme
         >
           <SlidersHorizontal className="size-4" aria-hidden /> Settings
         </Link>
+        {isAdmin && (
+          <Link href="/admin" className="flex h-10 items-center gap-2.5 rounded-xl px-2.5 font-display font-bold text-zinc-700 transition-colors hover:bg-zinc-100">
+            <ShieldCheck className="size-4" aria-hidden /> Admin
+          </Link>
+        )}
         <div className="flex items-center gap-2.5 px-2.5 py-2">
           <div aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-grape-soft font-display text-[14px] font-black text-grape-strong">
             {(name || "?").slice(0, 1).toUpperCase()}

@@ -72,9 +72,10 @@ Sign-up is off, so: Supabase → Authentication → Users → **Invite user** wi
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Settings → API |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API keys |
 | `DATABASE_URL` | Supabase → Connect → **Transaction pooler** (port 6543) |
+| `SUPABASE_SECRET_KEY` | Supabase → Settings → API keys → secret key. Only for the Admin page (see `docs/rollout-admin.md`). |
 
    - The pooler is required: Vercel can't reach the direct database address (IPv6-only on Free), and the pooler handles many short connections. The app is already set up for it.
-   - The **secret key is not added** — the live app never needs it.
+   - The **secret key** is only for the Admin page (adding, pausing and deleting accounts). It's read in `src/server/admin.ts` only, after the database confirms the person is an admin; a test fails the build if anything else reads it. Never give it a `NEXT_PUBLIC_` name.
 3. **Turn off preview deployments** for other branches (Settings → Git), so test branches never touch her real database.
 4. Deploy. You get an address like `phd-companion.vercel.app` (a custom domain can be added later).
 5. Supabase → Authentication → URL configuration → set **Site URL** to that address, and add `https://<that address>/**` under **Redirect URLs** (sign-in links can only return to listed addresses). ✅ done via `config push`: only `https://phd-companion-lac.vercel.app/**` is allowed.
