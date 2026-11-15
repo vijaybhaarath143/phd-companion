@@ -17,6 +17,7 @@ export async function updateProfile(form: FormData) {
     const tz = String(form.get("timezone") ?? "");
     expectRow(await tx`update public.profiles set
                display_name = ${text(form.get("name"), 120)},
+               phd_title = ${text(form.get("phdTitle"), 300)},
                university = ${text(form.get("university"), 200)},
                department = ${text(form.get("department"), 200)},
                guide_name = ${text(form.get("guide"), 200)},
@@ -39,7 +40,7 @@ export async function setReminders(enabled: boolean) {
 }
 
 /** What Settings → Trash / Archive can bring back. */
-const RESTORABLE = ["entries", "tasks", "projects", "courses", "goals", "notes"] as const;
+const RESTORABLE = ["entries", "tasks", "courses", "goals", "notes"] as const;
 export type RestorableTable = (typeof RESTORABLE)[number];
 
 export async function restoreFromTrash(table: RestorableTable, id: string) {

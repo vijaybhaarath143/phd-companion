@@ -13,7 +13,8 @@ import { categories, phases, type TaskPriority } from "@/lib/labels";
 export const CATEGORY_KEYS = Object.keys(categories) as (keyof typeof categories)[];
 export const PHASE_KEYS = Object.keys(phases) as (keyof typeof phases)[];
 export const TASK_STATUSES = ["todo", "doing", "waiting", "done", "cancelled"] as const;
-export const PARENT_TYPES = ["entry", "project", "manuscript", "course", "milestone", "trial"] as const;
+// (no "project": the PhD itself is the only project, so nothing new is attached to an old one)
+export const PARENT_TYPES = ["entry", "manuscript", "course", "milestone", "trial"] as const;
 export type ParentType = (typeof PARENT_TYPES)[number];
 
 export function kindFor(category: string | null) {
@@ -45,6 +46,15 @@ export function cleanText(v: unknown, max = 20000) {
   return s || null;
 }
 
+/** A publication to tag something with: must exist and not be in Trash. */
+export async function publicationOrNull(tx: Tx, value: unknown): Promise<string | null> {
+  const id = uuidOrNull(value);
+  if (!id) return null;
+  const [m] = await tx`select 1 from public.manuscripts where id = ${id} and deleted_at is null`;
+  if (!m) throw new ValidationError("That publication wasn't found — it may be in Trash.");
+  return id;
+}
+
 // ---------------------------------------------------------------- journal entries
 
 export type NewEntryInput = {
@@ -52,7 +62,8 @@ export type NewEntryInput = {
   title: string;
   date: PartialDate;
   category: string | null;
-  projectId: string | null;
+  /** The publication it's about, if any (the PhD itself is the only project). */
+  manuscriptId?: string | null;
   notes: string | null;
   people: string | null;
   planned: boolean;
@@ -69,9 +80,9 @@ export async function insertEntry(tx: Tx, input: NewEntryInput, today: string) {
   const status = input.planned && isFuture(date.date, date.precision, today) ? "planned" : null;
 
   const [row] = await tx`
-    insert into public.entries (id, title, kind, category, entry_date, entry_precision, status, description, people, project_id)
+    insert into public.entries (id, title, kind, category, entry_date, entry_precision, status, description, people, manuscript_id)
     values (${id}, ${title}, ${kind}, ${category}, ${date.date}, ${date.precision}, ${status},
-            ${cleanText(input.notes)}, ${cleanText(input.people, 500)}, ${uuidOrNull(input.projectId)})
+            ${cleanText(input.notes)}, ${cleanText(input.people, 500)}, ${await publicationOrNull(tx, input.manuscriptId)})
     on conflict (id) do nothing
     returning id`;
   if (row) {
@@ -88,7 +99,6 @@ export type NewTaskInput = {
   title: string;
   dueDate: string | null;
   priority: TaskPriority;
-  projectId: string | null;
   notes: string | null;
   remindUntilDone?: boolean;
   originEntryId?: string | null;
@@ -100,17 +110,17 @@ export async function insertTask(tx: Tx, input: NewTaskInput) {
   if (!id) throw new ValidationError("Something went wrong — please try again.");
   const title = cleanTitle(input.title);
 
-  // A task keeps its origin; its project comes from what was chosen, never silently swapped.
-  let projectId = uuidOrNull(input.projectId);
+  // A task keeps its origin; its publication comes from what was chosen, else from the entry it came from.
+  let manuscriptId = await publicationOrNull(tx, input.manuscriptId);
   const originEntryId = uuidOrNull(input.originEntryId);
-  if (originEntryId && !projectId) {
-    const [origin] = await tx<{ projectId: string | null }[]>`select project_id from public.entries where id = ${originEntryId}`;
-    projectId = origin?.projectId ?? null;
+  if (originEntryId && !manuscriptId) {
+    const [origin] = await tx<{ manuscriptId: string | null }[]>`select manuscript_id from public.entries where id = ${originEntryId}`;
+    manuscriptId = origin?.manuscriptId ?? null;
   }
   await tx`
-    insert into public.tasks (id, title, due_date, priority, project_id, notes, origin_entry_id, manuscript_id, remind_until_done)
+    insert into public.tasks (id, title, due_date, priority, notes, origin_entry_id, manuscript_id, remind_until_done)
     values (${id}, ${title}, ${dateOrNull(input.dueDate)}, ${oneOf(input.priority, ["high", "normal", "low"] as const, "normal")},
-            ${projectId}, ${cleanText(input.notes, 5000)}, ${originEntryId}, ${uuidOrNull(input.manuscriptId)}, ${input.remindUntilDone === true})
+            ${cleanText(input.notes, 5000)}, ${originEntryId}, ${manuscriptId}, ${input.remindUntilDone === true})
     on conflict (id) do nothing`;
   return { id };
 }
@@ -143,7 +153,6 @@ export async function setTaskStatus(
 
 const PARENT_TABLE: Record<ParentType, string> = {
   entry: "public.entries",
-  project: "public.projects",
   manuscript: "public.manuscripts",
   course: "public.courses",
   milestone: "public.milestones",
@@ -161,7 +170,7 @@ export async function parentExists(tx: Tx, parentType: ParentType, parentId: str
       where t.id = ${id} and t.removed_at is null and e.deleted_at is null`;
     return Boolean(t);
   }
-  const softDelete = parentType === "entry" || parentType === "project" || parentType === "manuscript" || parentType === "course";
+  const softDelete = parentType === "entry" || parentType === "manuscript" || parentType === "course";
   const [row] = await tx`
     select 1 from ${tx.unsafe(PARENT_TABLE[parentType])} where id = ${id} ${softDelete ? tx`and deleted_at is null` : tx``}`;
   return Boolean(row);
@@ -205,15 +214,15 @@ export async function insertFeedback(
   input: { source: string | null; via: string | null; changes: string | null; date: PartialDate; makeTasks: boolean },
   id?: string,
 ) {
-  const [m] = await tx<{ title: string; projectId: string | null }[]>`
-    select title, project_id from public.manuscripts where id = ${uuidOrNull(manuscriptId)} and deleted_at is null`;
+  const [m] = await tx<{ title: string }[]>`
+    select title from public.manuscripts where id = ${uuidOrNull(manuscriptId)} and deleted_at is null`;
   if (!m) throw new ValidationError("Manuscript not found.");
   const source = cleanText(input.source, 200);
   const changes = cleanText(input.changes, 20000);
   const date = checkPartial(input.date);
   const [e] = await tx<{ id: string }[]>`
-    insert into public.entries (id, title, kind, category, entry_date, entry_precision, project_id, people)
-    values (${id ?? crypto.randomUUID()}, ${`Feedback on ${m.title}`}, 'feedback', 'guide_meeting', ${date.date}, ${date.precision}, ${m.projectId}, ${source})
+    insert into public.entries (id, title, kind, category, entry_date, entry_precision, manuscript_id, people)
+    values (${id ?? crypto.randomUUID()}, ${`Feedback on ${m.title}`}, 'feedback', 'guide_meeting', ${date.date}, ${date.precision}, ${manuscriptId}, ${source})
     on conflict (id) do nothing
     returning id`;
   if (!e) {
@@ -229,8 +238,8 @@ export async function insertFeedback(
     const lines = (changes ?? "").split("\n").map((l) => l.replace(/^[-•*\d.)\s]+/, "").trim()).filter(Boolean);
     for (const line of lines.slice(0, 30)) {
       const [t] = await tx<{ id: string }[]>`
-        insert into public.tasks (title, project_id, origin_entry_id, manuscript_id)
-        values (${line.slice(0, 300)}, ${m.projectId}, ${e.id}, ${manuscriptId}) returning id`;
+        insert into public.tasks (title, origin_entry_id, manuscript_id)
+        values (${line.slice(0, 300)}, ${e.id}, ${manuscriptId}) returning id`;
       taskIds.push(t.id);
     }
   }
@@ -309,21 +318,17 @@ export async function insertTrial(
 /** A scratch note or a checklist (items as plain text, not ticked). */
 export async function insertNote(
   tx: Tx,
-  input: { id?: string; kind: "scratch" | "checklist"; title?: string | null; body?: string | null; items?: string[]; projectId?: string | null },
+  input: { id?: string; kind: "scratch" | "checklist"; title?: string | null; body?: string | null; items?: string[]; manuscriptId?: string | null },
 ) {
   const kind = oneOf(input.kind, ["scratch", "checklist"] as const, "scratch")!;
   const title = cleanText(input.title, 300) ?? (kind === "checklist" ? "New checklist" : "Untitled note");
   const items = (input.items ?? []).map((t) => String(t).trim().slice(0, 1000)).filter(Boolean).slice(0, 500)
     .map((text) => ({ id: crypto.randomUUID().slice(0, 8), text, done: false }));
-  const projectId = uuidOrNull(input.projectId);
-  if (projectId) {
-    const [p] = await tx`select 1 from public.projects where id = ${projectId} and deleted_at is null`;
-    if (!p) throw new ValidationError("That project wasn't found.");
-  }
+  const manuscriptId = await publicationOrNull(tx, input.manuscriptId);
   const id = uuidOrNull(input.id) ?? crypto.randomUUID();
   await tx`
-    insert into public.notes (id, kind, title, body, items, project_id)
-    values (${id}, ${kind}, ${title}, ${cleanText(input.body, 100000)}, ${tx.json(items)}, ${projectId})
+    insert into public.notes (id, kind, title, body, items, manuscript_id)
+    values (${id}, ${kind}, ${title}, ${cleanText(input.body, 100000)}, ${tx.json(items)}, ${manuscriptId})
     on conflict (id) do nothing`;
   return { id };
 }
@@ -352,18 +357,18 @@ export async function setReviewStep(
   const stepId = uuidOrNull(input.stepId);
   const [current] = await tx<{ doneOn: string | null; today: string }[]>`
     select done_on, app.user_today() as today from public.review_steps
-    where id = ${stepId} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null)`;
+    where id = ${stepId} and removed_at is null and exists (select 1 from public.manuscripts m where m.id = manuscript_id and m.deleted_at is null)`;
   if (!current) throw new ValidationError("That review step wasn't found.");
   // done without a date: keep the date it already had, else today
   if (fields.status === "done" && fields.done_on === undefined) fields.done_on = current.doneOn ?? current.today;
   // (postgres.js reads an object as "column = value" pairs only directly after SET)
   const [row] = Object.keys(fields).length
-    ? await tx<{ id: string; title: string; status: string; doneOn: string | null; count: number | null; projectId: string }[]>`
+    ? await tx<{ id: string; title: string; status: string; doneOn: string | null; count: number | null; manuscriptId: string }[]>`
         update public.review_steps set ${tx(fields)}, version = version + 1
         where id = ${stepId} and removed_at is null
-        returning id, title, status, done_on, count, project_id`
-    : await tx<{ id: string; title: string; status: string; doneOn: string | null; count: number | null; projectId: string }[]>`
-        select id, title, status, done_on, count, project_id from public.review_steps where id = ${stepId} and removed_at is null`;
+        returning id, title, status, done_on, count, manuscript_id`
+    : await tx<{ id: string; title: string; status: string; doneOn: string | null; count: number | null; manuscriptId: string }[]>`
+        select id, title, status, done_on, count, manuscript_id from public.review_steps where id = ${stepId} and removed_at is null`;
   if (!row) throw new ValidationError("That review step wasn't found.");
   return row;
 }

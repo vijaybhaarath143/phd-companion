@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Check, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
 import { addCourse, addCourseItem, addEnquiry, addMilestone, recordRecognition, removeCourseItem, saveAdminDetails, saveRequirement, toggleCourseItem, trashCourse, updateCourse, updateEnquiry, updateMilestone } from "@/server/actions/academics";
@@ -20,13 +19,12 @@ import { undoRemove, undoTrash } from "@/server/actions/settings";
 import { formatCredits } from "@/lib/credits";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
 import { courseStatuses, enquiryStatuses, milestoneStatuses, suggestedMilestones } from "@/lib/labels";
-import type { ProjectOption } from "@/server/profile";
 
 export function RequirementEditor({ requirement }: { requirement: { label: string; periodLabel: string | null; requiredCredits: number | null; version: number } | null }) {
   const [open, setOpen] = useState(false);
   if (!open) return <Button size="sm" variant="outline" onClick={() => setOpen(true)}>{requirement ? "Edit requirement" : "Set requirement"}</Button>;
   return (
-    <ActionForm action={saveRequirement} success="Saved" reset={false} onDone={() => setOpen(false)} className="flex w-full flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4">
+    <ActionForm action={saveRequirement} success="Saved" reset={false} onDone={() => setOpen(false)} className="flex w-full flex-wrap items-end gap-3 rounded-xl border-2 bg-zinc-50 p-4">
       {requirement && <input type="hidden" name="version" value={requirement.version} />}
       <div className="flex flex-col gap-1.5"><label htmlFor="rq-l" className="text-sm font-medium">Name</label><Input id="rq-l" name="label" defaultValue={requirement?.label ?? "Coursework credits"} className="w-56" /></div>
       <div className="flex flex-col gap-1.5"><label htmlFor="rq-p" className="text-sm font-medium">Period</label><Input id="rq-p" name="period" defaultValue={requirement?.periodLabel ?? ""} placeholder="e.g. First year" className="w-40" /></div>
@@ -46,13 +44,13 @@ export function CoursesSection({ courses, items, today }: { courses: Course[]; i
   const [recognising, setRecognising] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <section id="courses" data-guide="courses" className="scroll-mt-6 rounded-xl border bg-card">
+    <section id="courses" data-guide="courses" className="scroll-mt-6 rounded-2xl border-2 bg-card shadow-edge">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="text-[15px] font-semibold">Courses</h2>
+        <h2 className="text-[22px]">Courses <span className="font-display text-[15px] font-bold text-muted-foreground">· {courses.length}</span></h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}><Plus className="size-3.5" aria-hidden /> Add course</Button>
       </div>
       {adding && (
-        <ActionForm action={addCourse} success="Course added" onDone={() => setAdding(false)} className="mx-5 mb-4 flex flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4">
+        <ActionForm action={addCourse} success="Course added" onDone={() => setAdding(false)} className="mx-5 mb-4 flex flex-wrap items-end gap-3 rounded-xl border-2 bg-zinc-50 p-4">
           <div className="flex flex-col gap-1.5"><label htmlFor="c-n" className="text-sm font-medium">Course</label><Input id="c-n" name="name" required className="w-60" /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="c-p" className="text-sm font-medium">Provider</label><Input id="c-p" name="provider" className="w-44" placeholder="e.g. SWAYAM" /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="c-c" className="text-sm font-medium">Credits <span className="font-normal text-muted-foreground">(leave blank if unknown)</span></label><Input id="c-c" name="credits" inputMode="decimal" className="w-32" /></div>
@@ -64,44 +62,42 @@ export function CoursesSection({ courses, items, today }: { courses: Course[]; i
       {courses.length === 0 ? (
         <p className="px-5 pb-5 text-sm text-muted-foreground">No courses yet.</p>
       ) : (
-        <div className="overflow-x-auto border-t border-zinc-100">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">Course</TableHead><TableHead>Provider</TableHead><TableHead>Status</TableHead>
-                <TableHead>Credits</TableHead><TableHead>Officially recognised</TableHead><TableHead className="pr-5"><span className="sr-only">Actions</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {courses.map((c) => (
-                <Fragment key={c.id}>
-                  <TableRow>
-                    <TableCell className="pl-5 font-medium">{c.name}</TableCell>
-                    <TableCell>{c.provider ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline">{courseStatuses[c.status as keyof typeof courseStatuses]}</Badge></TableCell>
-                    <TableCell className={c.credits === null ? "text-muted-foreground" : "tabular-nums"}>{c.credits === null ? "Not recorded" : formatCredits(c.credits)}</TableCell>
-                    <TableCell className="tabular-nums">
-                      {c.recognised > 0 ? formatCredits(c.recognised) : <span className="text-muted-foreground">—</span>}
-                      {c.status === "completed" && c.credits !== null && c.recognised < c.credits && <span className="block text-[12px] text-muted-foreground">{formatCredits(c.credits - c.recognised)} not yet recognised</span>}
-                    </TableCell>
-                    <TableCell className="pr-5 text-right whitespace-nowrap">
-                      {(() => {
-                        const mine = items.filter((it) => it.courseId === c.id);
-                        const open = mine.filter((it) => !it.doneAt).length;
-                        return (
-                          <Button size="sm" variant="outline" className="mr-2" aria-expanded={deadlines === c.id} onClick={() => setDeadlines(deadlines === c.id ? null : c.id)}>
-                            Deadlines{open ? ` · ${open}` : ""}
-                          </Button>
-                        );
-                      })()}
-                      {c.status === "completed" && <Button size="sm" variant="outline" className="mr-2" onClick={() => setRecognising(recognising === c.id ? null : c.id)}>Record recognition</Button>}
-                      <Button size="sm" variant="outline" onClick={() => setEditing(editing === c.id ? null : c.id)}>Edit</Button>
-                    </TableCell>
-                  </TableRow>
-                  {editing === c.id && (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={6} className="px-5">
-                        <ActionForm action={updateCourse.bind(null, c.id)} success="Course saved" reset={false} onDone={() => setEditing(null)} className="flex flex-wrap items-end gap-3 rounded-lg border bg-zinc-50 p-4 whitespace-normal">
+        <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
+          {courses.map((c) => {
+            const mine = items.filter((it) => it.courseId === c.id);
+            const open = mine.filter((it) => !it.doneAt).length;
+            return (
+              <li key={c.id} className="flex flex-col">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 px-5 py-4">
+                  <span className="min-w-0 flex-[1_1_220px]">
+                    <span className="block font-display text-[16px] leading-snug font-extrabold">{c.name}</span>
+                    <span className="block text-[13px] text-muted-foreground">
+                      {[
+                        c.provider,
+                        c.recognised > 0 ? `${formatCredits(c.recognised)} officially recognised` : null,
+                        c.status === "completed" && c.credits !== null && c.recognised < c.credits ? `${formatCredits(c.credits - c.recognised)} not yet recognised` : null,
+                      ].filter(Boolean).join(" · ") || " "}
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    {c.credits === null ? (
+                      <Badge variant="outline" className="border-2 border-dashed">Credits unknown</Badge>
+                    ) : (
+                      <Badge variant="grape">{formatCredits(c.credits)} {c.credits === 1 ? "credit" : "credits"}</Badge>
+                    )}
+                    <Badge variant={c.status === "completed" ? "info" : c.status === "enrolled" ? "grape" : c.status === "dropped" ? "muted" : "outline"}>{courseStatuses[c.status as keyof typeof courseStatuses]}</Badge>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" aria-expanded={deadlines === c.id} onClick={() => setDeadlines(deadlines === c.id ? null : c.id)}>
+                      Deadlines{open ? ` · ${open}` : ""}
+                    </Button>
+                    {c.status === "completed" && <Button size="sm" variant="outline" onClick={() => setRecognising(recognising === c.id ? null : c.id)}>Record recognition</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(editing === c.id ? null : c.id)}>Edit</Button>
+                  </span>
+                </div>
+                {editing === c.id && (
+                  <div className="px-5 pb-4">
+                    <ActionForm action={updateCourse.bind(null, c.id)} success="Course saved" reset={false} onDone={() => setEditing(null)} className="flex flex-wrap items-end gap-3 rounded-xl border-2 bg-zinc-50 p-4">
                           <input type="hidden" name="version" value={c.version} />
                           <div className="flex flex-col gap-1.5"><label htmlFor={`cn-${c.id}`} className="text-sm font-medium">Course</label>
                             <Input id={`cn-${c.id}`} name="name" required maxLength={300} defaultValue={c.name} className="w-60" /></div>
@@ -119,13 +115,11 @@ export function CoursesSection({ courses, items, today }: { courses: Course[]; i
                           </Button>
                           <p className="w-full text-[13px] text-muted-foreground">Marking a course completed doesn&apos;t record any official recognition — that&apos;s a separate step.</p>
                         </ActionForm>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {recognising === c.id && (
-                    <TableRow className="hover:bg-transparent">
-                      <TableCell colSpan={6} className="px-5 whitespace-normal">
-                        <ActionForm action={recordRecognition.bind(null, c.id)} success="Recognition recorded" onDone={() => setRecognising(null)} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+                  </div>
+                )}
+                {recognising === c.id && (
+                  <div className="px-5 pb-4">
+                    <ActionForm action={recordRecognition.bind(null, c.id)} success="Recognition recorded" celebrate={{ title: "Credits recognised", detail: c.name }} onDone={() => setRecognising(null)} className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
                           <div className="flex flex-wrap items-end gap-3">
                             <div className="flex flex-col gap-1.5"><label htmlFor={`ra-${c.id}`} className="text-sm font-medium">Credits recognised</label>
                               <Input id={`ra-${c.id}`} name="amount" inputMode="decimal" required className="w-32" /></div>
@@ -135,40 +129,34 @@ export function CoursesSection({ courses, items, today }: { courses: Course[]; i
                           <PartialDateInput name="recognised" label="Recognised on" today={today} />
                           <Button type="submit" className="self-start">Save</Button>
                         </ActionForm>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </Fragment>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                  </div>
+                )}
+                {deadlines === c.id && (
+                  <div className="flex flex-col gap-2 border-t-2 border-zinc-100 bg-zinc-50/60 px-5 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-extrabold">Deadlines</h3>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setDeadlines(null)}>Close</Button>
+                    </div>
+                    <CourseDeadlines courseId={c.id} items={mine} today={today} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
-      {(() => {
-        // below the table, not inside it: the table scrolls sideways on a phone, the panel shouldn't
-        const course = courses.find((c) => c.id === deadlines);
-        return course ? (
-          <div className="flex flex-col gap-2 border-t border-zinc-100 px-5 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold">Deadlines — {course.name}</h3>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setDeadlines(null)}>Close</Button>
-            </div>
-            <CourseDeadlines courseId={course.id} items={items.filter((it) => it.courseId === course.id)} today={today} />
-          </div>
-        ) : null;
-      })()}
-      <p className="border-t border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Course status: Planned → Enrolled → Completed (or Dropped). After completion, use “Record recognition” — it can be partial.</p>
+      <p className="border-t-2 border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Course status: Planned → Enrolled → Completed (or Dropped). After completion, use “Record recognition” — it can be partial.</p>
     </section>
   );
 }
 
-type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; projectTitle: string | null; version: number };
+type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; version: number };
 
 /** The milestone's "Update": starts from what's recorded (done date, target), never from today. */
 function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDone: () => void }) {
   const [status, setStatus] = useState(m.status);
   return (
-    <ActionForm action={updateMilestone.bind(null, m.id)} success="Saved" reset={false} onDone={onDone} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+    <ActionForm action={updateMilestone.bind(null, m.id)} success="Saved" celebrate={status === "done" && m.status !== "done" ? { title: "Milestone done", detail: m.title } : undefined} reset={false} onDone={onDone} className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
       <input type="hidden" name="version" value={m.version} />
       <div className="flex flex-col gap-1.5"><label htmlFor={`mt-${m.id}`} className="text-sm font-medium">Milestone</label>
         <Input id={`mt-${m.id}`} name="title" required maxLength={300} defaultValue={m.title} /></div>
@@ -189,48 +177,63 @@ function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDo
   );
 }
 
-export function MilestonesSection({ milestones, projects, today }: { milestones: Milestone[]; projects: ProjectOption[]; today: string }) {
+export function MilestonesSection({ milestones, today }: { milestones: Milestone[]; today: string }) {
   const [adding, setAdding] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const existing = new Set(milestones.map((m) => m.title.toLowerCase()));
   return (
-    <section id="milestones" data-guide="milestones" className="min-w-0 scroll-mt-6 flex-[3_1_420px] rounded-xl border bg-card">
+    <section id="milestones" data-guide="milestones" className="min-w-0 scroll-mt-6 flex-[3_1_420px] rounded-2xl border-2 bg-card shadow-edge">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="text-[15px] font-semibold">Milestones</h2>
+        <h2 className="text-[22px]">Milestones</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(adding === null ? "" : null)}>Add milestone</Button>
       </div>
       {adding !== null && (
-        <ActionForm key={adding} action={addMilestone} success="Milestone added" onDone={() => setAdding(null)} className="mx-5 mb-4 flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+        <ActionForm key={adding} action={addMilestone} success="Milestone added" onDone={() => setAdding(null)} className="mx-5 mb-4 flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
           <div className="flex flex-col gap-1.5"><label htmlFor="m-t" className="text-sm font-medium">Milestone</label><Input id="m-t" name="title" required defaultValue={adding} /></div>
           <PartialDateInput name="target" label="Target date" today={today} noneLabel="No date yet" defaultValue={{ date: null, precision: "none" }} />
-          <div className="flex flex-col gap-1.5"><label htmlFor="m-p" className="text-sm font-medium">Project <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <AppSelect id="m-p" name="projectId" defaultValue="" options={rowOptions(projects, (p) => p.title, "Not a project milestone")} /></div>
           <Button type="submit" className="self-start">Add</Button>
         </ActionForm>
       )}
       {milestones.length > 0 && (
-        <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
-          {milestones.map((m) => (
-            <li key={m.id} className="flex flex-col gap-2 px-5 py-3">
-              <div className="flex items-center gap-3">
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{m.title}</span>
-                  <span className="block text-[13px] text-muted-foreground">
-                    {m.status === "done"
-                      ? m.donePrecision === "none" ? "Done · date not recorded" : `Done ${formatPartialDate(m.doneOn, m.donePrecision)}`
-                      : m.targetPrecision === "none" ? "No target date" : `Target ${formatPartialDate(m.targetDate, m.targetPrecision)}`}
-                    {m.projectTitle ? ` · ${m.projectTitle.split(":")[0]}` : ""}
-                  </span>
-                </span>
-                <Badge variant={m.status === "done" ? "default" : "outline"}>{milestoneStatuses[m.status as keyof typeof milestoneStatuses]}</Badge>
-                <Button size="sm" variant="ghost" onClick={() => setMarking(marking === m.id ? null : m.id)}>Update</Button>
-              </div>
-              {marking === m.id && <MilestoneForm m={m} today={today} onDone={() => setMarking(null)} />}
-            </li>
-          ))}
-        </ul>
+        <ol className="flex flex-col px-5 pb-2">
+          {milestones.map((m, i) => {
+            const done = m.status === "done";
+            const skipped = m.status === "skipped";
+            const last = i === milestones.length - 1;
+            return (
+              <li key={m.id} className="flex gap-4">
+                <div aria-hidden className="flex flex-col items-center pt-0.5">
+                  {done ? (
+                    <span className="flex size-8 items-center justify-center rounded-full bg-grape text-white shadow-[0_3px_0_var(--grape-strong)]"><Check className="size-4" strokeWidth={3.4} /></span>
+                  ) : skipped ? (
+                    <span className="size-8 rounded-full border-[3px] border-dashed border-zinc-300 bg-card" />
+                  ) : m.targetPrecision !== "none" ? (
+                    <span className="size-8 rounded-full border-[3px] border-grape bg-card" />
+                  ) : (
+                    <span className="size-8 rounded-full border-[3px] border-zinc-200 bg-zinc-100" />
+                  )}
+                  {!last && <span className={done ? "my-1 w-1 flex-1 rounded-full bg-grape-light" : "my-1 w-1 flex-1 rounded-full bg-zinc-200"} />}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2 pb-5">
+                  <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+                    <span className="min-w-0 flex-[1_1_180px]">
+                      <span className={skipped ? "block font-display text-[15px] font-extrabold text-muted-foreground line-through" : "block font-display text-[15px] font-extrabold"}>{m.title}</span>
+                      <span className="block text-[13px] text-muted-foreground">
+                        {done
+                          ? m.donePrecision === "none" ? "Done · date not recorded" : `Done ${formatPartialDate(m.doneOn, m.donePrecision)}`
+                          : m.targetPrecision === "none" ? "No date yet" : formatPartialDate(m.targetDate, m.targetPrecision)}
+                      </span>
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={() => setMarking(marking === m.id ? null : m.id)}>Update</Button>
+                  </div>
+                  {marking === m.id && <MilestoneForm m={m} today={today} onDone={() => setMarking(null)} />}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       )}
-      <div className="flex flex-col gap-2.5 border-t border-zinc-100 px-5 py-4">
+      <div className="flex flex-col gap-2.5 border-t-2 border-zinc-100 px-5 py-4">
         <p className="text-[13px] text-muted-foreground">Suggestions only — add the ones your university uses, with your own dates.</p>
         <div className="flex flex-wrap gap-2">
           {suggestedMilestones.filter((s) => !existing.has(s.toLowerCase())).map((s) => (
@@ -250,13 +253,13 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   return (
-    <section id="enquiries" data-guide="enquiries" className="min-w-0 flex-[2_1_300px] scroll-mt-6 rounded-xl border bg-card">
+    <section id="enquiries" data-guide="enquiries" className="min-w-0 flex-[2_1_300px] scroll-mt-6 rounded-2xl border-2 bg-card shadow-edge">
       <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-3">
-        <h2 className="text-[15px] font-semibold">Office enquiries</h2>
+        <h2 className="text-[22px]">Office enquiries</h2>
         <Button size="sm" variant="outline" onClick={() => setAdding(!adding)}>Add enquiry</Button>
       </div>
       {adding && (
-        <ActionForm action={addEnquiry} success="Enquiry added" onDone={() => setAdding(false)} className="mx-5 mb-4 flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+        <ActionForm action={addEnquiry} success="Enquiry added" onDone={() => setAdding(false)} className="mx-5 mb-4 flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
           <div className="flex flex-col gap-1.5"><label htmlFor="q-t" className="text-sm font-medium">What you asked</label><Input id="q-t" name="title" required /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="q-o" className="text-sm font-medium">Office</label><Input id="q-o" name="office" /></div>
           <div className="flex flex-col gap-1.5"><label htmlFor="q-c" className="text-sm font-medium">Contact person <span className="font-normal text-muted-foreground">(optional)</span></label><Input id="q-c" name="contact" /></div>
@@ -267,7 +270,7 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
       {enquiries.length === 0 ? (
         <p className="px-5 pb-5 text-[13px] text-muted-foreground">Nothing open. Track a question to an office — who you asked, their reply, and when to follow up. It stays open until you close it.</p>
       ) : (
-        <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+        <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
           {enquiries.map((q) => {
             const due = q.followUpDate && q.followUpDate <= today && q.status !== "closed";
             return (
@@ -283,7 +286,7 @@ export function EnquiriesSection({ enquiries, today }: { enquiries: Enquiry[]; t
                   <Button size="sm" variant="ghost" onClick={() => setEditing(editing === q.entryId ? null : q.entryId)}>Update</Button>
                 </div>
                 {editing === q.entryId && (
-                  <ActionForm action={updateEnquiry.bind(null, q.entryId)} success="Saved" reset={false} onDone={() => setEditing(null)} className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+                  <ActionForm action={updateEnquiry.bind(null, q.entryId)} success="Saved" reset={false} onDone={() => setEditing(null)} className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
                     <input type="hidden" name="version" value={q.entryVersion} />
                     <div className="flex flex-col gap-1.5"><label htmlFor={`qr-${q.entryId}`} className="text-sm font-medium">Response</label><Textarea id={`qr-${q.entryId}`} name="response" rows={2} defaultValue={q.response ?? ""} /></div>
                     <div className="flex flex-wrap gap-3">
@@ -311,7 +314,7 @@ const ITEM_KIND_LABELS = { assignment: "Assignment", exam_registration: "Exam re
 function CourseDeadlines({ courseId, items, today }: { courseId: string; items: CourseItem[]; today: string }) {
   const [pending, start] = useTransition();
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4 whitespace-normal">
+    <div className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4 whitespace-normal">
       {items.length ? (
         <ul className="flex flex-col divide-y divide-zinc-200/70">
           {items.map((it) => {
@@ -366,10 +369,10 @@ export function AdminDetailsSection({ details }: { details: { label: string; val
   };
   const change = (id: string, field: "label" | "value", v: string) => setRows((rs) => rs.map((r) => (r.id === id ? { ...r, [field]: v } : r)));
   return (
-    <section id="admin" data-guide="admin-info" className="flex min-w-0 flex-[3_1_380px] scroll-mt-6 flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+    <section id="admin" data-guide="admin-info" className="flex min-w-0 flex-[3_1_380px] scroll-mt-6 flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold">Admin info</h2>
+          <h2 className="text-[22px]">Admin info</h2>
           <p className="text-[13px] text-muted-foreground">Details you keep looking up. Only you can see them.</p>
         </div>
         {!editing && <Button size="sm" variant="outline" onClick={startEditing}>{details.length ? "Edit" : "Add details"}</Button>}
@@ -395,7 +398,7 @@ export function AdminDetailsSection({ details }: { details: { label: string; val
       ) : details.length ? (
         <dl className="text-[13px]">
           {details.map((d, i) => (
-            <div key={i} className="flex justify-between gap-4 border-t border-zinc-100 py-2.5 first:border-t-0">
+            <div key={i} className="flex justify-between gap-4 border-t-2 border-zinc-100 py-2.5 first:border-t-0">
               <dt className="text-muted-foreground">{d.label}</dt>
               <dd className="text-right font-medium break-words">{d.value || <span className="font-normal text-muted-foreground">—</span>}</dd>
             </div>

@@ -4,19 +4,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "cn";
 import { asUser } from "@/server/auth";
 import { getCalendar, listGoals, listTasks, openTaskOptions, taskCounts } from "@/server/planner";
-import { projectOptions, requireProfile } from "@/server/profile";
-import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
+import { publicationOptions, requireProfile } from "@/server/profile";
+import { formatPartialDate, isMonthKey, monthLabel, shiftMonth, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
-import { TaskList, AddTaskButton, Goals } from "./planner-client";
+import { TaskList, AddTaskButton, Goals, PlannerSide } from "./planner-client";
 
 export const metadata: Metadata = { title: "Planner" };
-
-function shiftMonth(ym: string, delta: number) {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return d.toISOString().slice(0, 7);
-}
 
 export default async function PlannerPage({ searchParams }: PageProps<"/planner">) {
   const sp = await searchParams;
@@ -37,10 +31,10 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       counts: await taskCounts(tx),
       tasks: tasks.slice(0, limit),
       moreTasks: tasks.length > limit,
-      projects: await projectOptions(tx),
+      publications: await publicationOptions(tx),
       taskOptions: view === "tasks" ? await openTaskOptions(tx) : [],
       calendar: view === "calendar" ? await getCalendar(tx, month, today) : null,
-      goals: view === "goals" ? await listGoals(tx) : [],
+      goals: view === "calendar" ? [] : await listGoals(tx),
     };
   });
 
@@ -49,48 +43,53 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       href={`/planner${v === "tasks" ? "" : `?view=${v}`}`}
       role="tab"
       aria-selected={view === v}
-      className={cn("-mb-px inline-flex h-10 items-center border-b-2 px-0.5 font-medium", view === v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+      className={cn("flex h-10 items-center rounded-xl px-4 font-display text-sm font-extrabold transition-colors", view === v ? "bg-card text-foreground shadow-[0_2px_0_var(--border)]" : "text-zinc-600 hover:text-foreground")}
     >
       {label}
     </Link>
   );
 
   return (
-    <div className="mx-auto flex max-w-[900px] flex-col gap-5">
-      <PageHeader title="Planner" subtitle="What needs doing, and when." actions={<AddTaskButton />} />
-      <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex gap-5 border-b">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-6">
+      <PageHeader eyebrow="Planner" title="What needs doing, and when" actions={<AddTaskButton />} />
+      <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex w-fit gap-1 rounded-2xl bg-muted p-1">
         {tab("tasks", "Tasks")}
         {tab("calendar", "Calendar")}
         {tab("goals", "Goals")}
       </div>
 
       {view === "tasks" && (
-        <>
-          <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-1 rounded-[10px] bg-muted p-1">
+        <div className="flex flex-wrap items-start gap-6">
+        <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
+          <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-2">
             {([["open", `Open · ${data.counts.open}`], ["waiting", `Waiting · ${data.counts.waiting}`], ["done", "Done"]] as const).map(([k, label]) => (
               <Link key={k} href={k === "open" ? "/planner" : `/planner?show=${k}`} aria-current={show === k ? "true" : undefined}
-                className={cn("flex h-8 items-center rounded-md px-3 text-[13px] font-medium", show === k ? "bg-background text-foreground shadow-xs" : "text-zinc-600")}>
+                className={cn("flex h-10 items-center rounded-full border-2 px-4 font-display text-sm font-extrabold transition-colors", show === k ? "border-sky-soft bg-sky-soft text-sky-strong" : "bg-card text-zinc-600 hover:text-foreground")}>
                 {label}
               </Link>
             ))}
           </div>
-          <TaskList tasks={data.tasks} projects={data.projects} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use Add task to plan your next step."} />
+          <TaskList grouped={show === "open"} tasks={data.tasks} publications={data.publications} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use New task to plan your next step."} />
           {data.moreTasks && (
             <Link
               href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}
               scroll={false}
-              className="self-center rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+              className="self-center rounded-xl border-2 bg-card px-4 py-2 font-display text-sm font-extrabold shadow-edge transition-transform duration-75 hover:bg-zinc-50 active:translate-y-1 active:shadow-none"
             >
               Show more
             </Link>
           )}
-        </>
+        </div>
+        <div className="min-w-0 flex-[1_1_280px]">
+          <PlannerSide goals={data.goals} doneThisWeek={data.counts.doneThisWeek} />
+        </div>
+        </div>
       )}
 
       {view === "calendar" && data.calendar && (
-        <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
+        <section className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-[15px] font-semibold">{monthLabel(data.month)}</h2>
+            <h2 className="text-[15px] font-extrabold">{monthLabel(data.month)}</h2>
             <div className="flex gap-1.5">
               <Button asChild size="icon-sm" variant="outline"><Link href={`/planner?view=calendar&month=${shiftMonth(data.month, -1)}`} aria-label="Previous month"><ChevronLeft /></Link></Button>
               <Button asChild size="sm" variant="outline"><Link href="/planner?view=calendar">Today</Link></Button>
@@ -99,14 +98,14 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
           </div>
           <MonthGrid month={data.month} today={data.today} items={data.calendar.exact} />
           {data.calendar.exact.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing this month has an exact date. Dates come from your tasks, entries and milestones — nothing is entered twice.</p>}
-          <div className="border-t border-zinc-100 pt-3">
+          <div className="border-t-2 border-zinc-100 pt-3">
             <p className="font-medium">This month, no exact day</p>
             {data.calendar.monthOnly.length ? (
               <ul className="mt-1 flex flex-col gap-1">{data.calendar.monthOnly.map((m, i) => <li key={i}><Link href={m.href} className="underline-offset-4 hover:underline">{m.title}</Link></li>)}</ul>
             ) : <p className="text-[13px] text-muted-foreground">None.</p>}
           </div>
           {data.calendar.next && (
-            <div className="border-t border-zinc-100 pt-3">
+            <div className="border-t-2 border-zinc-100 pt-3">
               <p className="font-medium">Next planned</p>
               <Link href={data.calendar.next.href} className="text-[13px] underline-offset-4 hover:underline">
                 {formatPartialDate(data.calendar.next.date, data.calendar.next.precision)} · {data.calendar.next.title}

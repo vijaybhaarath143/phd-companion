@@ -85,8 +85,31 @@ describe("journal entries", () => {
       const pct = await getJournal(tx, { q: "100%" });
       expect(pct.dated.map((x) => x.title)).toContain("Yield was 100% today");
       expect(pct.otherMatches).toEqual([]);
-      const odd = await getJournal(tx, { project: "abc", from: "2026-13", to: "2026-00" });
+      const odd = await getJournal(tx, { publication: "abc", kind: "party", from: "2026-13", to: "2026-00" });
       expect(odd.dated.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("search also finds publications, each with a link to open it", async () => {
+    await withUser(u, async (tx) => {
+      const [m] = await tx`insert into public.manuscripts (title) values ('Starch biosensor review') returning id`;
+      const j = await getJournal(tx, { q: "biosensor" });
+      expect(j.otherMatches).toContainEqual({ kind: "Publication", title: "Starch biosensor review", href: `/research/manuscripts/${m.id}` });
+      expect(j.otherMatches.every((x) => typeof x.href === "string" && x.href.startsWith("/"))).toBe(true);
+    });
+  });
+
+  it("the kind chips filter by kind, and cards get a one-line excerpt and a file count", async () => {
+    await withUser(u, async (tx) => {
+      const [m] = await tx`insert into public.entries (title, kind, category, entry_date, entry_precision, description)
+                           values ('Chip test meeting', 'meeting', 'guide_meeting', '2026-10-04', 'day', ${"Agreed the outline.\n\nNext:   split methods."}) returning id`;
+      await tx`insert into public.attachments (parent_type, parent_id, kind, url, label) values ('entry', ${m.id}, 'link', 'https://example.org/notes', 'Notes')`;
+      const meetings = await getJournal(tx, { kind: "meeting" });
+      expect(meetings.dated.length).toBeGreaterThan(0);
+      expect(meetings.dated.every((e) => e.kind === "meeting")).toBe(true);
+      const row = meetings.dated.find((e) => e.id === m.id)!;
+      expect(row.excerpt).toBe("Agreed the outline. Next: split methods.");
+      expect(row.files).toBe(1);
     });
   });
 });

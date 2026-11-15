@@ -10,7 +10,7 @@ export type GuideChapterId = "basics" | "journal" | "research" | "files" | "plan
 export type GuideStep = {
   id: string;
   chapter: GuideChapterId;
-  /** Page to open. "/research" opens the first project. */
+  /** Page to open. */
   path: string;
   /** Matching `data-guide` value on the page, if any. */
   target?: string;
@@ -23,7 +23,7 @@ export type GuideStep = {
 export const GUIDE_CHAPTERS: { id: GuideChapterId; title: string; summary: string }[] = [
   { id: "basics", title: "The basics", summary: "Quick Add, Home, Timeline and finding your way around" },
   { id: "journal", title: "Journal and dates", summary: "Your record of what happened — even when you don't know the exact date" },
-  { id: "research", title: "Research", summary: "Projects, manuscripts and experiments" },
+  { id: "research", title: "Research", summary: "Publications and experiments" },
   { id: "files", title: "Files and proof", summary: "Certificates, figures and drafts, kept private" },
   { id: "planner", title: "Planner", summary: "Tasks, things you're waiting on, and goals" },
   { id: "academics", title: "Academics", summary: "Coursework credits, milestones and office questions" },
@@ -40,12 +40,12 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "quick-add", chapter: "basics", path: "/", target: "quick-add",
     title: "Quick Add — record anything",
-    body: "The quickest way to add something. Choose Entry for something that happened (a meeting, a reading, an experiment) or Task for something to do. A title is enough; everything else is optional.",
+    body: "The quickest way to add something. Choose Journal for something that happened (a meeting, a reading, an experiment) or Task for something to do. The Journal page has its own New entry button too. A title is enough; everything else is optional.",
   },
   {
     id: "nav", chapter: "basics", path: "/", target: "nav",
     title: "Finding your way",
-    body: "Home is your summary. Timeline is the whole story in date order. Journal holds your entries. Research holds your projects, publications and benchwork. Planner holds tasks and goals. Academics tracks credits, deadlines and admin info. Events lists conferences and training; Notes holds scribbles and checklists.",
+    body: "Home is your summary. Timeline is the whole story in date order. Journal holds your entries. Research holds your publications and benchwork. Planner holds tasks and goals. Academics tracks credits, deadlines and admin info. Events lists conferences and training; Notes holds scribbles and checklists.",
     phoneBody: "Home is your summary and Timeline is the whole story in date order. Planner holds tasks and goals. Journal, Research, Academics, Events, Notes and Settings are under More.",
   },
   {
@@ -71,7 +71,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "working-on", chapter: "basics", path: "/", target: "working-on",
     title: "What you're working on",
-    body: "Your active projects at a glance. Below this you'll find what you recorded recently and what's coming up.",
+    body: "Your publications in progress and your benchwork at a glance. Below this you'll find what you recorded recently and what's coming up.",
   },
   {
     id: "search", chapter: "basics", path: "/", target: "search",
@@ -86,7 +86,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "timeline-filters", chapter: "basics", path: "/timeline", target: "timeline-filters",
     title: "Narrow it down, or add",
-    body: "Show one kind of thing, one project, or just this month or year. Add records something new — it appears on the timeline as soon as you save it.",
+    body: "Show one kind of thing, or just this month or year. Add records something new — it appears on the timeline as soon as you save it.",
   },
 
   // Journal and dates
@@ -108,46 +108,26 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "filters", chapter: "journal", path: "/journal", target: "journal-search",
     title: "Find and filter",
-    body: "Search, or narrow the journal by category, status, project or a range of months.",
+    body: "Search, or narrow the journal by category, status or a range of months.",
   },
 
   // Research
   {
-    id: "projects", chapter: "research", path: "/research", target: "projects",
-    title: "Projects",
-    body: "A project groups everything about one piece of work — for example SLR 1 or Laboratory work: its entries, tasks, papers and experiments. Switch between projects here, or start a new one.",
-  },
-  {
-    id: "manuscripts", chapter: "research", path: "/research", target: "manuscripts",
-    title: "Manuscripts",
-    body: "A paper you're writing. It moves through phases — planning, writing, review with your guide, choosing a journal, submitted, revising, accepted, published. Record your guide's feedback and each journal submission; the history is kept.",
-  },
-  {
-    id: "experiments", chapter: "research", path: "/research", target: "experiments",
-    title: "Experiments",
-    body: "Note what you tried, what you observed and anything blocking you, like equipment or supplies. Each run is a trial with its own date, result and files. Each time you change an experiment, the earlier version is kept.",
-  },
-  {
-    id: "review-steps", chapter: "research", path: "/research", target: "review-steps",
-    title: "Review milestones",
-    body: "A review project tracks its steps — protocol, search, screening, eligibility, extraction, PRISMA diagram, draft, feedback. Record the numbers at each step and the PRISMA counts fill themselves in.",
-  },
-  {
     id: "research-views", chapter: "research", path: "/research", target: "research-views",
     title: "Publications and benchwork",
-    body: "Publications lists your review and original articles with how far along each is. Benchwork lists every experiment with its trials.",
+    body: "Your whole PhD is the one project. Publications lists your review and original articles with how far along each is; open one to track its phases, guide feedback, submissions and — for a review — its steps and PRISMA numbers. Benchwork lists every experiment with its trials.",
   },
   {
-    id: "project-tasks", chapter: "research", path: "/research", target: "project-tasks",
-    title: "Tasks for this project",
-    body: "Tasks linked to this project. The same tasks also appear in the Planner, together with everything else you need to do.",
+    id: "experiments", chapter: "research", path: "/research", target: "research-views",
+    title: "Experiments",
+    body: "Note what you tried, what you observed and anything blocking you, like equipment or supplies. Each run is a trial with its own date, result and files. Each time you change an experiment, the earlier version is kept.",
   },
 
   // Files and proof
   {
     id: "evidence", chapter: "files", path: "/research", target: "evidence",
     title: "Files and links",
-    body: "Attach certificates, figures, drafts or photos to a project, an entry or an experiment — or add a link to a shared folder. Up to 20 MB each. Only you can open your files.",
+    body: "Attach certificates, figures, drafts or photos to an entry, a publication or an experiment — or add a link to a shared folder. Up to 20 MB each. Only you can open your files.",
   },
   {
     id: "attach", chapter: "files", path: "/research", target: "quick-add",
@@ -159,7 +139,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "add-task", chapter: "planner", path: "/planner", target: "planner-add",
     title: "Add a task",
-    body: "Add task opens Quick Add on Task: type what needs doing; a due date, priority (High, Normal, Low) and project are optional. Tick \"Keep reminding me until it's done\" and it stays at the top of every page until it's done.",
+    body: "New task opens Quick Add on Task: type what needs doing; a due date, priority (High, Normal, Low) and a publication are optional. Tick \"Keep reminding me until it's done\" and it stays at the top of every page until it's done.",
   },
   {
     id: "waiting", chapter: "planner", path: "/planner", target: "planner-show",
@@ -231,7 +211,7 @@ export const GUIDE_STEPS: GuideStep[] = [
 export const stepsFor = (chapter: GuideChapterId | null) =>
   chapter ? GUIDE_STEPS.filter((s) => s.chapter === chapter) : GUIDE_STEPS;
 
-/** "/research" redirects to a project page; "/" must match exactly. */
+/** A step on "/research" also counts on its sub-pages; "/" must match exactly. */
 export function onStepPage(step: GuideStep, pathname: string) {
   if (step.path === "/") return pathname === "/";
   return pathname === step.path || pathname.startsWith(step.path + "/");

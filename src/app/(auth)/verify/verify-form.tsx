@@ -12,26 +12,26 @@ export function VerifyForm({ email }: { email: string }) {
   const [code, setCode] = useState("");
   const error = state?.error ?? resent?.error;
   return (
-    <div className="flex w-full max-w-[400px] flex-col gap-5 rounded-xl border bg-card p-8">
+    <div className="flex w-full max-w-[420px] flex-col gap-6 sm:rounded-3xl sm:border-2 sm:bg-card sm:p-8 sm:shadow-edge">
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">Check your email</h1>
+        <h1 className="text-[30px] leading-tight font-black">Check your email</h1>
         <p className="text-muted-foreground">We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>. It works for 10 minutes.</p>
       </div>
       <form action={action} className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <label htmlFor="code" className="text-sm font-medium">6-digit code</label>
+          <label htmlFor="code" className="font-display text-sm font-extrabold">6-digit code</label>
           <InputOTP id="code" name="code" maxLength={6} value={code} onChange={setCode} inputMode="numeric" autoComplete="one-time-code" autoFocus
             containerClassName="justify-between" aria-invalid={Boolean(error)}>
             <InputOTPGroup className="gap-2">
               {[0, 1, 2, 3, 4, 5].map((i) => (
-                <InputOTPSlot key={i} index={i} className="size-12 rounded-lg border text-xl first:rounded-lg last:rounded-lg" />
+                <InputOTPSlot key={i} index={i} className="size-12 rounded-xl border-2 bg-card font-display text-xl font-black shadow-edge first:rounded-xl last:rounded-xl data-[active=true]:border-primary" />
               ))}
             </InputOTPGroup>
           </InputOTP>
-          {error && <p role="alert" className="text-[13px] text-red-700">{error}</p>}
+          {error && <p role="alert" className="text-[13px] text-overdue-foreground">{error}</p>}
           {resent?.sent && !error && <p role="status" className="text-[13px] text-muted-foreground">A new code is on its way.</p>}
         </div>
-        <Button type="submit" disabled={pending || code.length < 6} className="w-full">{pending ? "Checking…" : "Continue"}</Button>
+        <Button type="submit" size="lg" disabled={pending || code.length < 6} className="w-full">{pending ? "Checking…" : "Continue"}</Button>
       </form>
       <div className="flex items-center justify-between">
         <form action={resend}>

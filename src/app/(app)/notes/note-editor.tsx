@@ -12,7 +12,7 @@ import { rowOptions } from "@/lib/options";
 import { createNote, saveNote, trashNote, type NotePatch } from "@/server/actions/notes";
 import { undoTrash } from "@/server/actions/settings";
 import type { Note, NoteItem } from "@/server/notes";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 export function NewNoteButtons() {
   const [pending, start] = useTransition();
@@ -30,11 +30,11 @@ export function NewNoteButtons() {
 
 const newId = () => crypto.randomUUID().slice(0, 8);
 
-export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOption[] }) {
+export function NoteEditor({ note, publications }: { note: Note; publications: PublicationOption[] }) {
   const [title, setTitle] = useState(note.title);
   const [body, setBody] = useState(note.body ?? "");
   const [items, setItems] = useState<NoteItem[]>(note.items);
-  const [projectId, setProjectId] = useState(note.projectId ?? "");
+  const [manuscriptId, setManuscriptId] = useState(note.manuscriptId ?? "");
   const [pinned, setPinned] = useState(note.pinned);
   const [draft, setDraft] = useState("");
   const [pending, start] = useTransition();
@@ -55,12 +55,12 @@ export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOp
   const done = items.filter((i) => i.done).length;
 
   return (
-    <section className="flex min-h-[520px] flex-col gap-4 rounded-xl border bg-card px-5 py-4 sm:px-6">
+    <section className="flex min-h-[520px] flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge px-5 py-4 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
         <div className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="note-project">Project</label>
-          <AppSelect id="note-project" size="sm" className="w-44" value={projectId} onValueChange={(v) => { setProjectId(v); auto.schedule({ projectId: v || null }, 0); }} options={rowOptions(projects, (p) => p.title.split(":")[0], "No project")} />
+          <label className="sr-only" htmlFor="note-publication">Publication</label>
+          <AppSelect id="note-publication" size="sm" className="w-44" value={manuscriptId} onValueChange={(v) => { setManuscriptId(v); auto.schedule({ manuscriptId: v || null }, 0); }} options={rowOptions(publications, (p) => p.title.split(":")[0], "No publication")} />
           <Button type="button" size="sm" variant="outline" aria-pressed={pinned} onClick={() => { setPinned(!pinned); auto.schedule({ pinned: !pinned }, 0); }}>
             {pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />} {pinned ? "Unpin" : "Pin"}
           </Button>
@@ -92,12 +92,12 @@ export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOp
       {note.kind === "checklist" ? (
         <div className="flex flex-col gap-1">
           <p className="text-[13px] text-muted-foreground">{done} of {items.length} ticked</p>
-          <ul className="flex flex-col divide-y divide-zinc-100 border-y border-zinc-100">
+          <ul className="flex flex-col divide-y-2 divide-zinc-100 border-y border-zinc-100">
             {items.map((it, i) => (
               <li key={it.id} className="group flex items-center gap-3 py-2">
                 <input
                   type="checkbox"
-                  className="size-[18px] shrink-0 accent-zinc-900"
+                  className="size-[18px] shrink-0 accent-primary"
                   aria-label={`Done: ${it.text || "item"}`}
                   checked={it.done}
                   onChange={(e) => setList(items.map((x, j) => (j === i ? { ...x, done: e.target.checked } : x)), 0)}

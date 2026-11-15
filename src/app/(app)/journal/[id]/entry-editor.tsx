@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { categories, entryStatuses, participation, registration, enquiryStatuses, viaLabel } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
 import type { EntryDetail } from "@/server/journal";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 type Patch = {
   entry?: Record<string, string | null>;
@@ -40,14 +40,14 @@ const merge = (a: Patch, b: Patch): Patch => ({
 
 function Row({ label, htmlFor, children, top }: { label: string; htmlFor?: string; children: React.ReactNode; top?: boolean }) {
   return (
-    <div className={`flex flex-wrap gap-x-4 gap-y-2 border-t border-zinc-100 px-5 py-3.5 first:border-t-0 ${top ? "items-start" : "items-center"}`}>
+    <div className={`flex flex-wrap gap-x-4 gap-y-2 border-t-2 border-zinc-100 px-5 py-3.5 first:border-t-0 ${top ? "items-start" : "items-center"}`}>
       <dt className={`w-40 shrink-0 font-medium text-zinc-700 ${top ? "pt-2.5" : ""}`}>{htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}</dt>
       <dd className="min-w-0 flex-[1_1_280px]">{children}</dd>
     </div>
   );
 }
 
-export function EntryEditor({ entry, projects, today, openDate = false }: { entry: EntryDetail; projects: ProjectOption[]; today: string; openDate?: boolean }) {
+export function EntryEditor({ entry, publications, today, openDate = false }: { entry: EntryDetail; publications: PublicationOption[]; today: string; openDate?: boolean }) {
   const [v, setV] = useState({
     title: entry.title,
     category: entry.category ?? "",
@@ -56,7 +56,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
     people: entry.people ?? "",
     outcome: entry.outcome ?? "",
     skillsLearned: entry.skillsLearned ?? "",
-    projectId: entry.projectId ?? "",
+    manuscriptId: entry.manuscriptId ?? "",
     registration: entry.event?.registration ?? "",
     participation: entry.event?.participation ?? "unknown",
     award: entry.event?.award ?? "",
@@ -142,7 +142,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
         {viaLabel(entry.createdVia) && <Badge variant="muted" className="mt-2">Added via {viaLabel(entry.createdVia)}</Badge>}
       </div>
 
-      <section className="rounded-xl border bg-card">
+      <section className="rounded-2xl border-2 bg-card shadow-edge">
         <dl>
           <Row label="Date">
             {editingDate ? (
@@ -243,8 +243,8 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
             </Row>
           )}
 
-          <Row label="Project" htmlFor="project">
-            <AppSelect id="project" value={v.projectId} onValueChange={(x) => set("projectId", "entry", "projectId", x, 0)} className="max-w-96" options={rowOptions(projects, (p) => p.title, "Not linked")} />
+          <Row label="Publication" htmlFor="publication">
+            <AppSelect id="publication" value={v.manuscriptId} onValueChange={(x) => set("manuscriptId", "entry", "manuscriptId", x, 0)} className="max-w-96" options={rowOptions(publications, (p) => p.title, "Not about a publication")} />
           </Row>
 
           <Row label="People" htmlFor="people">
@@ -267,8 +267,8 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
         </dl>
       </section>
 
-      <section className="rounded-xl border bg-card px-5 py-4">
-        <h2 className="text-[15px] font-semibold">Follow-up</h2>
+      <section className="rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+        <h2 className="text-[15px] font-extrabold">Follow-up</h2>
         {entry.tasks.length > 0 ? (
           <ul className="mt-2 flex flex-col gap-1">
             {entry.tasks.map((t) => (
@@ -283,7 +283,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
         )}
         <ActionForm action={quickTask} success="Task added" className="mt-3 flex gap-2">
           <input type="hidden" name="originEntryId" value={entry.id} />
-          <input type="hidden" name="projectId" value={v.projectId} />
+          <input type="hidden" name="manuscriptId" value={v.manuscriptId} />
           <Input name="title" required placeholder="Add a task from this entry…" aria-label="New task" />
           <Button type="submit" variant="outline">Add</Button>
         </ActionForm>

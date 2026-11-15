@@ -4,7 +4,7 @@ import { abandonUpload, finishUpload, startUpload } from "@/server/actions/files
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { ALLOWED_DESCRIPTION, MAX_FILE_BYTES, isAllowedName } from "@/lib/files";
 
-export type UploadParent = "entry" | "project" | "manuscript" | "trial";
+export type UploadParent = "entry" | "manuscript" | "trial";
 
 /** Problem with a file before it's sent, in plain words — or null if it's fine. */
 export function fileProblem(file: File): string | null {

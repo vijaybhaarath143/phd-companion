@@ -82,7 +82,7 @@ beforeAll(async () => {
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind) values (${m.id}, 'planning', 'change')`;
     const [t] = await tx`insert into public.tasks (title) values ('Alice task') returning id`;
     ids.task = t.id;
-    const [st] = await tx`insert into public.review_steps (project_id, sort, title, count_kind) values (${p.id}, 1, 'Retrieve records', 'identified') returning id`;
+    const [st] = await tx`insert into public.review_steps (manuscript_id, sort, title, count_kind) values (${m.id}, 1, 'Retrieve records', 'identified') returning id`;
     ids.step = st.id;
     const [c] = await tx`insert into public.courses (name, provider) values ('Alice course', 'SWAYAM') returning id`;
     ids.course = c.id;
@@ -187,7 +187,7 @@ describe("an assistant connected to one account", () => {
     expect(r.isError).toBe(true);
     expect(r.text).toMatch(/doesn't look like/);
     const docx = await aliceGpt.call("add_file", {
-      record_type: "project", record_id: ids.project, filename: "Guide comments.docx", content_base64: Buffer.from(makeDocx(["Tighten the methods"])).toString("base64"),
+      record_type: "manuscript", record_id: ids.manuscript, filename: "Guide comments.docx", content_base64: Buffer.from(makeDocx(["Tighten the methods"])).toString("base64"),
     });
     expect(docx.isError, docx.text).toBe(false);
     const read = await aliceGpt.call("read_file_text", { file_id: docx.json().id });
@@ -333,7 +333,7 @@ describe("scholar feedback tools", () => {
     expect(r.isError, r.text).toBe(false);
     expect(r.json()).toMatchObject({ updated: true, status: "done", count: 412 });
     expect(r.json().doneOn).toBeTruthy();
-    const p = await aliceGpt.call("get_project", { project_id: ids.project });
+    const p = await aliceGpt.call("get_manuscript", { manuscript_id: ids.manuscript });
     expect(p.json().prisma_numbers.identified).toBe(412);
     expect(p.json().review_steps[0].note).toBe("Scopus, PubMed");
   });
@@ -389,7 +389,7 @@ describe("scholar feedback tools", () => {
       ["update_review_step", { step_id: ids.step, status: "skipped" }],
       ["add_course_deadline", { course_id: ids.course, kind: "exam" }],
       ["add_trial", { experiment_id: ids.experiment, result: "sneaky" }],
-      ["create_note", { kind: "scratch", title: "sneaky", project_id: ids.project }],
+      ["create_note", { kind: "scratch", title: "sneaky", manuscript_id: ids.manuscript }],
       ["get_note", { note_id: crypto.randomUUID() }],
     ] as const) {
       const r = await bobGpt.call(tool, args);
@@ -426,7 +426,6 @@ describe("another account's assistant", () => {
     expect(s.text).not.toMatch(/Alice/);
     for (const [tool, args] of [
       ["get_journal_entry", { entry_id: ids.entry }],
-      ["get_project", { project_id: ids.project }],
       ["get_manuscript", { manuscript_id: ids.manuscript }],
       ["get_experiment", { experiment_id: ids.experiment }],
       ["list_files_and_links", { record_type: "entry", record_id: ids.entry }],
@@ -437,13 +436,13 @@ describe("another account's assistant", () => {
       expect(r.text, tool).toMatch(notFound);
       expect(r.text, tool).not.toMatch(/Alice|secret|confidential/);
     }
-    for (const tool of ["list_projects", "list_manuscripts", "list_experiments", "list_tasks", "list_goals", "get_academics", "list_journal_entries", "get_home_summary", "get_timeline"]) {
+    for (const tool of ["list_manuscripts", "list_experiments", "list_tasks", "list_goals", "get_academics", "list_journal_entries", "get_home_summary", "get_timeline"]) {
       const r = await bobGpt.call(tool);
       expect(r.isError, `${tool}: ${r.text}`).toBe(false);
       expect(r.text, tool).not.toMatch(/Alice/);
     }
-    // filtering the timeline by her project id shows nothing either
-    const byProject = await bobGpt.call("get_timeline", { project_id: ids.project });
+    // filtering the timeline by her publication's id shows nothing either
+    const byProject = await bobGpt.call("get_timeline", { manuscript_id: ids.manuscript });
     expect(byProject.json().items).toEqual([]);
     expect(byProject.json().undated_items).toEqual([]);
   });
@@ -456,8 +455,8 @@ describe("another account's assistant", () => {
       ["move_manuscript_to_phase", { manuscript_id: ids.manuscript, phase: "stopped" }],
       ["add_file", { record_type: "entry", record_id: ids.entry, filename: "x.txt", content_base64: Buffer.from("hi").toString("base64") }],
       ["move_to_trash", { record_type: "entry", record_id: ids.entry }],
-      ["create_task", { title: "sneaky", project_id: ids.project }],
-      ["create_journal_entry", { title: "sneaky", project_id: ids.project }],
+      ["create_task", { title: "sneaky", manuscript_id: ids.manuscript }],
+      ["create_journal_entry", { title: "sneaky", manuscript_id: ids.manuscript }],
     ];
     for (const [tool, args] of attempts) {
       const r = await bobGpt.call(tool, args);

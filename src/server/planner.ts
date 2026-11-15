@@ -14,9 +14,8 @@ export type TaskRow = {
   waitingReason: string | null;
   waitingOnTaskId: string | null;
   waitingOnTitle: string | null;
-  projectId: string | null;
-  projectTitle: string | null;
   manuscriptId: string | null;
+  manuscriptTitle: string | null;
   originEntryId: string | null;
   originTitle: string | null;
   courseName: string | null;
@@ -33,9 +32,9 @@ export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit
   const statusFilter =
     show === "done" ? tx`t.status in ('done', 'cancelled')` : show === "waiting" ? tx`t.status = 'waiting'` : tx`t.status in ('todo', 'doing', 'waiting')`;
   return tx<TaskRow[]>`
-    select t.*, p.title as project_title, w.title as waiting_on_title, e.title as origin_title, c.name as course_name
+    select t.*, p.title as manuscript_title, w.title as waiting_on_title, e.title as origin_title, c.name as course_name
     from public.tasks t
-    left join public.projects p on p.id = t.project_id
+    left join public.manuscripts p on p.id = t.manuscript_id
     left join public.tasks w on w.id = t.waiting_on_task_id
     left join public.entries e on e.id = t.origin_entry_id
     left join public.courses c on c.id = t.course_id
@@ -45,9 +44,10 @@ export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit
 }
 
 export async function taskCounts(tx: Tx) {
-  const [c] = await tx<{ open: number; waiting: number }[]>`
+  const [c] = await tx<{ open: number; waiting: number; doneThisWeek: number }[]>`
     select count(*) filter (where status in ('todo','doing','waiting'))::int as open,
-           count(*) filter (where status = 'waiting')::int as waiting
+           count(*) filter (where status = 'waiting')::int as waiting,
+           count(*) filter (where status = 'done' and completed_at >= now() - interval '7 days')::int as done_this_week
     from public.tasks where deleted_at is null`;
   return c;
 }

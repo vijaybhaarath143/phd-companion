@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SessionUser } from "@/server/db";
-import { getTimeline } from "@/server/timeline";
+import { getTimeline, getTimelineSummary, isHighlight } from "@/server/timeline";
 import { admin, dropUser, makeUser, withUser } from "./helpers";
 
 /** The Timeline feed: everything she recorded, in date order, and nobody else's. */
@@ -8,17 +8,16 @@ let u: SessionUser;
 let other: SessionUser;
 const today = "2026-11-14";
 const opts = { today, timezone: "Asia/Kolkata" };
-let projectId: string;
+let manuscriptId: string;
 let entryWithFile: string;
 
 beforeAll(async () => {
   u = await makeUser("timeline");
   other = await makeUser("timeline-other");
   await withUser(u, async (tx) => {
-    const [p] = await tx`insert into public.projects (title, start_date, start_precision, created_at)
-                          values ('SLR 1: Biosensors', '2026-06-01', 'month', '2026-06-20T10:00:00Z') returning id`;
-    projectId = p.id;
-    await tx`insert into public.entries (title, entry_date, entry_precision, project_id) values ('Guide meeting', '2026-10-05', 'day', ${projectId})`;
+    const [m] = await tx`insert into public.manuscripts (title, created_at) values ('SLR 1: Biosensors', '2026-08-03T06:00:00Z') returning id`;
+    manuscriptId = m.id;
+    await tx`insert into public.entries (title, entry_date, entry_precision, manuscript_id) values ('Guide meeting', '2026-10-05', 'day', ${manuscriptId})`;
     await tx`insert into public.entries (title, entry_date, entry_precision) values ('World Food Day', '2026-10-01', 'month')`;
     await tx`insert into public.entries (title, entry_date, entry_precision) values ('Late October reading', '2026-10-28', 'day')`;
     await tx`insert into public.entries (title, entry_date, entry_precision, status) values ('Karaikudi programme', '2027-01-01', 'month', 'planned')`;
@@ -36,11 +35,10 @@ beforeAll(async () => {
     await tx`insert into public.attachments (parent_type, parent_id, kind, url, label, removed_at)
              values ('entry', ${e.id}, 'link', 'https://example.org/old', 'Removed link', now())`;
 
-    await tx`insert into public.tasks (title, due_date, project_id, created_at) values ('Shortlist a journal', '2026-12-01', ${projectId}, '2026-11-01T06:00:00Z')`;
+    await tx`insert into public.tasks (title, due_date, manuscript_id, created_at) values ('Shortlist a journal', '2026-12-01', ${manuscriptId}, '2026-11-01T06:00:00Z')`;
     await tx`insert into public.tasks (title, status, completed_at, created_at) values ('Send figures', 'done', '2026-10-20T06:00:00Z', '2026-10-02T06:00:00Z')`;
     await tx`insert into public.tasks (title, due_date, deleted_at) values ('Deleted task', '2026-11-20', now())`;
 
-    const [m] = await tx`insert into public.manuscripts (title, project_id, created_at) values ('SLR 1 manuscript', ${projectId}, '2026-08-03T06:00:00Z') returning id`;
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind, effective_precision, recorded_at) values (${m.id}, 'planning', 'change', 'none', '2026-08-03T06:00:10Z')`;
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind, effective_date, effective_precision) values (${m.id}, 'writing', 'earlier_change', '2026-09-01', 'month')`;
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind, effective_precision, note) values (${m.id}, 'review', 'change', 'none', 'Guide feedback pending')`;
@@ -73,19 +71,18 @@ describe("timeline", () => {
       "Task added: Send figures",
       "Journal entry: World Food Day",
       "Journal entry: Poster presentation",
-      "Manuscript: SLR 1 manuscript",
-      "Manuscript added: SLR 1 manuscript",
+      "Manuscript: SLR 1: Biosensors",
+      "Manuscript added: SLR 1: Biosensors",
       "Course added: Research Methodology",
-      // same month, day not known: the one recorded most recently comes first
       "Milestone reached: Provisional admission",
-      "Project started: SLR 1: Biosensors",
     ]);
 
     const byTitle = (s: string) => t.dated.find((i) => i.title === s)!;
     expect(byTitle("Karaikudi programme")).toMatchObject({ precision: "month", date: "2027-01-01", future: true });
     expect(byTitle("World Food Day")).toMatchObject({ precision: "month", future: false });
     expect(byTitle("Guide meeting")).toMatchObject({ precision: "day", href: expect.stringMatching(/^\/journal\//), detail: "SLR 1" });
-    expect(byTitle("SLR 1 manuscript").detail).toBe("Moved to Writing · recorded later · SLR 1");
+    // a publication's own items don't repeat its title
+    expect(byTitle("SLR 1: Biosensors").detail).toBe("Moved to Writing · recorded later");
   });
 
   it("keeps undated things in their own group and never invents a day for them", async () => {
@@ -93,7 +90,7 @@ describe("timeline", () => {
     expect(titles(t.undated).sort()).toEqual([
       "Credits recognised: Research Methodology",
       "Journal entry: Undated hackathon idea",
-      "Manuscript: SLR 1 manuscript",
+      "Manuscript: SLR 1: Biosensors",
     ]);
     expect(t.undated.every((i) => i.date === null && i.precision === "none")).toBe(true);
   });
@@ -109,19 +106,18 @@ describe("timeline", () => {
     expect(t.dated.find((i) => i.title === "certificate.pdf")).toMatchObject({ href: `/journal/${entryWithFile}`, detail: "On Poster presentation" });
   });
 
-  it("filters by type, project and period", async () => {
+  it("filters by type, publication and period", async () => {
     const tasks = await withUser(u, (tx) => getTimeline(tx, { ...opts, type: "task" }));
     expect(new Set(tasks.dated.map((i) => i.type))).toEqual(new Set(["task"]));
     expect(tasks.undated).toHaveLength(0);
 
-    const slr = await withUser(u, (tx) => getTimeline(tx, { ...opts, project: projectId }));
+    const slr = await withUser(u, (tx) => getTimeline(tx, { ...opts, publication: manuscriptId }));
     expect(titles(slr.dated)).toEqual([
       "Task due: Shortlist a journal",
       "Task added: Shortlist a journal",
       "Journal entry: Guide meeting",
-      "Manuscript: SLR 1 manuscript",
-      "Manuscript added: SLR 1 manuscript",
-      "Project started: SLR 1: Biosensors",
+      "Manuscript: SLR 1: Biosensors",
+      "Manuscript added: SLR 1: Biosensors",
     ]);
 
     const month = await withUser(u, (tx) => getTimeline(tx, { ...opts, period: "month" }));
@@ -148,8 +144,23 @@ describe("timeline", () => {
     const t = await withUser(other, (tx) => getTimeline(tx, opts));
     expect(t.dated).toEqual([]);
     expect(t.undated).toEqual([]);
-    // even when they ask for her project by id
-    const p = await withUser(other, (tx) => getTimeline(tx, { ...opts, project: projectId }));
+    // even when they ask for her publication by id
+    const p = await withUser(other, (tx) => getTimeline(tx, { ...opts, publication: manuscriptId }));
     expect(p.dated).toEqual([]);
+  });
+
+  it("summary totals match the feed: past records only, big moments counted, nothing of anyone else's", async () => {
+    const { dated } = await withUser(u, (tx) => getTimeline(tx, { ...opts, limit: 5000 }));
+    const summary = await withUser(u, (tx) => getTimelineSummary(tx, opts));
+    const past = dated.filter((i) => !i.future);
+    expect(summary.total).toBe(past.length);
+    expect(summary.highlights).toBe(past.filter(isHighlight).length);
+    expect(summary.highlights).toBeGreaterThan(0); // the milestone reached
+    expect(summary.byMonth.get("2027-01")).toBeUndefined(); // planned, not counted yet
+    expect(summary.byMonth.get("2026-10")).toBe(past.filter((i) => i.date!.startsWith("2026-10")).length);
+    expect(summary.activeMonths).toBe(new Set(past.map((i) => i.date!.slice(0, 7))).size);
+
+    const theirs = await withUser(other, (tx) => getTimelineSummary(tx, opts));
+    expect(theirs.total).toBe(0);
   });
 });

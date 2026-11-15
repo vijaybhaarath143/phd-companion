@@ -104,3 +104,9 @@ export function isFuture(date: string | null, precision: Precision, today: strin
   if (precision === "day") return date > today;
   return monthKey(date) > monthKey(today);
 }
+
+/** A month key moved by some months: shiftMonth("2026-11", 2) → "2027-01". */
+export function shiftMonth(key: string, by: number) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + by, 1)).toISOString().slice(0, 7);
+}

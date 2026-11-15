@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import { AppSelect } from "@/components/app/app-select";
 import { toOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
-import { Breadcrumb } from "@/components/app/ui";
+import { Breadcrumb, IconTile } from "@/components/app/ui";
+import { FileText, Search } from "lucide-react";
 import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback, setArticleType } from "@/server/actions/research";
 import { Segmented } from "@/components/app/segmented";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
@@ -19,13 +20,14 @@ import { phases, submissionStatuses, type Phase, viaLabel } from "@/lib/labels";
 
 type Props = {
   manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null; articleType: string | null };
-  project: { id: string; title: string } | null;
   history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; recordedLabel: string; kind: string; note: string | null; createdVia: string }[];
   submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; version: number }[];
   submissionHistory: { id: string; submissionId: string; status: string; decisionDate: string | null; recordedLabel: string; createdVia: string }[];
   feedback: { entryId: string; title: string; source: string | null; requestedChanges: string | null; resolutionStatus: string; entryDate: string | null; entryPrecision: Precision; taskCount: number }[];
   waitingTasks: { id: string; title: string; waitingReason: string | null }[];
   today: string;
+  /** Review steps and the like, shown under the title. */
+  children?: ReactNode;
 };
 
 type Panel = null | "change" | "earlier" | "submission" | "feedback";
@@ -59,7 +61,7 @@ function SubmissionHistory({ events }: { events: Props["submissionHistory"] }) {
   );
 }
 
-export function ManuscriptView({ manuscript, project, history, submissions, submissionHistory, feedback, waitingTasks, today }: Props) {
+export function ManuscriptView({ manuscript, history, submissions, submissionHistory, feedback, waitingTasks, today, children }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -69,12 +71,21 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
   const currentEventId = [...history].filter((h) => h.kind === "change").sort((a, b) => +new Date(b.recordedAt) - +new Date(a.recordedAt))[0]?.id;
 
   return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <Breadcrumb items={[...(project ? [{ href: `/research/projects/${project.id}`, label: project.title.split(":")[0] }] : []), { label: "Manuscript" }]} />
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">{manuscript.title}</h1>
-        {project && <p className="text-muted-foreground">{project.title}</p>}
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-6">
+      <Breadcrumb items={[{ href: "/research", label: "Publications" }, { label: manuscript.articleType === "review" ? "Review" : "Publication" }]} />
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-4">
+          <IconTile tone={manuscript.articleType === "review" ? "sky" : "leaf"} size="lg" className="max-sm:hidden">
+            {manuscript.articleType === "review" ? <Search strokeWidth={2.4} /> : <FileText strokeWidth={2.4} />}
+          </IconTile>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="text-[28px] leading-tight font-black text-balance md:text-[34px]">{manuscript.title}</h1>
+            <p className="text-[13px] text-muted-foreground">
+              {[manuscript.articleType === "review" ? "Review article" : "Original article", `phase: ${phases[manuscript.currentPhase].toLowerCase()}`, openFeedback.length ? `${openFeedback.length} feedback ${openFeedback.length === 1 ? "note" : "notes"} open` : null, submissions.length ? `${submissions.length} journal submission${submissions.length === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <span className="text-muted-foreground">Article type</span>
           <Segmented
             name="articleType"
@@ -87,7 +98,9 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
         </div>
       </div>
 
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-5">
+      {children}
+
+      <section className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[13px] text-muted-foreground">Current phase</p>
@@ -108,7 +121,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
             action={recordPhase.bind(null, manuscript.id, panel === "change" ? "change" : "earlier_change")}
             success={panel === "change" ? "Phase changed" : "Added to history"}
             onDone={close}
-            className="flex flex-col gap-4 rounded-lg border bg-zinc-50 p-4"
+            className="flex flex-col gap-4 rounded-xl border-2 bg-zinc-50 p-4"
           >
             <p className="font-medium">{panel === "change" ? "Move the manuscript to a new phase" : "Add a past phase change to the history"}</p>
             <div className="flex max-w-96 flex-col gap-1.5">
@@ -136,13 +149,13 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <section className="rounded-xl border bg-card">
+          <section className="rounded-2xl border-2 bg-card shadow-edge">
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
-              <h2 className="text-[15px] font-semibold">Guide feedback</h2>
+              <h2 className="text-[15px] font-extrabold">Guide feedback</h2>
               <Button size="sm" variant="outline" onClick={() => setPanel(panel === "feedback" ? null : "feedback")}>Record feedback</Button>
             </div>
             {panel === "feedback" && (
-              <ActionForm action={recordFeedback.bind(null, manuscript.id)} success="Feedback recorded" onDone={close} className="mx-5 mb-4 flex flex-col gap-4 rounded-lg border bg-zinc-50 p-4">
+              <ActionForm action={recordFeedback.bind(null, manuscript.id)} success="Feedback recorded" onDone={close} className="mx-5 mb-4 flex flex-col gap-4 rounded-xl border-2 bg-zinc-50 p-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="fb-src" className="text-sm font-medium">From</label>
@@ -160,7 +173,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                   <Textarea id="fb-changes" name="changes" rows={5} />
                 </div>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="makeTasks" defaultChecked className="size-4 accent-zinc-900" />
+                  <input type="checkbox" name="makeTasks" defaultChecked className="size-4 accent-primary" />
                   Turn each requested change into a task (linked back to this feedback)
                 </label>
                 <div className="flex gap-2">
@@ -173,7 +186,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
               <p className="px-5 pb-5 text-sm text-muted-foreground">No feedback recorded yet. When it arrives, add the requested changes — each can become a task that links back here.</p>
             )}
             {(feedback.length > 0 || waitingTasks.length > 0) && (
-              <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {waitingTasks.map((t) => (
                   <li key={t.id} className="flex min-h-14 items-center gap-3 px-5 py-3">
                     <span className="min-w-0 flex-1">
@@ -215,16 +228,16 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                 ))}
               </ul>
             )}
-            {openFeedback.length > 0 && <p className="border-t border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Feedback stays open until you mark it resolved — finishing its tasks doesn&apos;t close it.</p>}
+            {openFeedback.length > 0 && <p className="border-t-2 border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Feedback stays open until you mark it resolved — finishing its tasks doesn&apos;t close it.</p>}
           </section>
 
-          <section className="rounded-xl border bg-card">
+          <section className="rounded-2xl border-2 bg-card shadow-edge">
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-3">
-              <h2 className="text-[15px] font-semibold">Journal submissions</h2>
+              <h2 className="text-[15px] font-extrabold">Journal submissions</h2>
               <Button size="sm" variant="outline" onClick={() => setPanel(panel === "submission" ? null : "submission")}>Record a submission</Button>
             </div>
             {panel === "submission" && (
-              <ActionForm action={addSubmission.bind(null, manuscript.id)} success="Submission recorded" onDone={close} className="mx-5 mb-4 flex flex-col gap-4 rounded-lg border bg-zinc-50 p-4">
+              <ActionForm action={addSubmission.bind(null, manuscript.id)} success="Submission recorded" celebrate={{ title: "Submission recorded", detail: manuscript.title }} onDone={close} className="mx-5 mb-4 flex flex-col gap-4 rounded-xl border-2 bg-zinc-50 p-4">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="sub-j" className="text-sm font-medium">Journal</label>
@@ -249,7 +262,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
             {submissions.length === 0 ? (
               <p className="px-5 pb-5 text-sm text-muted-foreground">No submissions yet. Each journal you submit to gets its own record, so a rejection never erases the history.</p>
             ) : (
-              <ol className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <ol className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
                 {submissions.map((s) => (
                   <li key={s.id} className="flex flex-col gap-2 px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -279,7 +292,7 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                         <Button type="submit">Save</Button>
                         {s.decisionDate && (
                           <label className="flex basis-full items-center gap-2 text-[13px] text-muted-foreground">
-                            <input type="checkbox" name="clearDecisionDate" className="size-4 accent-zinc-900" />
+                            <input type="checkbox" name="clearDecisionDate" className="size-4 accent-primary" />
                             Clear the decision date (leaving the date empty keeps it)
                           </label>
                         )}
@@ -290,12 +303,12 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
                 ))}
               </ol>
             )}
-            {submissions.length > 0 && <p className="border-t border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Revision rounds with the same journal stay inside that submission. After a rejection, record a new submission for the next journal.</p>}
+            {submissions.length > 0 && <p className="border-t-2 border-zinc-100 px-5 py-3 text-[13px] text-muted-foreground">Revision rounds with the same journal stay inside that submission. After a rejection, record a new submission for the next journal.</p>}
           </section>
         </div>
 
-        <section className="min-w-0 flex-[2_1_280px] rounded-xl border bg-card px-5 py-4">
-          <h2 className="mb-1 text-[15px] font-semibold">Phase history</h2>
+        <section className="min-w-0 flex-[2_1_280px] rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+          <h2 className="mb-1 text-[15px] font-extrabold">Phase history</h2>
           <ol>
             {history.map((h) => (
               <li key={h.id} className="flex gap-3 py-2.5">

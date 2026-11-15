@@ -13,8 +13,6 @@ import {
   milestoneStatuses,
   participation,
   phases,
-  projectStatuses,
-  projectTypes,
   submissionStatuses,
   taskStatuses,
 } from "@/lib/labels";
@@ -22,7 +20,7 @@ import {
 /**
  * The Timeline: one chronological feed of everything she has recorded —
  * entries, experiments, tasks, manuscripts, submissions, courses, milestones,
- * goals, projects and files. Plain server module (no React) so other callers,
+ * goals and files. Plain server module (no React) so other callers,
  * like the ChatGPT connector, can reuse it.
  *
  * Dates keep their precision: a month-only date is never shown as a day, and
@@ -41,7 +39,6 @@ export const TIMELINE_TYPES = {
   milestone: "Milestones",
   enquiry: "Office enquiries",
   goal: "Goals",
-  project: "Projects",
   file: "Files and links",
 } as const;
 export type TimelineType = keyof typeof TIMELINE_TYPES;
@@ -50,7 +47,8 @@ export type TimelinePeriod = "month" | "year" | "all";
 
 export type TimelineFilters = {
   type?: string;
-  project?: string;
+  /** Only things about this publication. */
+  publication?: string;
   period?: string;
   /** Dated items to show; older ones come with "Show older". */
   limit?: number;
@@ -73,11 +71,11 @@ export type TimelineItem = {
   date: string | null;
   precision: Precision;
   title: string;
-  /** Project, status and the like, already in plain words. */
+  /** Publication, status and the like, already in plain words. */
   detail: string;
   href: string;
   status: string | null;
-  projectId: string | null;
+  manuscriptId: string | null;
   /** After today (a whole month after this month for month-only dates). */
   future: boolean;
   attachments: EvidenceItem[];
@@ -91,8 +89,8 @@ type Raw = {
   precision: Precision;
   at: Date;
   title: string;
-  projectId: string | null;
-  projectTitle: string | null;
+  manuscriptId: string | null;
+  manuscriptTitle: string | null;
   status: string | null;
   info: string | null;
   href: string;
@@ -125,7 +123,7 @@ function feed(tx: Tx, tz: string) {
     select 'entry:' || e.id as key,
            case e.kind when 'experiment' then 'experiment' when 'feedback' then 'feedback' when 'enquiry' then 'enquiry' else 'entry' end as type,
            'recorded' as event, e.entry_date as date, e.entry_precision::text as precision, e.created_at as at,
-           e.title, e.project_id,
+           e.title, e.manuscript_id,
            case e.kind
              when 'experiment' then x.status
              when 'feedback' then f.resolution_status
@@ -146,50 +144,50 @@ function feed(tx: Tx, tz: string) {
 
     union all -- guide feedback addressed
     select 'feedback-resolved:' || e.id, 'feedback', 'resolved', ${local("f.resolved_at")}, 'day', f.resolved_at,
-           e.title, e.project_id, null, coalesce(m.title, f.source), '/journal/' || e.id, null, null, null
+           e.title, e.manuscript_id, null, coalesce(m.title, f.source), '/journal/' || e.id, null, null, null
     from public.feedback f join public.entries e on e.id = f.entry_id
     left join public.manuscripts m on m.id = f.manuscript_id
     where f.resolution_status = 'resolved' and f.resolved_at is not null and e.deleted_at is null and e.archived_at is null
 
     union all -- office enquiry closed
     select 'enquiry-closed:' || e.id, 'enquiry', 'closed', ${local("q.closed_at")}, 'day', q.closed_at,
-           e.title, e.project_id, null, q.office, '/journal/' || e.id, null, null, null
+           e.title, e.manuscript_id, null, q.office, '/journal/' || e.id, null, null, null
     from public.enquiries q join public.entries e on e.id = q.entry_id
     where q.status = 'closed' and q.closed_at is not null and e.deleted_at is null and e.archived_at is null
 
     union all -- office enquiry: follow up
     select 'enquiry-follow-up:' || e.id, 'enquiry', 'follow_up', q.follow_up_date, 'day', e.created_at,
-           e.title, e.project_id, q.status, q.office, '/journal/' || e.id, null, null, null
+           e.title, e.manuscript_id, q.status, q.office, '/journal/' || e.id, null, null, null
     from public.enquiries q join public.entries e on e.id = q.entry_id
     where q.status <> 'closed' and q.follow_up_date is not null and e.deleted_at is null and e.archived_at is null
 
     union all -- task added
     select 'task-added:' || t.id, 'task', 'added', ${local("t.created_at")}, 'day', t.created_at,
-           t.title, t.project_id, t.status, null,
+           t.title, t.manuscript_id, t.status, null,
            case when t.status in ('done', 'cancelled') then '/planner?show=done' else '/planner' end, null, null, null
     from public.tasks t where t.deleted_at is null and t.archived_at is null
 
     union all -- task done
     select 'task-done:' || t.id, 'task', 'done', ${local("t.completed_at")}, 'day', t.completed_at,
-           t.title, t.project_id, t.status, null, '/planner?show=done', null, null, null
+           t.title, t.manuscript_id, t.status, null, '/planner?show=done', null, null, null
     from public.tasks t
     where t.deleted_at is null and t.archived_at is null and t.status = 'done' and t.completed_at is not null
 
     union all -- task due (still open)
     select 'task-due:' || t.id, 'task', 'due', t.due_date, 'day', t.created_at,
-           t.title, t.project_id, t.status, null,
+           t.title, t.manuscript_id, t.status, null,
            case when t.status = 'waiting' then '/planner?show=waiting' else '/planner' end, null, null, null
     from public.tasks t
     where t.deleted_at is null and t.archived_at is null and t.due_date is not null and t.status not in ('done', 'cancelled')
 
     union all -- manuscript added
     select 'manuscript-added:' || m.id, 'manuscript', 'added', ${local("m.created_at")}, 'day', m.created_at,
-           m.title, m.project_id, m.current_phase, null, '/research/manuscripts/' || m.id, 'manuscript', m.id, null
+           m.title, m.id, m.current_phase, null, '/research/manuscripts/' || m.id, 'manuscript', m.id, null
     from public.manuscripts m where m.deleted_at is null and m.archived_at is null
 
     union all -- manuscript phase changes (the automatic "Planning" at creation is covered by "added")
     select 'phase:' || pe.id, 'manuscript', 'phase', pe.effective_date, pe.effective_precision::text, pe.recorded_at,
-           m.title, m.project_id, pe.kind, pe.phase, '/research/manuscripts/' || m.id, null, null, null
+           m.title, m.id, pe.kind, pe.phase, '/research/manuscripts/' || m.id, null, null, null
     from public.manuscript_phase_events pe join public.manuscripts m on m.id = pe.manuscript_id
     where m.deleted_at is null and m.archived_at is null
       and not (pe.kind = 'change' and pe.phase = 'planning' and pe.effective_precision = 'none' and pe.note is null
@@ -197,20 +195,20 @@ function feed(tx: Tx, tz: string) {
 
     union all -- journal submission sent
     select 'submission:' || s.id, 'manuscript', 'submitted', s.submitted_date, s.submitted_precision::text, s.created_at,
-           m.title, m.project_id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
+           m.title, m.id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
     from public.submissions s join public.manuscripts m on m.id = s.manuscript_id
     where m.deleted_at is null and m.archived_at is null and s.status <> 'planned'
 
     union all -- journal submission planned
     select 'submission-planned:' || s.id, 'manuscript', 'planned', s.planned_date,
            case when s.planned_date is null then 'none' else 'day' end, s.created_at,
-           m.title, m.project_id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
+           m.title, m.id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
     from public.submissions s join public.manuscripts m on m.id = s.manuscript_id
     where m.deleted_at is null and m.archived_at is null and s.status = 'planned'
 
     union all -- journal decision
     select 'decision:' || s.id, 'manuscript', 'decision', s.decision_date, 'day', coalesce(s.closed_at, s.updated_at),
-           m.title, m.project_id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
+           m.title, m.id, s.status, s.journal_name, '/research/manuscripts/' || m.id, null, null, null
     from public.submissions s join public.manuscripts m on m.id = s.manuscript_id
     where m.deleted_at is null and m.archived_at is null and s.decision_date is not null
       and s.status in ('revise', 'rejected', 'accepted', 'withdrawn')
@@ -235,7 +233,7 @@ function feed(tx: Tx, tz: string) {
     select 'milestone:' || ml.id, 'milestone', case when ml.status = 'done' then 'reached' else 'target' end,
            case when ml.status = 'done' then ml.done_on else ml.target_date end,
            (case when ml.status = 'done' then ml.done_precision else ml.target_precision end)::text, ml.created_at,
-           ml.title, ml.project_id, ml.status, null, '/academics#milestones', 'milestone', ml.id, null
+           ml.title, null, ml.status, null, '/academics#milestones', 'milestone', ml.id, null
     from public.milestones ml
 
     union all -- goals, from the start of their period
@@ -243,31 +241,18 @@ function feed(tx: Tx, tz: string) {
            g.title, null, g.outcome, g.horizon, '/planner?view=goals', null, null, null
     from public.goals g where g.deleted_at is null
 
-    union all -- project started (its own start date) or added
-    select 'project:' || p.id, 'project', case when p.start_precision = 'none' then 'added' else 'started' end,
-           case when p.start_precision = 'none' then ${local("p.created_at")} else p.start_date end,
-           case when p.start_precision = 'none' then 'day' else p.start_precision::text end, p.created_at,
-           p.title, p.id, p.status, p.type, '/research/projects/' || p.id, 'project', p.id, null
-    from public.projects p where p.deleted_at is null and p.archived_at is null
-
-    union all -- project target date
-    select 'project-target:' || p.id, 'project', 'target', p.target_date, p.target_precision::text, p.created_at,
-           p.title, p.id, p.status, p.type, '/research/projects/' || p.id, null, null, null
-    from public.projects p
-    where p.deleted_at is null and p.archived_at is null and p.target_precision <> 'none' and p.status <> 'completed'
-
     union all -- experiment trial run (its files are shown on it)
     select 'trial:' || t.id, 'experiment', 'trial', t.run_on, case when t.run_on is null then 'none' else 'day' end, t.created_at,
-           e.title, e.project_id, t.outcome, t.trial_no::text, '/research/experiments/' || e.id, 'trial', t.id, null
+           e.title, null, t.outcome, t.trial_no::text, '/research/experiments/' || e.id, 'trial', t.id, null
     from public.experiment_trials t join public.entries e on e.id = t.entry_id
     where t.removed_at is null and e.deleted_at is null and e.archived_at is null
 
-    union all -- review step done
-    select 'review-step:' || s.id, 'project', 'step', s.done_on, 'day', s.updated_at,
-           s.title, p.id, s.status, null, '/research/projects/' || p.id || '#progress', null, null, null
-    from public.review_steps s join public.projects p on p.id = s.project_id
+    union all -- review step done (on its publication)
+    select 'review-step:' || s.id, 'manuscript', 'step', s.done_on, 'day', s.updated_at,
+           s.title, m.id, s.status, m.title, '/research/manuscripts/' || m.id || '#progress', null, null, null
+    from public.review_steps s join public.manuscripts m on m.id = s.manuscript_id
     where s.removed_at is null and s.status = 'done' and s.done_on is not null
-      and p.deleted_at is null and p.archived_at is null
+      and m.deleted_at is null and m.archived_at is null
 
     union all -- course deadline: when it's due (open), or when it was done
     select 'deadline:' || i.id, 'course', case when i.done_at is null then 'deadline' else 'deadline_done' end,
@@ -280,11 +265,10 @@ function feed(tx: Tx, tz: string) {
     union all -- files and links added later (ones added with the record are shown on the record itself)
     select 'file:' || a.id, 'file', a.kind, ${local("a.created_at")}, 'day', a.created_at,
            coalesce(a.label, a.filename, a.url, 'File'),
-           coalesce(pe.project_id, pp.id, pm.project_id, pl.project_id), null,
-           coalesce(pe.title, pp.title, pm.title, pc.name, pl.title),
+           coalesce(pe.manuscript_id, pm.id), null,
+           coalesce(pe.title, pm.title, pc.name, pl.title),
            case a.parent_type
              when 'entry' then case pe.kind when 'experiment' then '/research/experiments/' else '/journal/' end || pe.id
-             when 'project' then '/research/projects/' || pp.id
              when 'manuscript' then '/research/manuscripts/' || pm.id
              when 'milestone' then '/academics#milestones'
              else '/academics'
@@ -292,37 +276,35 @@ function feed(tx: Tx, tz: string) {
            null, null, a.id
     from public.attachments a
     left join public.entries pe on a.parent_type = 'entry' and pe.id = a.parent_id
-    left join public.projects pp on a.parent_type = 'project' and pp.id = a.parent_id
     left join public.manuscripts pm on a.parent_type = 'manuscript' and pm.id = a.parent_id
     left join public.courses pc on a.parent_type = 'course' and pc.id = a.parent_id
     left join public.milestones pl on a.parent_type = 'milestone' and pl.id = a.parent_id
     where a.removed_at is null and a.replaced_by_id is null and a.status = 'verified'
       and case a.parent_type
             when 'entry' then pe.deleted_at is null and pe.archived_at is null and pe.id is not null
-            when 'project' then pp.deleted_at is null and pp.archived_at is null and pp.id is not null
             when 'manuscript' then pm.deleted_at is null and pm.archived_at is null and pm.id is not null
             when 'course' then pc.deleted_at is null and pc.archived_at is null and pc.id is not null
             when 'milestone' then pl.id is not null
           end
-      and ${local("a.created_at")} <> ${local("coalesce(pe.created_at, pp.created_at, pm.created_at, pc.created_at, pl.created_at)")}
+      and ${local("a.created_at")} <> ${local("coalesce(pe.created_at, pm.created_at, pc.created_at, pl.created_at)")}
   `;
 }
 
 export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; timezone: string }) {
   const type = f.type && f.type in TIMELINE_TYPES ? (f.type as TimelineType) : null;
-  const project = f.project && UUID.test(f.project) ? f.project : null;
+  const publication = f.publication && UUID.test(f.publication) ? f.publication : null;
   const period: TimelinePeriod = f.period === "month" || f.period === "year" ? f.period : "all";
   const { from, to } = periodRange(period, f.today);
   const limit = Math.min(Math.max(f.limit ?? 150, 50), 5000);
   const before = f.before && /^\d{4}-\d{2}-\d{2}$/.test(f.before) ? f.before : null;
 
   const select = (dated: boolean) => tx<Raw[]>`
-    select i.*, p.title as project_title
+    select i.*, case when i.type <> 'manuscript' then p.title end as manuscript_title
     from (${feed(tx, f.timezone)}) i
-    left join public.projects p on p.id = i.project_id
+    left join public.manuscripts p on p.id = i.manuscript_id
     where ${dated ? tx`i.date is not null and i.precision <> 'none'` : tx`(i.date is null or i.precision = 'none')`}
       and (${type}::text is null or i.type = ${type})
-      and (${project}::uuid is null or i.project_id = ${project})
+      and (${publication}::uuid is null or i.manuscript_id = ${publication})
       and (${from}::date is null or i.date >= ${from})
       and (${to}::date is null or i.date <= ${to})
       and (${before}::date is null or i.date < ${before})
@@ -357,7 +339,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
       detail,
       href: r.href,
       status: r.status,
-      projectId: r.projectId,
+      manuscriptId: r.manuscriptId,
       future,
       attachments: r.attachmentId
         ? attachments.byId.get(r.attachmentId) ?? []
@@ -367,7 +349,7 @@ export async function getTimeline(tx: Tx, f: TimelineFilters & { today: string; 
     };
   };
 
-  return { dated: dated.map(toItem), undated: undated.map(toItem), hasOlder, limit, period, type, project };
+  return { dated: dated.map(toItem), undated: undated.map(toItem), hasOlder, limit, period, type, publication };
 }
 
 function isAfter(date: string | null, precision: Precision, today: string) {
@@ -419,8 +401,8 @@ function credits(n: string | null) {
 }
 
 /** Type label and one line of detail, in the same words the rest of the app uses. */
-export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "projectTitle">): { label: string; detail: string } {
-  const project = short(r.projectTitle);
+export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "manuscriptTitle">): { label: string; detail: string } {
+  const project = short(r.manuscriptTitle);
   switch (r.type) {
     case "entry":
       return {
@@ -448,6 +430,7 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
         return { label: "Journal submission", detail: join(`Submitted to ${r.info}`, pick(submissionStatuses, r.status), project) };
       if (r.event === "planned") return { label: "Planned submission", detail: join(`To ${r.info}`, project) };
       if (r.event === "decision") return { label: "Journal decision", detail: join(`${r.info}: ${pick(submissionStatuses, r.status)}`, project) };
+      if (r.event === "step") return { label: "Review step done", detail: join(short(r.info)) };
       return { label: "Manuscript added", detail: join(project, pick(phases, r.status)) };
     case "course":
       if (r.event === "completed") return { label: "Course completed", detail: join(r.info) };
@@ -461,11 +444,57 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
         : { label: "Milestone", detail: join(pick(milestoneStatuses, r.status), project) };
     case "goal":
       return { label: "Goal", detail: join(pick(goalHorizons, r.info), pick(goalOutcomes, r.status)) };
-    case "project":
-      if (r.event === "target") return { label: "Project target", detail: join(pick(projectStatuses, r.status)) };
-      if (r.event === "step") return { label: "Review step done", detail: join(project) };
-      return { label: r.event === "started" ? "Project started" : "Project added", detail: join(pick(projectTypes, r.info), pick(projectStatuses, r.status)) };
     case "file":
       return { label: r.event === "link" ? "Link added" : "File added", detail: r.info ? `On ${r.info}` : "" };
   }
+}
+
+/**
+ * The "big moments" the Timeline's Highlights view keeps: a milestone reached, a paper
+ * submitted or decided, a course completed or recognised, or a review step done. Everything else is everyday work.
+ */
+const HIGHLIGHTS: Partial<Record<TimelineType, readonly string[]>> = {
+  milestone: ["reached"],
+  manuscript: ["submitted", "decision", "step"],
+  course: ["completed", "recognised"],
+};
+
+export function isHighlight(it: Pick<TimelineItem, "type" | "event">) {
+  return HIGHLIGHTS[it.type]?.includes(it.event) ?? false;
+}
+
+export type TimelineSummary = {
+  /** Dated things up to today (planned ones aren't counted until they happen). */
+  total: number;
+  highlights: number;
+  /** Months that have at least one record. */
+  activeMonths: number;
+  /** Records per month (YYYY-MM → count), up to today. */
+  byMonth: Map<string, number>;
+};
+
+/**
+ * Real totals for the Timeline's summary card, counted in the database (not from the
+ * page that's loaded), with the same type and publication filters as the feed.
+ */
+export async function getTimelineSummary(tx: Tx, f: { type?: string | null; publication?: string | null; today: string; timezone: string }): Promise<TimelineSummary> {
+  const type = f.type && f.type in TIMELINE_TYPES ? (f.type as TimelineType) : null;
+  const publication = f.publication && UUID.test(f.publication) ? f.publication : null;
+  const rows = await tx<{ month: string; type: TimelineType; event: string; n: number }[]>`
+    select to_char(i.date, 'YYYY-MM') as month, i.type, i.event, count(*)::int as n
+    from (${feed(tx, f.timezone)}) i
+    where i.date is not null and i.precision <> 'none'
+      and (case when i.precision = 'month' then to_char(i.date, 'YYYY-MM') <= ${monthKey(f.today)} else i.date <= ${f.today} end)
+      and (${type}::text is null or i.type = ${type})
+      and (${publication}::uuid is null or i.manuscript_id = ${publication})
+    group by 1, 2, 3`;
+  const byMonth = new Map<string, number>();
+  let total = 0;
+  let highlights = 0;
+  for (const r of rows) {
+    total += r.n;
+    if (isHighlight(r)) highlights += r.n;
+    byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.n);
+  }
+  return { total, highlights, activeMonths: byMonth.size, byMonth };
 }

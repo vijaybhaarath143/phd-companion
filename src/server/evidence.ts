@@ -13,7 +13,7 @@ export type EvidenceItem = {
 };
 
 /** Files and links shown on a record (hidden ones and failed uploads are left out). */
-export async function evidenceFor(tx: Tx, parentType: "entry" | "project" | "manuscript" | "course" | "milestone" | "trial", parentId: string) {
+export async function evidenceFor(tx: Tx, parentType: "entry" | "manuscript" | "course" | "milestone" | "trial", parentId: string) {
   return tx<EvidenceItem[]>`
     select id, kind, url, label, filename, size_bytes::int as size_bytes, mime_type, created_via
     from public.attachments

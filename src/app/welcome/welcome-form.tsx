@@ -5,13 +5,13 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SaveError } from "@/components/app/action-form";
 import { callAction } from "@/components/app/call-action";
-import { createFirstProject, finishOnboarding, saveName, saveProgramme } from "@/server/actions/onboarding";
+import { finishOnboarding, saveName, savePhdTitle, saveProgramme } from "@/server/actions/onboarding";
 
-const ACTIONS = { 1: saveName, 2: saveProgramme, 3: createFirstProject } as const;
+const ACTIONS = { 1: saveName, 2: saveProgramme, 3: savePhdTitle } as const;
 
 /**
  * One onboarding step. While it saves, every button is disabled (a double tap on "Finish"
- * can't add the project twice); if saving fails, what was typed stays and a plain message says why.
+ * can't save twice); if saving fails, what was typed stays and a plain message says why.
  */
 export function WelcomeForm({ step, children }: { step: 1 | 2 | 3; children: ReactNode }) {
   const [pending, start] = useTransition();

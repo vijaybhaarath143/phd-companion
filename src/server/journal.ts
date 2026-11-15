@@ -15,19 +15,27 @@ export type JournalRow = {
   entryPrecision: Precision;
   dateFrom: string | null;
   dateTo: string | null;
-  projectId: string | null;
-  projectTitle: string | null;
+  manuscriptId: string | null;
+  manuscriptTitle: string | null;
   registration: string | null;
   participation: string | null;
   award: string | null;
   experimentStatus: string | null;
+  /** The start of the description, on one line, for the Journal's cards. */
+  excerpt: string | null;
+  /** Files and links attached to the entry. */
+  files: number;
 };
+
+/** The kinds of journal entry the Journal's chips filter by. */
+export const ENTRY_KINDS = ["note", "experiment", "meeting", "feedback", "event", "decision", "enquiry"] as const;
 
 export type JournalFilters = {
   q?: string;
+  kind?: string;
   category?: string;
   status?: string;
-  project?: string;
+  publication?: string;
   from?: string; // YYYY-MM
   to?: string; // YYYY-MM
   limit?: number; // dated entries to show (older ones via "Show older")
@@ -44,9 +52,10 @@ export function cleanJournalFilters(f: JournalFilters): JournalFilters {
   const q = f.q?.trim().slice(0, 200) || undefined;
   return {
     q,
+    kind: f.kind && (ENTRY_KINDS as readonly string[]).includes(f.kind) ? f.kind : undefined,
     category: f.category && (CATEGORY_KEYS as readonly string[]).includes(f.category) ? f.category : undefined,
     status: f.status && ["planned", "done", "postponed", "cancelled"].includes(f.status) ? f.status : undefined,
-    project: isUuid(f.project) ? f.project : undefined,
+    publication: isUuid(f.publication) ? f.publication : undefined,
     from: isMonthKey(f.from) ? f.from : undefined,
     to: isMonthKey(f.to) ? f.to : undefined,
     limit: Number.isFinite(f.limit) ? f.limit : undefined,
@@ -63,10 +72,13 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
 
   const base = (dated: boolean) => tx<JournalRow[]>`
     select e.id, e.title, e.kind, e.category, e.status, e.entry_date, e.entry_precision, e.date_from, e.date_to,
-           e.project_id, p.title as project_title,
-           ev.registration, ev.participation, ev.award, x.status as experiment_status
+           e.manuscript_id, p.title as manuscript_title,
+           ev.registration, ev.participation, ev.award, x.status as experiment_status,
+           nullif(left(btrim(regexp_replace(coalesce(e.description, ''), '[[:space:]]+', ' ', 'g')), 220), '') as excerpt,
+           (select count(*)::int from public.attachments a
+             where a.parent_type = 'entry' and a.parent_id = e.id and a.removed_at is null and a.replaced_by_id is null and a.status = 'verified') as files
     from public.entries e
-    left join public.projects p on p.id = e.project_id
+    left join public.manuscripts p on p.id = e.manuscript_id
     left join public.events ev on ev.entry_id = e.id
     left join public.experiments x on x.entry_id = e.id
     where e.deleted_at is null and e.archived_at is null
@@ -81,9 +93,10 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
            or exists (select 1 from public.enquiries en where en.entry_id = e.id and
                       concat_ws(' ', en.office, en.contact, en.response) ilike ${like})
            or ev.award ilike ${like} or ev.organiser ilike ${like})
+      and (${f.kind ?? null}::text is null or e.kind = ${f.kind ?? null})
       and (${f.category ?? null}::text is null or e.category = ${f.category ?? null})
       and (${f.status ?? null}::text is null or e.status = ${f.status ?? null})
-      and (${f.project ?? null}::uuid is null or e.project_id = ${f.project ?? null})
+      and (${f.publication ?? null}::uuid is null or e.manuscript_id = ${f.publication ?? null})
       and (${from}::date is null or e.date_to >= ${from})
       and (${to}::date is null or e.date_from <= ${to})
     order by e.date_from desc nulls last, (e.entry_precision = 'month'), e.entry_date desc, e.created_at desc
@@ -106,9 +119,7 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
   let otherMatches: { kind: string; title: string; href: string }[] = [];
   if (like) {
     otherMatches = await tx<{ kind: string; title: string; href: string }[]>`
-      select 'Project' as kind, title, '/research/projects/' || id as href from public.projects where deleted_at is null and (title ilike ${like} or objective ilike ${like})
-      union all
-      select 'Manuscript', title, '/research/manuscripts/' || id from public.manuscripts where deleted_at is null and title ilike ${like}
+      select 'Publication' as kind, title, '/research/manuscripts/' || id as href from public.manuscripts where deleted_at is null and title ilike ${like}
       union all
       select 'Journal submission', s.journal_name || ' — ' || m.title, '/research/manuscripts/' || m.id
         from public.submissions s join public.manuscripts m on m.id = s.manuscript_id where s.journal_name ilike ${like}
@@ -138,7 +149,7 @@ export type EntryDetail = {
   people: string | null;
   outcome: string | null;
   skillsLearned: string | null;
-  projectId: string | null;
+  manuscriptId: string | null;
   createdVia: string;
   archivedAt: Date | null;
   version: number;

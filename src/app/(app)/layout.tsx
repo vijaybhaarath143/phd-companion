@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { asUser, requireUser } from "@/server/auth";
 import { removeQueuedFiles, storageAsUser } from "@/server/storage";
-import { getProfile, projectOptions } from "@/server/profile";
+import { getProfile, publicationOptions } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
 import { QuickAddProvider } from "@/components/app/quick-add";
 import { MobileNav, Sidebar } from "@/components/app/nav";
@@ -11,9 +11,9 @@ import { GuideProvider } from "@/components/app/guide";
 import { KeepReminding } from "@/components/app/keep-reminding";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
-  const { profile, projects, overdue, nagging } = await asUser(async (tx) => {
+  const { profile, publications, overdue, nagging } = await asUser(async (tx) => {
     const profile = await getProfile(tx);
-    const projects = await projectOptions(tx);
+    const publications = await publicationOptions(tx);
     const tz = profile?.timezone ?? "Asia/Kolkata";
     const [{ overdue }] = await tx<{ overdue: number }[]>`
       select count(*)::int as overdue from public.tasks
@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       where remind_until_done and deleted_at is null and status not in ('done','cancelled')
       order by due_date nulls last, case priority when 'high' then 0 when 'normal' then 1 else 2 end, created_at
       limit 1`;
-    return { profile, projects, overdue, nagging };
+    return { profile, publications, overdue, nagging };
   });
   if (!profile?.onboardedAt) redirect("/welcome");
 
@@ -35,10 +35,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const today = todayIn(profile.timezone);
 
   return (
-    <QuickAddProvider projects={projects} today={today}>
+    <QuickAddProvider publications={publications} today={today}>
       <GuideProvider>
         <div className="flex min-h-dvh">
-          <Sidebar name={profile.displayName ?? ""} department={profile.department} />
+          <Sidebar name={profile.displayName ?? ""} department={profile.department} phdTitle={profile.phdTitle} />
           <div className="flex min-w-0 flex-1 flex-col">
             {nagging.length > 0 && <KeepReminding tasks={nagging} />}
             {profile.remindersEnabled && overdue > 0 && (

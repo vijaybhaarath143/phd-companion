@@ -28,17 +28,17 @@ function EventCard({ e, past }: { e: EventRow; past?: boolean }) {
     : e.registration ? registration[e.registration as keyof typeof registration] : null;
   return (
     <li>
-      <Link href={`/journal/${e.id}`} className="flex flex-col gap-2 rounded-xl border bg-card px-5 py-4 transition-colors hover:bg-zinc-50">
+      <Link href={`/journal/${e.id}`} className="flex flex-col gap-2 rounded-2xl border-2 bg-card shadow-edge px-5 py-4 transition-colors hover:bg-zinc-50">
         <span className="flex flex-wrap items-start justify-between gap-3">
           <span className="min-w-0">
-            <span className="block font-semibold">{e.title}</span>
+            <span className="block font-display text-base font-extrabold">{e.title}</span>
             <span className="block text-[13px] text-muted-foreground">
               {categories[e.category]} · {e.entryDate ? formatPartialDate(e.entryDate, e.entryPrecision) : "date not set"}
             </span>
           </span>
           <span className="flex items-center gap-2">
             {e.files > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground"><Paperclip className="size-3.5" aria-hidden />{e.files}</span>}
-            {badge && <Badge variant="outline">{badge}</Badge>}
+            {badge && <Badge variant="clay">{badge}</Badge>}
           </span>
         </span>
         {facts.length > 0 && (
@@ -99,19 +99,19 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
         ev.upcoming.length ? (
           <ul className="flex flex-col gap-3">{ev.upcoming.map((e) => <EventCard key={e.id} e={e} />)}</ul>
         ) : (
-          <p className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">Nothing coming up. Use Quick Add with the Conference, Training or Competition category to add one.</p>
+          <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">Nothing coming up. Use Quick Add with the Conference, Training or Competition category to add one.</p>
         )
       ) : (
         <>
           {ev.attended.length ? (
             <ul className="flex flex-col gap-3">{ev.attended.map((e) => <EventCard key={e.id} e={e} past />)}</ul>
           ) : (
-            <p className="rounded-xl border bg-card px-5 py-8 text-center text-muted-foreground">Nothing attended yet. After an event, open it and set Participation to Attended or Presented — add the certificate as evidence.</p>
+            <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">Nothing attended yet. After an event, open it and set Participation to Attended or Presented — add the certificate as evidence.</p>
           )}
           {ev.unrecorded.length > 0 && (
             <section className="flex flex-col gap-3">
               <div>
-                <h2 className="text-[15px] font-semibold">Over — did you go? · {ev.unrecorded.length}</h2>
+                <h2 className="text-[15px] font-extrabold">Over — did you go? · {ev.unrecorded.length}</h2>
                 <p className="text-[13px] text-muted-foreground">Open each one and set Participation to Attended, Presented or Did not attend.</p>
               </div>
               <ul className="flex flex-col gap-3">{ev.unrecorded.map((e) => <EventCard key={e.id} e={e} />)}</ul>
@@ -119,7 +119,7 @@ export default async function EventsPage({ searchParams }: PageProps<"/events">)
           )}
           {ev.missed.length > 0 && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-[15px] font-semibold">Didn&apos;t attend or cancelled · {ev.missed.length}</h2>
+              <h2 className="text-[15px] font-extrabold">Didn&apos;t attend or cancelled · {ev.missed.length}</h2>
               <ul className="flex flex-col gap-3">{ev.missed.map((e) => <EventCard key={e.id} e={e} past />)}</ul>
             </section>
           )}

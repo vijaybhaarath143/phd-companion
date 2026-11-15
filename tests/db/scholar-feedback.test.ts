@@ -40,7 +40,7 @@ function form(fields: Record<string, string | number | string[]>) {
 }
 
 const TODAY = "2026-11-14";
-let projectId: string;
+let manuscriptId: string;
 let courseId: string;
 let experimentId: string;
 
@@ -48,8 +48,8 @@ beforeAll(async () => {
   u = await makeUser("feedback");
   await withUser(u, async (tx) => {
     await tx`insert into public.profiles (user_id, display_name, onboarded_at) values (auth.uid(), 'Scholar', now())`;
-    const [p] = await tx`insert into public.projects (title, type) values ('SLR 9: Test review', 'systematic_review') returning id`;
-    projectId = p.id;
+    const [m] = await tx`insert into public.manuscripts (title, article_type) values ('SLR 9: Test review', 'review') returning id`;
+    manuscriptId = m.id;
     const [c] = await tx`insert into public.courses (name, provider, credits, status) values ('Research Methodology', 'SWAYAM', 4, 'enrolled') returning id`;
     courseId = c.id;
     const [x] = await tx`insert into public.entries (title, kind, category, entry_precision) values ('Starch assay', 'experiment', 'experiment', 'none') returning id`;
@@ -65,9 +65,9 @@ afterAll(async () => {
 
 describe("task priority and keep reminding", () => {
   it("accepts high / normal / low, refuses the old 'important', and sorts High first", async () => {
-    expect((await createTask({ id: crypto.randomUUID(), title: "Low one", dueDate: null, priority: "low", projectId: null, notes: null })).ok).toBe(true);
-    expect((await createTask({ id: crypto.randomUUID(), title: "High one", dueDate: null, priority: "high", projectId: null, notes: null, remindUntilDone: true })).ok).toBe(true);
-    expect((await createTask({ id: crypto.randomUUID(), title: "Normal one", dueDate: null, priority: "normal", projectId: null, notes: null })).ok).toBe(true);
+    expect((await createTask({ id: crypto.randomUUID(), title: "Low one", dueDate: null, priority: "low", notes: null })).ok).toBe(true);
+    expect((await createTask({ id: crypto.randomUUID(), title: "High one", dueDate: null, priority: "high", notes: null, remindUntilDone: true })).ok).toBe(true);
+    expect((await createTask({ id: crypto.randomUUID(), title: "Normal one", dueDate: null, priority: "normal", notes: null })).ok).toBe(true);
     const titles = (await withUser(u, (tx) => listTasks(tx, "open", 300, TODAY))).map((t) => t.title);
     expect(titles.indexOf("High one")).toBeLessThan(titles.indexOf("Normal one"));
     expect(titles.indexOf("Normal one")).toBeLessThan(titles.indexOf("Low one"));
@@ -87,10 +87,10 @@ describe("task priority and keep reminding", () => {
 
 describe("Home reminders and calendar", () => {
   it("groups by when, with overdue tasks and course deadlines first, and marks overdue days red", async () => {
-    await createTask({ id: crypto.randomUUID(), title: "Late task", dueDate: "2026-11-09", priority: "normal", projectId: null, notes: null });
-    await createTask({ id: crypto.randomUUID(), title: "Today task", dueDate: TODAY, priority: "normal", projectId: null, notes: null });
-    await createTask({ id: crypto.randomUUID(), title: "Week task", dueDate: "2026-11-19", priority: "normal", projectId: null, notes: null });
-    await createTask({ id: crypto.randomUUID(), title: "Later task", dueDate: "2026-12-30", priority: "normal", projectId: null, notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Late task", dueDate: "2026-11-09", priority: "normal", notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Today task", dueDate: TODAY, priority: "normal", notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Week task", dueDate: "2026-11-19", priority: "normal", notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Later task", dueDate: "2026-12-30", priority: "normal", notes: null });
     expect((await addCourseItem(courseId, form({ kind: "assignment", title: "Week 3 assignment", dueDate: "2026-11-11" }))).ok).toBe(true);
     const g = await withUser(u, (tx) => getReminders(tx, TODAY));
     expect(g.overdue.map((r) => r.title)).toEqual(["Late task", "Week 3 assignment"]);
@@ -120,9 +120,9 @@ describe("Home reminders and calendar", () => {
 
 describe("review steps", () => {
   it("sets up the 11 steps once, and works out the PRISMA numbers", async () => {
-    expect((await setUpReviewSteps(projectId)).ok).toBe(true);
-    expect((await setUpReviewSteps(projectId)).ok).toBe(true); // a second click adds nothing
-    let steps = await withUser(u, (tx) => getReviewSteps(tx, projectId));
+    expect((await setUpReviewSteps(manuscriptId)).ok).toBe(true);
+    expect((await setUpReviewSteps(manuscriptId)).ok).toBe(true); // a second click adds nothing
+    let steps = await withUser(u, (tx) => getReviewSteps(tx, manuscriptId));
     expect(steps).toHaveLength(11);
     expect(steps[0].title).toBe("Protocol drafting");
 
@@ -133,21 +133,22 @@ describe("review steps", () => {
     expect((await updateReviewStep(dupes.id, form({ version: dupes.version, status: "done", count: 1 }))).ok).toBe(false); // stale version
     expect((await updateReviewStep(retrieve.id, form({ version: retrieve.version + 1, status: "done", count: "4.5" }))).ok).toBe(false);
 
-    steps = await withUser(u, (tx) => getReviewSteps(tx, projectId));
+    steps = await withUser(u, (tx) => getReviewSteps(tx, manuscriptId));
     expect(steps.find((s) => s.id === retrieve.id)?.doneOn).toBeTruthy(); // done today by default
     const p = prismaNumbers(steps);
     expect(p).toMatchObject({ identified: 412, duplicates_removed: 37, screened: 375, included: null });
 
     expect((await toggleReviewStep(steps[0].id, true)).ok).toBe(true);
-    expect((await withUser(u, (tx) => getReviewSteps(tx, projectId)))[0].status).toBe("done");
+    expect((await withUser(u, (tx) => getReviewSteps(tx, manuscriptId)))[0].status).toBe("done");
   });
 
-  it("review projects show under review articles, even before they have a manuscript", async () => {
+  it("lists publications reviews first; a new one is a review or an original article", async () => {
     const rows = await withUser(u, (tx) => listPublications(tx));
-    expect(rows).toEqual([expect.objectContaining({ title: "SLR 9: Test review", articleType: "review", manuscriptId: null })]);
-    await createManuscript(projectId, form({ title: "SLR 9 manuscript" }));
-    const [m] = await admin`select id, article_type from public.manuscripts where owner_id = ${u.id}`;
-    expect(m.articleType).toBe("review");
+    expect(rows).toEqual([expect.objectContaining({ title: "SLR 9: Test review", articleType: "review", manuscriptId })]);
+    await createManuscript(form({ title: "Starch assay paper", articleType: "original" }));
+    const [m] = await admin`select id, article_type from public.manuscripts where owner_id = ${u.id} and title = 'Starch assay paper'`;
+    expect(m.articleType).toBe("original");
+    expect(await admin`select 1 from public.manuscript_phase_events where manuscript_id = ${m.id}`).toHaveLength(1);
     expect((await setArticleType(m.id, "original")).ok).toBe(true);
     expect((await setArticleType(m.id, "poster")).ok).toBe(false);
   });
@@ -246,8 +247,8 @@ describe("review fixes", () => {
   });
 
   it("a High task with no date comes before Low tasks with dates (overdue still first)", async () => {
-    await createTask({ id: crypto.randomUUID(), title: "Undated high", dueDate: null, priority: "high", projectId: null, notes: null });
-    await createTask({ id: crypto.randomUUID(), title: "Dated low", dueDate: "2026-12-01", priority: "low", projectId: null, notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Undated high", dueDate: null, priority: "high", notes: null });
+    await createTask({ id: crypto.randomUUID(), title: "Dated low", dueDate: "2026-12-01", priority: "low", notes: null });
     const titles = (await withUser(u, (tx) => listTasks(tx, "open", 300, TODAY))).map((t) => t.title);
     expect(titles.indexOf("Late task")).toBe(0);
     expect(titles.indexOf("Undated high")).toBeLessThan(titles.indexOf("Dated low"));

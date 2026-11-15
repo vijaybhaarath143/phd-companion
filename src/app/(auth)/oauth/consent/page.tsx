@@ -90,7 +90,7 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
       <div className="flex flex-col gap-2 text-sm text-zinc-700">
         <p className="font-medium text-foreground">{capitalise(short)} will be able to:</p>
         <ul className="flex flex-col gap-1.5">
-          <li>• Read your journal, projects, manuscripts, experiments, tasks, goals, academics and files.</li>
+          <li>• Read your journal, publications, experiments, tasks, goals, academics and files.</li>
           <li>• Add journal entries, tasks, links, files and guide feedback, and update tasks and manuscript phases. What it adds is labelled “via {short === "this app" ? "an assistant" : short}”.</li>
         </ul>
         <p className="font-medium text-foreground">It can&apos;t:</p>
@@ -125,11 +125,11 @@ function capitalise(s: string) {
 function Card({ title, children, icon = "plug" }: { title: string; children: React.ReactNode; icon?: "plug" | "warning" }) {
   const Icon = icon === "warning" ? ShieldAlert : PlugZap;
   return (
-    <div className="flex w-full max-w-[460px] flex-col gap-5 rounded-xl border bg-card p-8">
-      <div aria-hidden className="flex size-11 items-center justify-center rounded-full bg-muted">
-        <Icon className="size-5 text-zinc-700" />
+    <div className="flex w-full max-w-[460px] flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-8">
+      <div aria-hidden className="flex size-14 items-center justify-center rounded-2xl bg-leaf-soft">
+        <Icon className="size-7 text-primary" />
       </div>
-      <h1 className="text-2xl leading-8 font-semibold tracking-[-0.015em]">{title}</h1>
+      <h1 className="text-[28px] leading-tight font-black md:text-[34px]">{title}</h1>
       {children}
     </div>
   );

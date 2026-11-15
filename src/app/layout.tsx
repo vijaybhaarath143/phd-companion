@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// Rounded display face for headings, labels and buttons; Geist stays for body text and numbers.
+const nunito = Nunito({ variable: "--font-display", subsets: ["latin"], weight: ["700", "800", "900"] });
 
 export const metadata: Metadata = {
   title: { default: "PhD Companion", template: "%s · PhD Companion" },
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#ffffff",
+  themeColor: "#fbfaf6",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -24,7 +26,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // which a page built ahead of time can't have.
   await connection();
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${nunito.variable} h-full antialiased`}>
       <body className="min-h-full bg-background text-foreground">
         {children}
         <Toaster position="bottom-center" />

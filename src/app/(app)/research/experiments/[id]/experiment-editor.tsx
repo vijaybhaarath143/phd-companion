@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
+import { toOptions } from "@/lib/options";
 import { Badge } from "@/components/ui/badge";
 import { SaveStatus, useAutosave } from "@/components/app/autosave";
 import { ActionForm, SaveError } from "@/components/app/action-form";
@@ -21,7 +21,6 @@ import { addBlocker, archiveExperiment, resolveBlocker, trashExperiment, updateE
 import { setEntryDate } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
 import type { EvidenceItem } from "@/server/evidence";
-import type { ProjectOption } from "@/server/profile";
 import { blockerCategories, experimentStatuses } from "@/lib/labels";
 import { formatFullDay, formatPartialDate, type PartialDate, type Precision } from "@/lib/dates";
 
@@ -54,8 +53,6 @@ function touchSession(s: { id: string | null; last: number }) {
 export function ExperimentEditor({
   entry,
   experiment,
-  project,
-  projects,
   revisions,
   blockers,
   evidence,
@@ -63,10 +60,8 @@ export function ExperimentEditor({
   openDate = false,
   trials,
 }: {
-  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number; archivedAt: Date | null };
+  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; version: number; archivedAt: Date | null };
   experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number };
-  project: { id: string; title: string } | null;
-  projects: ProjectOption[];
   revisions: Revision[];
   blockers: { id: string; category: string; description: string; openedOn: string; resolvedOn: string | null }[];
   evidence: EvidenceItem[];
@@ -101,7 +96,6 @@ export function ExperimentEditor({
   const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [entryVersion, setEntryVersion] = useState(entry.version);
   const [title, setTitle] = useState(entry.title);
-  const [projectId, setProjectId] = useState(entry.projectId ?? "");
   const [editingDetails, setEditingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
 
@@ -124,7 +118,7 @@ export function ExperimentEditor({
 
   const saveDetails = (form: HTMLFormElement) => {
     const data = new FormData(form);
-    const next = { title: String(data.get("title") ?? ""), projectId: String(data.get("projectId") ?? "") || null };
+    const next = { title: String(data.get("title") ?? "") };
     setDetailsError(null);
     start(async () => {
       const r = await callAction(() => updateExperimentDetails(entry.id, entryVersion, next));
@@ -132,7 +126,6 @@ export function ExperimentEditor({
       if (!r.ok) return void setDetailsError(r.error.message);
       setEntryVersion(r.data.version);
       setTitle(next.title.trim());
-      setProjectId(next.projectId ?? "");
       setEditingDetails(false);
       toast.success("Saved");
     });
@@ -149,20 +142,20 @@ export function ExperimentEditor({
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Breadcrumb items={[...(project ? [{ href: `/research/projects/${project.id}`, label: project.title.split(":")[0] }] : [{ href: "/research", label: "Research" }]), { label: "Experiment" }]} />
+        <Breadcrumb items={[{ href: "/research?view=benchwork", label: "Benchwork" }, { label: "Experiment" }]} />
         <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
       </div>
 
       {entry.archivedAt && (
-        <p className="rounded-lg border border-attention-border bg-attention px-4 py-2.5 text-[13px] text-attention-foreground">
-          This experiment is archived — hidden from its project and the Journal, but kept. <Link href="/settings#archive" className="font-medium underline underline-offset-2">Restore it from Settings</Link>.
+        <p className="rounded-xl bg-attention px-4 py-2.5 text-[13px] text-attention-foreground">
+          This experiment is archived — hidden from Benchwork and the Journal, but kept. <Link href="/settings#archive" className="font-medium underline underline-offset-2">Restore it from Settings</Link>.
         </p>
       )}
 
       <div className="flex flex-col gap-2">
         {editingDetails ? (
           <form
-            className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4"
+            className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4"
             onSubmit={(e) => {
               e.preventDefault();
               saveDetails(e.currentTarget);
@@ -172,10 +165,6 @@ export function ExperimentEditor({
               <label htmlFor="x-title" className="text-sm font-medium">Experiment title</label>
               <Input id="x-title" name="title" required maxLength={300} defaultValue={title} autoFocus />
             </div>
-            <div className="flex max-w-96 flex-col gap-1.5">
-              <label htmlFor="x-project" className="text-sm font-medium">Project</label>
-              <AppSelect id="x-project" name="projectId" defaultValue={projectId} options={rowOptions(projects, (p) => p.title, "No project")} />
-            </div>
             {detailsError && <SaveError message={detailsError} />}
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={pending}>Save</Button>
@@ -184,12 +173,12 @@ export function ExperimentEditor({
           </form>
         ) : (
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="min-w-0 flex-[1_1_320px] text-2xl leading-8 font-semibold tracking-[-0.015em]">{title}</h1>
+            <h1 className="min-w-0 flex-[1_1_320px] text-[28px] leading-tight font-black md:text-[34px]">{title}</h1>
             <Button size="sm" variant="outline" onClick={() => setEditingDetails(true)}>Rename or move</Button>
           </div>
         )}
         {editingDate ? (
-          <div className="flex flex-col gap-3 rounded-lg border bg-zinc-50 p-4">
+          <div className="flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
             <PartialDateInput name="xd" label="Date performed" today={today} defaultValue={date.precision === "none" ? { date: today, precision: "day" } : date} onChange={setDraftDate} />
             <div className="flex gap-2">
               <Button size="sm" disabled={pending} onClick={() => start(async () => {
@@ -211,9 +200,9 @@ export function ExperimentEditor({
         )}
       </div>
 
-      <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
+      <section className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-[15px] font-semibold">Status</h2>
+          <h2 className="text-[15px] font-extrabold">Status</h2>
           <span className="text-[13px] text-muted-foreground">{status ? "" : "Not set. "}Failed and unclear results are saved like any other.</span>
         </div>
         <div role="radiogroup" aria-label="Experiment status" className="flex flex-wrap gap-2">
@@ -239,16 +228,16 @@ export function ExperimentEditor({
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[3_1_440px] flex-col gap-4">
-          <section className="flex flex-col gap-5 rounded-xl border bg-card p-5">
+          <section className="flex flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-5">
             {area("objective", "Objective", "What were you trying to find out?", 2)}
             {area("materials", "Materials and instruments", null, 2)}
             {area("procedure", "Procedure", "Steps you followed. If you change this later, the earlier version is kept.", 5)}
           </section>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
-            <section className="rounded-xl border bg-card p-5">{area("observations", "Observations", "What you saw or measured.", 6)}</section>
-            <section className="rounded-xl border bg-card p-5">{area("interpretation", "Interpretation", "What you think it means.", 6)}</section>
+            <section className="rounded-2xl border-2 bg-card shadow-edge p-5">{area("observations", "Observations", "What you saw or measured.", 6)}</section>
+            <section className="rounded-2xl border-2 bg-card shadow-edge p-5">{area("interpretation", "Interpretation", "What you think it means.", 6)}</section>
           </div>
-          <section className="flex flex-col gap-5 rounded-xl border bg-card p-5">
+          <section className="flex flex-col gap-5 rounded-2xl border-2 bg-card shadow-edge p-5">
             {area("outcome", "Outcome", null, 2)}
             {area("nextSteps", "Next steps", null, 2)}
           </section>
@@ -263,14 +252,14 @@ export function ExperimentEditor({
         </div>
 
         <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
-          <section className="rounded-xl border bg-card px-5 py-4">
-            <h2 className="mb-1 text-[15px] font-semibold">Earlier versions</h2>
+          <section className="rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+            <h2 className="mb-1 text-[15px] font-extrabold">Earlier versions</h2>
             <ol>
-              <li className="flex items-center gap-3 border-t border-zinc-100 py-2.5 first:border-t-0">
+              <li className="flex items-center gap-3 border-t-2 border-zinc-100 py-2.5 first:border-t-0">
                 <span className="flex-1"><span className="block font-medium">Current version</span></span>
               </li>
               {revisions.map((r) => (
-                <li key={r.id} className="flex flex-col gap-2 border-t border-zinc-100 py-2.5">
+                <li key={r.id} className="flex flex-col gap-2 border-t-2 border-zinc-100 py-2.5">
                   <div className="flex items-center gap-3">
                     <span className="flex-1">
                       <span className="block font-medium">Version {r.revisionNo}</span>
@@ -298,11 +287,11 @@ export function ExperimentEditor({
             </p>
           </section>
 
-          <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Blockers</h2>
+          <section className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+            <h2 className="text-[15px] font-extrabold">Blockers</h2>
             {blockers.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing blocking. Record things like equipment, supplies or a protocol that didn&apos;t work.</p>}
             {blockers.map((b) => (
-              <div key={b.id} className="flex items-start gap-3 border-t border-zinc-100 pt-3 first:border-t-0 first:pt-0">
+              <div key={b.id} className="flex items-start gap-3 border-t-2 border-zinc-100 pt-3 first:border-t-0 first:pt-0">
                 <span className="flex-1">
                   <span className="block font-medium">{b.description}</span>
                   <span className="block text-[13px] text-muted-foreground">
@@ -315,7 +304,7 @@ export function ExperimentEditor({
                 )}
               </div>
             ))}
-            <ActionForm action={addBlocker.bind(null, entry.id)} success="Blocker recorded" className="flex flex-col gap-2 border-t border-zinc-100 pt-3">
+            <ActionForm action={addBlocker.bind(null, entry.id)} success="Blocker recorded" className="flex flex-col gap-2 border-t-2 border-zinc-100 pt-3">
               <Input name="description" required maxLength={1000} placeholder="What's blocking?" aria-label="Blocker" />
               <div className="flex gap-2">
                 <AppSelect name="category" defaultValue="other" aria-label="Kind of blocker" options={toOptions(blockerCategories)} />
@@ -324,8 +313,8 @@ export function ExperimentEditor({
             </ActionForm>
           </section>
 
-          <section className="flex flex-col gap-3 rounded-xl border bg-card px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Evidence</h2>
+          <section className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
+            <h2 className="text-[15px] font-extrabold">Evidence</h2>
             <Evidence items={evidence} parentType="entry" parentId={entry.id} hint="Photos, data files or a link to the instrument output." />
           </section>
         </div>

@@ -45,4 +45,6 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      - name: Check the one-PhD migration on every kind of project (rolled back)
+        run: node --env-file=.env.local scripts/check-single-phd-migration.mjs
       - run: npm run build

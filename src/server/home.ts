@@ -7,8 +7,19 @@ import type { TaskPriority } from "@/lib/labels";
 import { getTimeline } from "@/server/timeline";
 
 export type AttentionItem = { title: string; detail: string; href: string; badge?: string; attention?: boolean };
+export type Area = { key: string; label: string; count: number; detail: string; href: string };
 export type StepProgress = { done: number; total: number; current: string | null; currentNo: number | null };
-export type ListItem = { id: string; title: string; detail: string; href: string; badge?: string; steps?: StepProgress };
+export type ListItem = {
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
+  badge?: string;
+  steps?: StepProgress;
+  /** For Home's "Working on" cards: what kind of thing it is, and a manuscript's phase. */
+  kind?: "review" | "original" | "benchwork";
+  phase?: Phase;
+};
 
 export async function getCredits(tx: Tx): Promise<{ label: string; period: string | null; summary: CreditSummary } | null> {
   const [req] = await tx<{ label: string; periodLabel: string | null; requiredCredits: number | null }[]>`
@@ -25,11 +36,10 @@ export async function getCredits(tx: Tx): Promise<{ label: string; period: strin
 }
 
 export async function getHome(tx: Tx, today: string) {
-  const waiting = await tx<{ id: string; title: string; waitingReason: string | null; manuscriptId: string | null; manuscriptTitle: string | null; projectTitle: string | null }[]>`
-    select t.id, t.title, t.waiting_reason, t.manuscript_id, m.title as manuscript_title, p.title as project_title
+  const waiting = await tx<{ id: string; title: string; waitingReason: string | null; manuscriptId: string | null; manuscriptTitle: string | null }[]>`
+    select t.id, t.title, t.waiting_reason, t.manuscript_id, m.title as manuscript_title
     from public.tasks t
     left join public.manuscripts m on m.id = t.manuscript_id
-    left join public.projects p on p.id = t.project_id
     where t.deleted_at is null and t.status = 'waiting'
     order by t.created_at limit 5`;
 
@@ -64,7 +74,7 @@ export async function getHome(tx: Tx, today: string) {
   for (const w of waiting)
     attention.push({
       title: w.title,
-      detail: w.waitingReason ?? w.manuscriptTitle ?? (w.projectTitle ? short(w.projectTitle) : "Waiting"),
+      detail: w.waitingReason ?? w.manuscriptTitle ?? "Waiting",
       href: w.manuscriptId ? `/research/manuscripts/${w.manuscriptId}` : "/planner?show=waiting",
       badge: "Waiting",
       attention: true,
@@ -78,26 +88,42 @@ export async function getHome(tx: Tx, today: string) {
   if (credits?.summary.incomplete)
     attention.push({ title: "Credit total is incomplete", detail: "A course has no credit value yet", href: "/academics", badge: "Academics" });
 
-  const projects = await tx<{ id: string; title: string; openTasks: number; experiments: number; phase: Phase | null; manuscriptTitle: string | null }[]>`
-    select p.id, p.title,
-      (select count(*)::int from public.tasks t where t.project_id = p.id and t.deleted_at is null and t.status not in ('done','cancelled')) as open_tasks,
-      (select count(*)::int from public.entries e where e.project_id = p.id and e.kind = 'experiment' and e.deleted_at is null) as experiments,
-      m.current_phase as phase, m.title as manuscript_title
-    from public.projects p
-    left join lateral (select current_phase, title from public.manuscripts m where m.project_id = p.id and m.deleted_at is null order by m.created_at desc limit 1) m on true
-    where p.deleted_at is null and p.archived_at is null and p.status not in ('completed')
-    order by p.created_at`;
-
-  const steps = await reviewProgress(tx, projects.map((p) => p.id));
-  const workingOn: ListItem[] = projects.map((p) => {
+  // What she's working on: publications still in progress (reviews with their step), and benchwork.
+  const publications = await tx<{ id: string; title: string; openTasks: number; phase: Phase; articleType: string | null }[]>`
+    select m.id, m.title, m.current_phase as phase, m.article_type,
+      (select count(*)::int from public.tasks t where t.manuscript_id = m.id and t.deleted_at is null and t.status not in ('done','cancelled')) as open_tasks
+    from public.manuscripts m
+    where m.deleted_at is null and m.archived_at is null and m.current_phase not in ('published', 'stopped')
+    order by m.created_at`;
+  const steps = await reviewProgress(tx, publications.map((p) => p.id));
+  const workingOn: ListItem[] = publications.map((p) => {
     const bits: string[] = [];
     const s = steps.get(p.id);
     if (s) bits.push(s.current ? `Step ${s.currentNo} of ${s.total} · ${s.current}` : `All ${s.total} steps done`);
-    if (p.phase) bits.push(`Manuscript: ${phases[p.phase]}`);
-    if (p.experiments) bits.push(`${p.experiments} experiment${p.experiments > 1 ? "s" : ""}`);
+    else bits.push(`Manuscript: ${phases[p.phase]}`);
     bits.push(p.openTasks ? `${p.openTasks} open task${p.openTasks > 1 ? "s" : ""}` : "No open tasks");
-    return { id: p.id, title: p.title, detail: bits.join(" · "), href: s ? `/research/projects/${p.id}#progress` : `/research/projects/${p.id}`, steps: s };
+    return {
+      id: p.id,
+      title: p.title,
+      detail: bits.join(" · "),
+      href: `/research/manuscripts/${p.id}${s ? "#progress" : ""}`,
+      steps: s,
+      kind: p.articleType === "review" ? ("review" as const) : ("original" as const),
+      phase: p.phase,
+    };
   });
+  const [bench] = await tx<{ running: number; total: number }[]>`
+    select count(*) filter (where x.status in ('planned', 'in_progress'))::int as running, count(*)::int as total
+    from public.entries e join public.experiments x on x.entry_id = e.id
+    where e.deleted_at is null and e.archived_at is null`;
+  if (bench.total > 0)
+    workingOn.push({
+      id: "benchwork",
+      title: bench.running ? `${bench.running} experiment${bench.running > 1 ? "s" : ""} on the go` : "Benchwork",
+      kind: "benchwork",
+      detail: bench.running ? `Planned or running · ${bench.total} in all` : `${bench.total} experiment${bench.total > 1 ? "s" : ""} recorded`,
+      href: "/research?view=benchwork",
+    });
 
   const upcomingEntries = await tx<{ id: string; title: string; entryDate: string; entryPrecision: Precision; registration: string | null }[]>`
     select e.id, e.title, e.entry_date, e.entry_precision, ev.registration
@@ -125,9 +151,9 @@ export async function getHome(tx: Tx, today: string) {
     .slice(0, 5)
     .map(({ sort: _sort, ...rest }) => rest);
 
-  const recent = await tx<{ id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectTitle: string | null }[]>`
-    select e.id, e.title, e.entry_date, e.entry_precision, p.title as project_title
-    from public.entries e left join public.projects p on p.id = e.project_id
+  const recent = await tx<{ id: string; title: string; entryDate: string | null; entryPrecision: Precision; manuscriptTitle: string | null }[]>`
+    select e.id, e.title, e.entry_date, e.entry_precision, m.title as manuscript_title
+    from public.entries e left join public.manuscripts m on m.id = e.manuscript_id
     where e.deleted_at is null and e.archived_at is null
     order by e.created_at desc limit 4`;
 
@@ -139,7 +165,7 @@ export async function getHome(tx: Tx, today: string) {
     recent: recent.map((e) => ({
       id: e.id,
       title: e.title,
-      detail: [formatPartialDate(e.entryDate, e.entryPrecision), e.projectTitle ? short(e.projectTitle) : null].filter(Boolean).join(" · "),
+      detail: [formatPartialDate(e.entryDate, e.entryPrecision), e.manuscriptTitle ? short(e.manuscriptTitle) : null].filter(Boolean).join(" · "),
       href: `/journal/${e.id}`,
     })),
     credits,
@@ -153,7 +179,6 @@ export async function hasAnyRecords(tx: Tx) {
   const [{ any }] = await tx<{ any: boolean }[]>`
     select exists (select 1 from public.entries where deleted_at is null)
         or exists (select 1 from public.tasks where deleted_at is null)
-        or exists (select 1 from public.projects where deleted_at is null)
         or exists (select 1 from public.manuscripts where deleted_at is null)
         or exists (select 1 from public.courses where deleted_at is null)
         or exists (select 1 from public.milestones)
@@ -205,10 +230,10 @@ const PRIORITY_RANK: Record<TaskPriority, number> = { high: 0, normal: 1, low: 2
  * next 7 days, later, and no date yet. Within a group: date, then High → Normal → Low.
  */
 export async function getReminders(tx: Tx, today: string): Promise<ReminderGroups> {
-  const tasks = await tx<{ id: string; title: string; dueDate: string | null; priority: TaskPriority; status: string; projectTitle: string | null; courseName: string | null; waitingReason: string | null }[]>`
-    select t.id, t.title, t.due_date, t.priority, t.status, p.title as project_title, c.name as course_name, t.waiting_reason
+  const tasks = await tx<{ id: string; title: string; dueDate: string | null; priority: TaskPriority; status: string; manuscriptTitle: string | null; courseName: string | null; waitingReason: string | null }[]>`
+    select t.id, t.title, t.due_date, t.priority, t.status, m.title as manuscript_title, c.name as course_name, t.waiting_reason
     from public.tasks t
-    left join public.projects p on p.id = t.project_id
+    left join public.manuscripts m on m.id = t.manuscript_id
     left join public.courses c on c.id = t.course_id
     where t.deleted_at is null and t.status in ('todo', 'doing', 'waiting')
     order by t.due_date nulls last, t.created_at
@@ -235,7 +260,7 @@ export async function getReminders(tx: Tx, today: string): Promise<ReminderGroup
       kind: "task" as const,
       taskId: t.id,
       title: t.title,
-      detail: [t.projectTitle ? short(t.projectTitle) : t.courseName, t.dueDate ? `${t.dueDate < today ? "was due" : "due"} ${formatFullDay(t.dueDate)}` : null, t.status === "waiting" ? `waiting${t.waitingReason ? ` — ${t.waitingReason}` : ""}` : null]
+      detail: [t.manuscriptTitle ? short(t.manuscriptTitle) : t.courseName, t.dueDate ? `${t.dueDate < today ? "was due" : "due"} ${formatFullDay(t.dueDate)}` : null, t.status === "waiting" ? `waiting${t.waitingReason ? ` — ${t.waitingReason}` : ""}` : null]
         .filter(Boolean)
         .join(" · "),
       href: "/planner",
@@ -319,9 +344,9 @@ export async function getRecentUpdates(tx: Tx, today: string, timezone: string, 
   return dated.filter((i) => !i.future && !NOT_UPDATES.has(i.event)).slice(0, count).map((i) => ({ key: i.key, title: i.title, detail: [i.date ? formatPartialDate(i.date, i.precision) : null, i.label].filter(Boolean).join(" · "), href: i.href }));
 }
 
-export type Area = { key: string; label: string; count: number; detail: string; href: string };
 
 /** Her areas of work (from her own list), each with how many records it holds. */
+
 export async function getAreas(tx: Tx): Promise<Area[]> {
   const [c] = await tx<{ benchwork: number; courses: number; publications: number; meetings: number; events: number; admin: number }[]>`
     select
@@ -342,27 +367,27 @@ export async function getAreas(tx: Tx): Promise<Area[]> {
   ];
 }
 
-/** Review steps per project: how many are dealt with (done or skipped), and the step she's on. */
-export async function reviewProgress(tx: Tx, projectIds: string[]) {
+/** Review steps per publication: how many are dealt with (done or skipped), and the step she's on. */
+export async function reviewProgress(tx: Tx, manuscriptIds: string[]) {
   const map = new Map<string, StepProgress>();
-  if (!projectIds.length) return map;
-  // numbered as on the project page (skipped steps keep their number and count as dealt with)
-  const rows = await tx<{ projectId: string; title: string; status: string }[]>`
-    select project_id, title, status from public.review_steps
-    where removed_at is null and project_id = any(${projectIds}::uuid[])
-    order by project_id, sort`;
+  if (!manuscriptIds.length) return map;
+  // numbered as on the publication page (skipped steps keep their number and count as dealt with)
+  const rows = await tx<{ manuscriptId: string; title: string; status: string }[]>`
+    select manuscript_id, title, status from public.review_steps
+    where removed_at is null and manuscript_id = any(${manuscriptIds}::uuid[])
+    order by manuscript_id, sort`;
   const onProgress = new Set<string>();
   for (const r of rows) {
-    const m = map.get(r.projectId) ?? { done: 0, total: 0, current: null, currentNo: null };
+    const m = map.get(r.manuscriptId) ?? { done: 0, total: 0, current: null, currentNo: null };
     m.total++;
     if (r.status === "done" || r.status === "skipped") m.done++;
     // the first step in progress, else the first one not started yet
-    else if (r.status === "in_progress" ? !onProgress.has(r.projectId) : m.current === null) {
+    else if (r.status === "in_progress" ? !onProgress.has(r.manuscriptId) : m.current === null) {
       m.current = r.title;
       m.currentNo = m.total;
-      if (r.status === "in_progress") onProgress.add(r.projectId);
+      if (r.status === "in_progress") onProgress.add(r.manuscriptId);
     }
-    map.set(r.projectId, m);
+    map.set(r.manuscriptId, m);
   }
   return map;
 }
