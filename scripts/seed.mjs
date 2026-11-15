@@ -4,6 +4,8 @@
 //   scholar@phd.test  — the PRD example data, onboarding finished
 //   new@phd.test      — empty account, to try onboarding and the first-day Home
 //   other@phd.test    — a second person, to check nothing leaks between accounts
+//   admin@phd.test    — platform admin (People & access), username "admin",
+//                       local password "local-admin-2026" (local only — never used live)
 //
 // Run: npm run db:seed   (after `npx supabase db reset`)
 
@@ -30,6 +32,14 @@ async function user(email) {
 const scholar = await user("scholar@phd.test");
 const newbie = await user("new@phd.test");
 const other = await user("other@phd.test");
+
+// Platform admin with a username and password, for trying People & access locally.
+const platformAdmin = await user("admin@phd.test");
+await admin.auth.admin.updateUserById(platformAdmin, { password: "local-admin-2026" });
+await sql`insert into public.profiles (user_id, display_name, username, onboarded_at)
+          values (${platformAdmin}, 'Platform Admin', 'admin', now())
+          on conflict (user_id) do update set username = 'admin', onboarded_at = coalesce(public.profiles.onboarded_at, now())`;
+await sql`insert into app.platform_roles (user_id) values (${platformAdmin}) on conflict do nothing`;
 
 for (const id of [scholar, newbie, other]) {
   await sql`delete from public.profiles where user_id = ${id}`;

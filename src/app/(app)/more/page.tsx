@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, ChevronRight, Compass, FlaskConical, GraduationCap, NotebookPen, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, ChevronRight, Compass, FlaskConical, GraduationCap, NotebookPen, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
+import { asUser, isPlatformAdmin } from "@/server/auth";
 import { GuideMeButton } from "@/components/app/guide";
 import { PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "More" };
 
 /** Phone-only menu for the areas that don't fit in the bottom bar. */
-export default function MorePage() {
+export default async function MorePage() {
+  const admin = await asUser((tx) => isPlatformAdmin(tx));
   const items = [
     { href: "/journal", label: "Journal", hint: "Your entries, search and dates to fill in", icon: BookOpen },
     { href: "/research", label: "Research", hint: "Publications and benchwork", icon: FlaskConical },
     { href: "/academics", label: "Academics", hint: "Credits, courses, deadlines, admin info", icon: GraduationCap },
     { href: "/events", label: "Events", hint: "Conferences, workshops, training — upcoming and attended", icon: Users },
     { href: "/notes", label: "Notes", hint: "Scribbles and checklists", icon: NotebookPen },
-    { href: "/settings", label: "Settings", hint: "Profile, export, trash, sign out", icon: SlidersHorizontal },
+    { href: "/settings", label: "Settings", hint: "Profile, password, export, trash, sign out", icon: SlidersHorizontal },
+    ...(admin ? [{ href: "/admin", label: "People & access", hint: "Add people, reset passwords, suspend accounts", icon: ShieldCheck }] : []),
   ];
   return (
     <div className="mx-auto flex max-w-[640px] flex-col gap-5">

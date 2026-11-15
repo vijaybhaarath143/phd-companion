@@ -26,8 +26,11 @@ http://127.0.0.1:54324 (Mailpit) — nothing is sent to real email.
 | `scholar@phd.test` | The PRD's June–November 2026 examples |
 | `new@phd.test` | An empty account: onboarding and the first-day Home |
 | `other@phd.test` | A second person — used to check nothing leaks between accounts |
+| `admin` (username) | Platform admin: **People & access**. Sign in on the *Username & password* tab; the local password is in `scripts/seed.mjs` |
 
-Sign-up is turned off: accounts are created by invite (see `scripts/seed.mjs`).
+Sign-up is turned off. Accounts are created by the platform admin (People & access) or, locally, by `scripts/seed.mjs`.
+People sign in with an email link, or with a username and password the admin gives them
+(see `docs/platform-admin-and-collaboration-plan.md`).
 
 Database browser (Supabase Studio): http://127.0.0.1:54323
 

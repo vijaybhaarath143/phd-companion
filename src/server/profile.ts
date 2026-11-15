@@ -20,6 +20,11 @@ export type Profile = {
   lastExportAt: Date | null;
   /** Things she keeps looking up: enrolment number, office contacts… */
   adminDetails: { label: string; value: string }[];
+  /** Set by the platform admin; used to sign in with a password. */
+  username: string | null;
+  accountStatus: "active" | "suspended";
+  /** The admin set a temporary password: choose your own before anything else. */
+  mustChangePassword: boolean;
   version: number;
 };
 

@@ -1,6 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { AuthUnavailableError, bearerToken, ConnectorAuthError, connectorStatus, verifyAccessToken } from "@/server/mcp/auth";
 import { createConnectorServer } from "@/server/mcp/server";
+import { AccountSuspendedError } from "@/server/db";
 import { CORS, methodNotAllowed, publicOrigin, unauthorized, unavailable, withHeaders } from "@/server/mcp/http";
 
 /**
@@ -31,7 +32,8 @@ export async function POST(req: Request) {
   let status;
   try {
     status = await connectorStatus(user);
-  } catch {
+  } catch (e) {
+    if (e instanceof AccountSuspendedError) return unauthorized(origin, "This PhD Companion account is suspended.", "invalid_token");
     return unavailable("PhD Companion's database couldn't be reached just now. Try again in a moment.");
   }
   if (!status.active) {
