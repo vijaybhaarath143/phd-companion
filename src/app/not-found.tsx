@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { LiveSprig } from "@/components/app/sprig-live";
 
 export const metadata: Metadata = { title: "Not found" };
 
@@ -9,6 +10,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-zinc-50 p-6">
       <div className="flex w-full max-w-[480px] flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-8">
+        <LiveSprig mood="curious" className="w-20" />
         <h1 className="text-2xl font-black">This page doesn&apos;t exist</h1>
         <p className="text-muted-foreground">The link may be mistyped or out of date.</p>
         <div className="flex flex-wrap gap-2">

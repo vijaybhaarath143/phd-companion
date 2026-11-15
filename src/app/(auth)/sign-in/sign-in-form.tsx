@@ -4,13 +4,13 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sendCode } from "@/server/actions/auth";
-import { SproutArt } from "@/components/app/sprout-art";
+import { LiveSprig } from "@/components/app/sprig-live";
 
 export function SignInForm({ mode, linkFailed, captchaSiteKey }: { mode: "link" | "code"; linkFailed: boolean; captchaSiteKey: string | null }) {
   const [state, action, pending] = useActionState(sendCode, undefined);
   return (
     <form action={action} className="flex w-full max-w-[420px] flex-col gap-6 sm:rounded-3xl sm:border-2 sm:bg-card sm:p-8 sm:shadow-edge">
-      <SproutArt className="self-center" />
+      <LiveSprig mood={state?.error ? "oops" : "hello"} className="w-32 self-center" />
       <div className="flex flex-col gap-2 text-center">
         <h1 className="text-[30px] leading-tight font-black">Welcome back</h1>
         <p className="text-[16px] text-muted-foreground">

@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { cn } from "cn";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { SprigMood } from "@/components/app/sprig";
+import { LiveSprig } from "@/components/app/sprig-live";
 
 /** Small layout pieces shared by every screen (match the design canvas). */
 
@@ -56,8 +58,15 @@ export function Row({ children, className }: { children: ReactNode; className?: 
   return <li className={cn("flex min-h-14 items-center gap-3 px-5 py-3", className)}>{children}</li>;
 }
 
-export function Empty({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn("px-5 pb-5 text-sm text-muted-foreground", className)}>{children}</p>;
+/** A quiet "nothing here" line. Pass `sprig` for the few empty states worth a face (not every list). */
+export function Empty({ children, className, sprig }: { children: ReactNode; className?: string; sprig?: SprigMood }) {
+  if (!sprig) return <p className={cn("px-5 pb-5 text-sm text-muted-foreground", className)}>{children}</p>;
+  return (
+    <div className={cn("flex items-center gap-3 px-5 pb-5", className)}>
+      <LiveSprig mood={sprig} className="w-14" />
+      <p className="text-sm text-muted-foreground">{children}</p>
+    </div>
+  );
 }
 
 export function Breadcrumb({ items }: { items: { href?: string; label: string }[] }) {
