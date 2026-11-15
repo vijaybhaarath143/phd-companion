@@ -8,7 +8,7 @@ import { publicationOptions, requireProfile } from "@/server/profile";
 import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
-import { TaskList, AddTaskButton, Goals } from "./planner-client";
+import { TaskList, AddTaskButton, Goals, PlannerSide } from "./planner-client";
 
 export const metadata: Metadata = { title: "Planner" };
 
@@ -40,7 +40,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       publications: await publicationOptions(tx),
       taskOptions: view === "tasks" ? await openTaskOptions(tx) : [],
       calendar: view === "calendar" ? await getCalendar(tx, month, today) : null,
-      goals: view === "goals" ? await listGoals(tx) : [],
+      goals: view === "calendar" ? [] : await listGoals(tx),
     };
   });
 
@@ -49,32 +49,33 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       href={`/planner${v === "tasks" ? "" : `?view=${v}`}`}
       role="tab"
       aria-selected={view === v}
-      className={cn("-mb-px inline-flex h-10 items-center border-b-2 px-0.5 font-medium", view === v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}
+      className={cn("flex h-10 items-center rounded-xl px-4 font-display text-sm font-extrabold transition-colors", view === v ? "bg-card text-foreground shadow-[0_2px_0_var(--border)]" : "text-zinc-600 hover:text-foreground")}
     >
       {label}
     </Link>
   );
 
   return (
-    <div className="mx-auto flex max-w-[900px] flex-col gap-5">
-      <PageHeader title="Planner" subtitle="What needs doing, and when." actions={<AddTaskButton />} />
-      <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex gap-5 border-b">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-6">
+      <PageHeader eyebrow="Planner" title="What needs doing, and when" actions={<AddTaskButton />} />
+      <div role="tablist" aria-label="Planner views" data-guide="planner-views" className="flex w-fit gap-1 rounded-2xl bg-muted p-1">
         {tab("tasks", "Tasks")}
         {tab("calendar", "Calendar")}
         {tab("goals", "Goals")}
       </div>
 
       {view === "tasks" && (
-        <>
-          <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-1 rounded-[10px] bg-muted p-1">
+        <div className="flex flex-wrap items-start gap-6">
+        <div className="flex min-w-0 flex-[2_1_520px] flex-col gap-5">
+          <div role="group" aria-label="Show" data-guide="planner-show" className="flex w-fit flex-wrap gap-2">
             {([["open", `Open · ${data.counts.open}`], ["waiting", `Waiting · ${data.counts.waiting}`], ["done", "Done"]] as const).map(([k, label]) => (
               <Link key={k} href={k === "open" ? "/planner" : `/planner?show=${k}`} aria-current={show === k ? "true" : undefined}
-                className={cn("flex h-8 items-center rounded-md px-3 text-[13px] font-medium", show === k ? "bg-background text-foreground shadow-xs" : "text-zinc-600")}>
+                className={cn("flex h-10 items-center rounded-full border-2 px-4 font-display text-sm font-extrabold transition-colors", show === k ? "border-sky-soft bg-sky-soft text-sky-strong" : "bg-card text-zinc-600 hover:text-foreground")}>
                 {label}
               </Link>
             ))}
           </div>
-          <TaskList tasks={data.tasks} publications={data.publications} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use Add task to plan your next step."} />
+          <TaskList grouped={show === "open"} tasks={data.tasks} publications={data.publications} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use New task to plan your next step."} />
           {data.moreTasks && (
             <Link
               href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}
@@ -84,7 +85,11 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
               Show more
             </Link>
           )}
-        </>
+        </div>
+        <div className="min-w-0 flex-[1_1_280px]">
+          <PlannerSide goals={data.goals} doneThisWeek={data.counts.doneThisWeek} />
+        </div>
+        </div>
       )}
 
       {view === "calendar" && data.calendar && (

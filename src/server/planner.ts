@@ -44,9 +44,10 @@ export async function listTasks(tx: Tx, show: "open" | "waiting" | "done", limit
 }
 
 export async function taskCounts(tx: Tx) {
-  const [c] = await tx<{ open: number; waiting: number }[]>`
+  const [c] = await tx<{ open: number; waiting: number; doneThisWeek: number }[]>`
     select count(*) filter (where status in ('todo','doing','waiting'))::int as open,
-           count(*) filter (where status = 'waiting')::int as waiting
+           count(*) filter (where status = 'waiting')::int as waiting,
+           count(*) filter (where status = 'done' and completed_at >= now() - interval '7 days')::int as done_this_week
     from public.tasks where deleted_at is null`;
   return c;
 }

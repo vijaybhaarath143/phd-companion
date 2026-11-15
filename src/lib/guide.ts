@@ -139,7 +139,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "add-task", chapter: "planner", path: "/planner", target: "planner-add",
     title: "Add a task",
-    body: "Add task opens Quick Add on Task: type what needs doing; a due date, priority (High, Normal, Low) and a publication are optional. Tick \"Keep reminding me until it's done\" and it stays at the top of every page until it's done.",
+    body: "New task opens Quick Add on Task: type what needs doing; a due date, priority (High, Normal, Low) and a publication are optional. Tick \"Keep reminding me until it's done\" and it stays at the top of every page until it's done.",
   },
   {
     id: "waiting", chapter: "planner", path: "/planner", target: "planner-show",
