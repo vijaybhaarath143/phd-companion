@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
 import { ActionForm } from "@/components/app/action-form";
 import { copyToClipboard, quickAction, trashWithUndo } from "@/components/app/call-action";
-import { celebrate } from "@/components/app/celebrate";
+import { CelebrationBurst } from "@/components/app/celebrate";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { undoRemove } from "@/server/actions/settings";
 import { toOptions } from "@/lib/options";
 import { formatFullDay } from "@/lib/dates";
@@ -32,6 +33,7 @@ const COUNT_LABEL: Record<PrismaCount, string> = {
 export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: string; steps: ReviewStep[]; prisma: Record<PrismaCount, number | null> }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [celebrating, setCelebrating] = useState<{ step: ReviewStep; no: number; done: number; total: number; next: string | null } | null>(null);
   const [pending, start] = useTransition();
 
   if (!steps.length) {
@@ -55,7 +57,10 @@ export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: str
   const prismaText = (Object.keys(prismaCounts) as PrismaCount[]).map((k) => `${prismaCounts[k]}: ${prisma[k] ?? "not recorded"}`).join("\n");
   const toggle = (s: ReviewStep, next: boolean) =>
     start(async () => {
-      if ((await quickAction(() => toggleReviewStep(s.id, next))) && next) celebrate("Step done", s.title);
+      if (!(await quickAction(() => toggleReviewStep(s.id, next))) || !next) return;
+      const nowDone = done + (s.status === "done" ? 0 : 1);
+      const after = counted.find((x) => x.id !== s.id && x.status !== "done" && x.sort > s.sort) ?? counted.find((x) => x.id !== s.id && x.status !== "done");
+      setCelebrating({ step: s, no: steps.indexOf(s) + 1, done: nowDone, total: counted.length, next: after?.title ?? null });
     });
   const detail = (s: ReviewStep) =>
     [
@@ -65,6 +70,14 @@ export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: str
 
   return (
     <div id="progress" data-guide="review-steps" className="flex scroll-mt-6 flex-wrap items-start gap-6">
+      <StepDone
+        info={celebrating}
+        onClose={() => setCelebrating(null)}
+        onNote={(id) => {
+          setCelebrating(null);
+          setEditing(id);
+        }}
+      />
       <section aria-label="Review steps" className="flex min-w-0 flex-[3_1_440px] flex-col rounded-2xl border-2 bg-card p-5 shadow-edge sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-[22px]">Your path</h2>
@@ -205,5 +218,49 @@ export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: str
         <p className="text-[12px] text-muted-foreground">Blank stays blank: a number appears once it&apos;s recorded on a step. Records screened is identified minus duplicates, unless a step records it.</p>
       </section>
     </div>
+  );
+}
+
+/**
+ * The "step done" moment: full screen on a phone, a card on a computer. Says which step, where
+ * the review now stands and what's next — never a nudge to hurry.
+ */
+function StepDone({ info, onClose, onNote }: { info: { step: ReviewStep; no: number; done: number; total: number; next: string | null } | null; onClose: () => void; onNote: (stepId: string) => void }) {
+  return (
+    <Dialog open={info !== null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex flex-col items-center gap-6 p-7 text-center sm:max-w-md max-sm:inset-0 max-sm:h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:justify-center max-sm:rounded-none max-sm:px-6"
+      >
+        {info && (
+          <>
+            <CelebrationBurst size="lg" />
+            <div className="flex flex-col gap-2">
+              <p className="font-display text-[13px] font-extrabold tracking-[0.08em] text-leaf-strong uppercase">Step {info.no} done · {info.done} of {info.total}</p>
+              <DialogTitle className="text-[28px] leading-tight font-black">{info.step.title}</DialogTitle>
+              <DialogDescription className="text-[16px] text-muted-foreground">
+                {info.done === info.total ? "Every step of this review is done." : "One more step behind you."}
+              </DialogDescription>
+            </div>
+            {info.step.countKind && info.step.count !== null && (
+              <div className="flex flex-col items-center rounded-2xl border-2 border-leaf-soft px-6 py-3">
+                <span className="font-display text-[26px] font-black text-leaf-strong tabular-nums">{info.step.count.toLocaleString("en-IN")}</span>
+                <span className="text-[13px] text-muted-foreground">{COUNT_LABEL[info.step.countKind]}</span>
+              </div>
+            )}
+            <div className="grid w-full gap-1.5" style={{ gridTemplateColumns: `repeat(${info.total}, minmax(0, 1fr))` }} role="img" aria-label={`${info.done} of ${info.total} steps done`}>
+              {Array.from({ length: info.total }, (_, i) => (
+                <span key={i} className={cn("h-3.5 rounded-full", i < info.done ? "bg-primary" : "bg-zinc-200")} />
+              ))}
+            </div>
+            {info.next && <p className="text-[14px] text-muted-foreground">Next up: {info.next}. No rush — it&apos;ll be here when you are.</p>}
+            <div className="flex w-full flex-col gap-2">
+              <Button type="button" size="lg" className="w-full" onClick={onClose} autoFocus>Continue</Button>
+              <Button type="button" variant="link" onClick={() => onNote(info.step.id)}>Add a note about this step</Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
