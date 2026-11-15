@@ -10,7 +10,8 @@ import { AppSelect } from "@/components/app/app-select";
 import { toOptions } from "@/lib/options";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
-import { Breadcrumb } from "@/components/app/ui";
+import { Breadcrumb, IconTile } from "@/components/app/ui";
+import { FileText, Search } from "lucide-react";
 import { addSubmission, recordDecision, recordFeedback, recordPhase, reopenFeedback, resolveFeedback, setArticleType } from "@/server/actions/research";
 import { Segmented } from "@/components/app/segmented";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
@@ -70,11 +71,21 @@ export function ManuscriptView({ manuscript, history, submissions, submissionHis
   const currentEventId = [...history].filter((h) => h.kind === "change").sort((a, b) => +new Date(b.recordedAt) - +new Date(a.recordedAt))[0]?.id;
 
   return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-6">
       <Breadcrumb items={[{ href: "/research", label: "Publications" }, { label: manuscript.articleType === "review" ? "Review" : "Publication" }]} />
-      <div className="flex flex-col gap-1">
-        <h1 className="text-[28px] leading-tight font-black md:text-[34px]">{manuscript.title}</h1>
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-4">
+          <IconTile tone={manuscript.articleType === "review" ? "sky" : "leaf"} size="lg" className="max-sm:hidden">
+            {manuscript.articleType === "review" ? <Search strokeWidth={2.4} /> : <FileText strokeWidth={2.4} />}
+          </IconTile>
+          <div className="flex min-w-0 flex-col gap-1">
+            <h1 className="text-[28px] leading-tight font-black text-balance md:text-[34px]">{manuscript.title}</h1>
+            <p className="text-[13px] text-muted-foreground">
+              {[manuscript.articleType === "review" ? "Review article" : "Original article", `phase: ${phases[manuscript.currentPhase].toLowerCase()}`, openFeedback.length ? `${openFeedback.length} feedback ${openFeedback.length === 1 ? "note" : "notes"} open` : null, submissions.length ? `${submissions.length} journal submission${submissions.length === 1 ? "" : "s"}` : null].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
           <span className="text-muted-foreground">Article type</span>
           <Segmented
             name="articleType"
