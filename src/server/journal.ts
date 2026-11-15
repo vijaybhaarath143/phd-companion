@@ -119,7 +119,7 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
   let otherMatches: { kind: string; title: string; href: string }[] = [];
   if (like) {
     otherMatches = await tx<{ kind: string; title: string; href: string }[]>`
-      select 'Publication' as kind, title, '/research/manuscripts/' || id from public.manuscripts where deleted_at is null and title ilike ${like}
+      select 'Publication' as kind, title, '/research/manuscripts/' || id as href from public.manuscripts where deleted_at is null and title ilike ${like}
       union all
       select 'Journal submission', s.journal_name || ' — ' || m.title, '/research/manuscripts/' || m.id
         from public.submissions s join public.manuscripts m on m.id = s.manuscript_id where s.journal_name ilike ${like}

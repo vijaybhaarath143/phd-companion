@@ -11,7 +11,7 @@ import { removeQueuedFiles, storageAsUser } from "@/server/storage";
 import { MAX_FILE_BYTES, isAllowedName, safeFileName, sniff, ALLOWED_DESCRIPTION } from "@/lib/files";
 
 const BUCKET = "evidence";
-const PARENTS = ["entry", "project", "manuscript", "course", "milestone", "trial"] as const;
+const PARENTS = ["entry", "manuscript", "course", "milestone", "trial"] as const;
 
 /**
  * Step 1 of an upload: record the file as "pending" and get a one-time upload link

@@ -12,10 +12,10 @@ import { cn } from "cn";
  */
 
 const PIECES = [
-  { className: "left-0 top-2 size-2.5 rounded-[3px] bg-[#ffc93c]", x: "-14px", y: "-12px", r: "40deg" },
+  { className: "left-0 top-2 size-2.5 rounded-[3px] bg-sun-bright", x: "-14px", y: "-12px", r: "40deg" },
   { className: "right-0 top-1 h-3.5 w-2 rounded-[3px] bg-sky", x: "14px", y: "-14px", r: "-35deg" },
   { className: "right-0 bottom-1 size-2.5 rounded-full bg-grape", x: "14px", y: "12px", r: "0deg" },
-  { className: "left-1 bottom-0 h-2 w-3 rounded-[3px] bg-[#e0563b]", x: "-12px", y: "14px", r: "-25deg" },
+  { className: "left-1 bottom-0 h-2 w-3 rounded-[3px] bg-berry-bright", x: "-12px", y: "14px", r: "-25deg" },
   { className: "left-1/2 -top-1 size-2 rounded-full bg-leaf-bright", x: "0px", y: "-16px", r: "0deg" },
 ];
 

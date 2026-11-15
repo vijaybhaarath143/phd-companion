@@ -39,7 +39,7 @@ export default async function AcademicsPage() {
           <div className="flex flex-col gap-1">
             <span className="font-display text-[56px] leading-none font-black tabular-nums">
               {formatCredits(counted)}
-              {c?.required != null && <span className="text-[28px] text-zinc-400"> / {formatCredits(c.required)}</span>}
+              {c?.required != null && <span className="text-[28px] text-zinc-500"> / {formatCredits(c.required)}</span>}
             </span>
             <span className="text-[13px] text-muted-foreground">
               {c?.required != null ? "recognised, completed or enrolled" : "credits so far · no requirement set yet"}

@@ -114,7 +114,7 @@ export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: str
                         <Check className="size-6" strokeWidth={3} aria-hidden />
                       </button>
                     ) : skipped ? (
-                      <span aria-hidden className="flex size-12 items-center justify-center rounded-full border-[3px] border-dashed border-zinc-300 bg-card font-display text-lg font-black text-zinc-400">{i + 1}</span>
+                      <span aria-hidden className="flex size-12 items-center justify-center rounded-full border-[3px] border-dashed border-zinc-300 bg-card font-display text-lg font-black text-zinc-500">{i + 1}</span>
                     ) : isCurrent ? (
                       <span aria-hidden className="flex size-14 items-center justify-center rounded-full border-4 border-primary bg-card font-display text-xl font-black text-primary">{i + 1}</span>
                     ) : (
@@ -209,7 +209,7 @@ export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: str
           {(Object.keys(prismaCounts) as PrismaCount[]).map((k) => (
             <div key={k} className={cn("flex flex-col-reverse gap-0.5 rounded-2xl px-4 py-3", prisma[k] === null ? "border-2 border-dashed border-zinc-200" : "bg-background")}>
               <dt className="text-[12px] leading-snug text-muted-foreground">{prismaCounts[k]}</dt>
-              <dd className={cn("font-display text-[24px] leading-tight font-black tabular-nums", prisma[k] === null && "text-zinc-400")}>
+              <dd className={cn("font-display text-[24px] leading-tight font-black tabular-nums", prisma[k] === null && "text-zinc-500")}>
                 {prisma[k] === null ? "—" : prisma[k]!.toLocaleString("en-IN")}
               </dd>
             </div>

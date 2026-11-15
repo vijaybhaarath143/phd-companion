@@ -5,18 +5,12 @@ import { cn } from "cn";
 import { asUser } from "@/server/auth";
 import { getCalendar, listGoals, listTasks, openTaskOptions, taskCounts } from "@/server/planner";
 import { publicationOptions, requireProfile } from "@/server/profile";
-import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
+import { formatPartialDate, isMonthKey, monthLabel, shiftMonth, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
 import { TaskList, AddTaskButton, Goals, PlannerSide } from "./planner-client";
 
 export const metadata: Metadata = { title: "Planner" };
-
-function shiftMonth(ym: string, delta: number) {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-  return d.toISOString().slice(0, 7);
-}
 
 export default async function PlannerPage({ searchParams }: PageProps<"/planner">) {
   const sp = await searchParams;

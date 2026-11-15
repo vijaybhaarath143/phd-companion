@@ -321,7 +321,7 @@ function QuickAddForm({
           </div>
         )}
 
-        {details || mode === "entry" ? (
+        {details || mode === "entry" || notes.trim() ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="qa-notes" className="text-sm font-medium">Notes <span className="font-normal text-muted-foreground">(optional)</span></label>

@@ -21,7 +21,7 @@ import {
 import { asUser } from "@/server/auth";
 import { getTimeline, getTimelineSummary, isHighlight, TIMELINE_TYPES, type TimelineItem, type TimelineSummary, type TimelineType } from "@/server/timeline";
 import { requireProfile } from "@/server/profile";
-import { formatDay, formatPartialDate, monthKey, monthNames, todayIn, type Precision } from "@/lib/dates";
+import { formatDay, formatPartialDate, monthKey, monthNames, shiftMonth, todayIn, type Precision } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/app/app-select";
@@ -84,11 +84,6 @@ function badgeFor(it: TimelineItem, today: string) {
   return null;
 }
 
-function shiftMonth(key: string, by: number) {
-  const [y, m] = key.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 1 + by, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
 
 function monthsBetween(fromKey: string, toKey: string) {
   const [fy, fm] = fromKey.split("-").map(Number);

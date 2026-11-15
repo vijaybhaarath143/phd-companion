@@ -16,6 +16,14 @@ one release so the move can be checked; a later migration drops them.
 
 One migration: `supabase/migrations/20261118000001_single_phd.sql`.
 
+## Checked before it ships
+
+`scripts/check-single-phd-migration.mjs` runs the real migration, inside a transaction that is
+always rolled back, on every kind of project (review with and without a manuscript, a project
+with one manuscript, lab work, a review in Trash, files on projects) and checks where each step,
+entry, task, note and file lands. CI runs it on every pull request. Locally:
+`node --env-file=.env.local scripts/check-single-phd-migration.mjs` (local databases only).
+
 ## Order — dry run, backup, migration, then the app straight after
 
 Between the migration and the new app, the **old app shows no review steps** (they've moved to

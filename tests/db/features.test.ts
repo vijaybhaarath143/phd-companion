@@ -90,6 +90,15 @@ describe("journal entries", () => {
     });
   });
 
+  it("search also finds publications, each with a link to open it", async () => {
+    await withUser(u, async (tx) => {
+      const [m] = await tx`insert into public.manuscripts (title) values ('Starch biosensor review') returning id`;
+      const j = await getJournal(tx, { q: "biosensor" });
+      expect(j.otherMatches).toContainEqual({ kind: "Publication", title: "Starch biosensor review", href: `/research/manuscripts/${m.id}` });
+      expect(j.otherMatches.every((x) => typeof x.href === "string" && x.href.startsWith("/"))).toBe(true);
+    });
+  });
+
   it("the kind chips filter by kind, and cards get a one-line excerpt and a file count", async () => {
     await withUser(u, async (tx) => {
       const [m] = await tx`insert into public.entries (title, kind, category, entry_date, entry_precision, description)

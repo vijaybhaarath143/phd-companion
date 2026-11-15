@@ -13,7 +13,8 @@ import { categories, phases, type TaskPriority } from "@/lib/labels";
 export const CATEGORY_KEYS = Object.keys(categories) as (keyof typeof categories)[];
 export const PHASE_KEYS = Object.keys(phases) as (keyof typeof phases)[];
 export const TASK_STATUSES = ["todo", "doing", "waiting", "done", "cancelled"] as const;
-export const PARENT_TYPES = ["entry", "project", "manuscript", "course", "milestone", "trial"] as const;
+// (no "project": the PhD itself is the only project, so nothing new is attached to an old one)
+export const PARENT_TYPES = ["entry", "manuscript", "course", "milestone", "trial"] as const;
 export type ParentType = (typeof PARENT_TYPES)[number];
 
 export function kindFor(category: string | null) {
@@ -152,7 +153,6 @@ export async function setTaskStatus(
 
 const PARENT_TABLE: Record<ParentType, string> = {
   entry: "public.entries",
-  project: "public.projects",
   manuscript: "public.manuscripts",
   course: "public.courses",
   milestone: "public.milestones",
@@ -170,7 +170,7 @@ export async function parentExists(tx: Tx, parentType: ParentType, parentId: str
       where t.id = ${id} and t.removed_at is null and e.deleted_at is null`;
     return Boolean(t);
   }
-  const softDelete = parentType === "entry" || parentType === "project" || parentType === "manuscript" || parentType === "course";
+  const softDelete = parentType === "entry" || parentType === "manuscript" || parentType === "course";
   const [row] = await tx`
     select 1 from ${tx.unsafe(PARENT_TABLE[parentType])} where id = ${id} ${softDelete ? tx`and deleted_at is null` : tx``}`;
   return Boolean(row);

@@ -35,7 +35,7 @@ function meta(e: JournalRow) {
 const KIND: Record<string, { label: string; dot: string; badge: "success" | "info" | "attention" | "clay" | "grape" | "muted" }> = {
   experiment: { label: "Experiment", dot: "bg-primary ring-leaf-soft", badge: "success" },
   meeting: { label: "Meeting", dot: "bg-sky ring-sky-soft", badge: "info" },
-  feedback: { label: "Feedback", dot: "bg-[#c98a00] ring-attention", badge: "attention" },
+  feedback: { label: "Feedback", dot: "bg-chart-5 ring-attention", badge: "attention" },
   event: { label: "Event", dot: "bg-clay ring-clay-soft", badge: "clay" },
   decision: { label: "Decision", dot: "bg-grape ring-grape-soft", badge: "grape" },
   enquiry: { label: "Enquiry", dot: "bg-zinc-400 ring-zinc-100", badge: "muted" },
@@ -148,9 +148,11 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
           <MonthFilter key={`from-${filters.from ?? ""}`} name="from" label="From" edge="start" defaultValue={filters.from} today={today} />
           <MonthFilter key={`to-${filters.to ?? ""}`} name="to" label="to" edge="end" defaultValue={filters.to} today={today} />
           <Button type="submit" size="sm">Apply</Button>
-          {filtering && <Button asChild size="sm" variant="ghost"><Link href="/journal">Clear</Link></Button>}
         </div>
         </details>
+        {filtering && (
+          <Link href="/journal" className="w-fit font-display text-sm font-extrabold text-sky hover:underline">Clear search and filters</Link>
+        )}
         {filters.publication && (
           <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
             <Badge variant="success">About: {publications.find((p) => p.id === filters.publication)?.title ?? "a publication"}</Badge>
