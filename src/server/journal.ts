@@ -21,10 +21,18 @@ export type JournalRow = {
   participation: string | null;
   award: string | null;
   experimentStatus: string | null;
+  /** The start of the description, on one line, for the Journal's cards. */
+  excerpt: string | null;
+  /** Files and links attached to the entry. */
+  files: number;
 };
+
+/** The kinds of journal entry the Journal's chips filter by. */
+export const ENTRY_KINDS = ["note", "experiment", "meeting", "feedback", "event", "decision", "enquiry"] as const;
 
 export type JournalFilters = {
   q?: string;
+  kind?: string;
   category?: string;
   status?: string;
   publication?: string;
@@ -44,6 +52,7 @@ export function cleanJournalFilters(f: JournalFilters): JournalFilters {
   const q = f.q?.trim().slice(0, 200) || undefined;
   return {
     q,
+    kind: f.kind && (ENTRY_KINDS as readonly string[]).includes(f.kind) ? f.kind : undefined,
     category: f.category && (CATEGORY_KEYS as readonly string[]).includes(f.category) ? f.category : undefined,
     status: f.status && ["planned", "done", "postponed", "cancelled"].includes(f.status) ? f.status : undefined,
     publication: isUuid(f.publication) ? f.publication : undefined,
@@ -64,7 +73,10 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
   const base = (dated: boolean) => tx<JournalRow[]>`
     select e.id, e.title, e.kind, e.category, e.status, e.entry_date, e.entry_precision, e.date_from, e.date_to,
            e.manuscript_id, p.title as manuscript_title,
-           ev.registration, ev.participation, ev.award, x.status as experiment_status
+           ev.registration, ev.participation, ev.award, x.status as experiment_status,
+           nullif(left(btrim(regexp_replace(coalesce(e.description, ''), '[[:space:]]+', ' ', 'g')), 220), '') as excerpt,
+           (select count(*)::int from public.attachments a
+             where a.parent_type = 'entry' and a.parent_id = e.id and a.removed_at is null and a.replaced_by_id is null and a.status = 'verified') as files
     from public.entries e
     left join public.manuscripts p on p.id = e.manuscript_id
     left join public.events ev on ev.entry_id = e.id
@@ -81,6 +93,7 @@ export async function getJournal(tx: Tx, filters: JournalFilters) {
            or exists (select 1 from public.enquiries en where en.entry_id = e.id and
                       concat_ws(' ', en.office, en.contact, en.response) ilike ${like})
            or ev.award ilike ${like} or ev.organiser ilike ${like})
+      and (${f.kind ?? null}::text is null or e.kind = ${f.kind ?? null})
       and (${f.category ?? null}::text is null or e.category = ${f.category ?? null})
       and (${f.status ?? null}::text is null or e.status = ${f.status ?? null})
       and (${f.publication ?? null}::uuid is null or e.manuscript_id = ${f.publication ?? null})
