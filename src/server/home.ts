@@ -7,8 +7,19 @@ import type { TaskPriority } from "@/lib/labels";
 import { getTimeline } from "@/server/timeline";
 
 export type AttentionItem = { title: string; detail: string; href: string; badge?: string; attention?: boolean };
+export type Area = { key: string; label: string; count: number; detail: string; href: string };
 export type StepProgress = { done: number; total: number; current: string | null; currentNo: number | null };
-export type ListItem = { id: string; title: string; detail: string; href: string; badge?: string; steps?: StepProgress };
+export type ListItem = {
+  id: string;
+  title: string;
+  detail: string;
+  href: string;
+  badge?: string;
+  steps?: StepProgress;
+  /** For Home's "Working on" cards: what kind of thing it is, and a manuscript's phase. */
+  kind?: "review" | "original" | "benchwork";
+  phase?: Phase;
+};
 
 export async function getCredits(tx: Tx): Promise<{ label: string; period: string | null; summary: CreditSummary } | null> {
   const [req] = await tx<{ label: string; periodLabel: string | null; requiredCredits: number | null }[]>`
@@ -91,7 +102,15 @@ export async function getHome(tx: Tx, today: string) {
     if (s) bits.push(s.current ? `Step ${s.currentNo} of ${s.total} · ${s.current}` : `All ${s.total} steps done`);
     else bits.push(`Manuscript: ${phases[p.phase]}`);
     bits.push(p.openTasks ? `${p.openTasks} open task${p.openTasks > 1 ? "s" : ""}` : "No open tasks");
-    return { id: p.id, title: p.title, detail: bits.join(" · "), href: `/research/manuscripts/${p.id}${s ? "#progress" : ""}`, steps: s };
+    return {
+      id: p.id,
+      title: p.title,
+      detail: bits.join(" · "),
+      href: `/research/manuscripts/${p.id}${s ? "#progress" : ""}`,
+      steps: s,
+      kind: p.articleType === "review" ? ("review" as const) : ("original" as const),
+      phase: p.phase,
+    };
   });
   const [bench] = await tx<{ running: number; total: number }[]>`
     select count(*) filter (where x.status in ('planned', 'in_progress'))::int as running, count(*)::int as total
@@ -100,8 +119,9 @@ export async function getHome(tx: Tx, today: string) {
   if (bench.total > 0)
     workingOn.push({
       id: "benchwork",
-      title: "Benchwork",
-      detail: bench.running ? `${bench.running} experiment${bench.running > 1 ? "s" : ""} planned or running · ${bench.total} in all` : `${bench.total} experiment${bench.total > 1 ? "s" : ""} recorded`,
+      title: bench.running ? `${bench.running} experiment${bench.running > 1 ? "s" : ""} on the go` : "Benchwork",
+      kind: "benchwork",
+      detail: bench.running ? `Planned or running · ${bench.total} in all` : `${bench.total} experiment${bench.total > 1 ? "s" : ""} recorded`,
       href: "/research?view=benchwork",
     });
 
@@ -324,9 +344,9 @@ export async function getRecentUpdates(tx: Tx, today: string, timezone: string, 
   return dated.filter((i) => !i.future && !NOT_UPDATES.has(i.event)).slice(0, count).map((i) => ({ key: i.key, title: i.title, detail: [i.date ? formatPartialDate(i.date, i.precision) : null, i.label].filter(Boolean).join(" · "), href: i.href }));
 }
 
-export type Area = { key: string; label: string; count: number; detail: string; href: string };
 
 /** Her areas of work (from her own list), each with how many records it holds. */
+
 export async function getAreas(tx: Tx): Promise<Area[]> {
   const [c] = await tx<{ benchwork: number; courses: number; publications: number; meetings: number; events: number; admin: number }[]>`
     select

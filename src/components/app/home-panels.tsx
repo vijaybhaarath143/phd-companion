@@ -18,7 +18,7 @@ const GROUPS: { key: keyof ReminderGroups; label: string }[] = [
 function ReminderRow({ r }: { r: Reminder }) {
   const body = (
     <span className="min-w-0 flex-1">
-      <span className="block font-medium">
+      <span className="block font-display text-[15px] font-bold">
         {r.title}
         <PriorityMark priority={r.priority} className="ml-2 align-[1px]" />
       </span>
@@ -49,7 +49,7 @@ export function Reminders({ groups, perGroup = 6 }: { groups: ReminderGroups; pe
         const items = groups[g.key];
         return (
           <div key={g.key} className="border-b border-zinc-100 last:border-b-0">
-            <p className={cn("px-5 pt-3 pb-1 text-[12px] font-semibold tracking-wide uppercase", g.key === "overdue" ? "text-overdue-foreground" : "text-muted-foreground")}>
+            <p className={cn("px-5 pt-3 pb-1 font-display text-[12px] font-extrabold tracking-[0.08em] uppercase", g.key === "overdue" ? "text-overdue-foreground" : "text-muted-foreground")}>
               {g.label} · {items.length}
             </p>
             <ul>{items.slice(0, perGroup).map((r) => <ReminderRow key={r.key} r={r} />)}</ul>
@@ -165,8 +165,8 @@ export function RecentUpdates({ items }: { items: { key: string; title: string; 
             <span className={cn("absolute left-[5.5px] w-px bg-zinc-200", i === 0 ? "top-3.5" : "top-0", i === items.length - 1 ? "h-3" : "bottom-0")} />
             <span className={cn("absolute rounded-full ring-3 ring-card", i === 0 ? "top-2.5 left-px size-2.5 bg-primary" : "top-[11px] left-0.5 size-2 bg-zinc-400")} />
           </span>
-          <Link href={it.href} className="-ml-2 block rounded-md px-2 pt-1 pb-2 hover:bg-zinc-50">
-            <span className="block font-medium">{it.title}</span>
+          <Link href={it.href} className="-ml-2 block rounded-lg px-2 pt-1 pb-2 hover:bg-zinc-50">
+            <span className="block font-display text-[15px] font-bold">{it.title}</span>
             <span className="block text-[13px] text-muted-foreground">{it.detail}</span>
           </Link>
         </li>
@@ -181,7 +181,7 @@ export function Areas({ areas }: { areas: Area[] }) {
       {areas.map((a) => (
         <li key={a.key}>
           <Link href={a.href} className="flex items-center gap-3 px-5 py-2.5 hover:bg-zinc-50">
-            <span className="min-w-0 flex-1 font-medium">{a.label}</span>
+            <span className="min-w-0 flex-1 font-display text-[15px] font-bold">{a.label}</span>
             <span className="text-[12px] text-muted-foreground">{a.detail}</span>
             <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
           </Link>

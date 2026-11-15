@@ -2,19 +2,13 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Empty, Section } from "@/components/app/ui";
-import { StepBar } from "@/components/app/step-bar";
+import { PhaseBar, StepBar } from "@/components/app/step-bar";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
-import { experimentStatuses, phases, type Phase } from "@/lib/labels";
+import { experimentStatuses, phases } from "@/lib/labels";
 import type { PublicationRow } from "@/server/research";
 import type { StepProgress } from "@/server/home";
 import { NewExperiment, NewPublication } from "./research-create";
 
-const PHASE_ORDER: Phase[] = ["planning", "research", "writing", "review", "choosing_journal", "under_review", "revising", "accepted", "published"];
-
-function PhaseBar({ phase }: { phase: Phase }) {
-  const at = PHASE_ORDER.indexOf(phase);
-  return <StepBar done={Math.max(at, 0)} total={PHASE_ORDER.length} currentNo={at >= 0 && phase !== "published" ? at + 1 : null} className="mt-2" />;
-}
 
 function PublicationItem({ p, steps }: { p: PublicationRow; steps?: StepProgress }) {
   const href = `/research/manuscripts/${p.manuscriptId}`;
@@ -28,7 +22,7 @@ function PublicationItem({ p, steps }: { p: PublicationRow; steps?: StepProgress
         <span className="min-w-0 flex-1">
           <span className="block font-display text-[15px] font-bold">{p.title}</span>
           <span className="block text-[13px] text-muted-foreground">{detail}</span>
-          {p.articleType === "review" && steps ? <StepBar done={steps.done} total={steps.total} currentNo={steps.currentNo} className="mt-2" /> : p.currentPhase && p.currentPhase !== "stopped" ? <PhaseBar phase={p.currentPhase} /> : null}
+          {p.articleType === "review" && steps ? <StepBar done={steps.done} total={steps.total} currentNo={steps.currentNo} className="mt-2" /> : p.currentPhase && p.currentPhase !== "stopped" ? <PhaseBar phase={p.currentPhase} className="mt-2" /> : null}
         </span>
         {p.openFeedback > 0 && <Badge variant="attention">Feedback to address</Badge>}
         {p.openFeedback === 0 && p.waiting > 0 && <Badge variant="attention">Guide feedback pending</Badge>}
