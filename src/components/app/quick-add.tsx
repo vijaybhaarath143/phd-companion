@@ -181,7 +181,7 @@ function QuickAddForm({
         }
         setUploading(null);
       }
-      const saved = mode === "task" ? "Task saved" : added === 0 ? "Entry saved" : `Entry saved with ${added === 1 ? "1 file" : `${added} files`}`;
+      const saved = mode === "task" ? "Task saved" : added === 0 ? "Saved to your Journal" : `Saved to your Journal with ${added === 1 ? "1 file" : `${added} files`}`;
       toast.success(saved, {
         action:
           mode === "entry"
@@ -213,8 +213,8 @@ function QuickAddForm({
       className="flex flex-col"
     >
       <div className="px-6 pt-5">
-        <Title className="text-lg font-semibold">{mode === "entry" ? "New entry" : "New task"}</Title>
-        <Description className="sr-only">Record something that happened, or something to do.</Description>
+        <Title className="text-xl font-extrabold">{mode === "entry" ? "New journal entry" : "New task"}</Title>
+        <Description className="text-[13px] text-muted-foreground">{mode === "entry" ? "Something that happened — a meeting, a reading, an experiment, an event." : "Something you need to do."}</Description>
       </div>
 
       <div className="flex flex-col gap-5 px-6 pt-4 pb-6">
@@ -227,8 +227,8 @@ function QuickAddForm({
             setError(null);
           }}
           options={[
-            { value: "entry", label: desktop ? "Entry — something that happened" : "Entry" },
-            { value: "task", label: desktop ? "Task — something to do" : "Task" },
+            { value: "entry", label: "Journal" },
+            { value: "task", label: "Task" },
           ]}
         />
 
@@ -313,18 +313,18 @@ function QuickAddForm({
               </ul>
             )}
             <input ref={fileInput} type="file" accept={ACCEPT} multiple className="sr-only" id="qa-files" tabIndex={-1} onChange={(e) => pickFiles(e.target.files)} />
-            <button type="button" disabled={pending} onClick={() => fileInput.current?.click()} className="-ml-2 flex h-9 w-fit items-center gap-2 rounded-lg px-2 text-sm font-medium hover:bg-muted">
-              <Paperclip className="size-4" aria-hidden /> {files.length ? "Attach more files" : "Attach files"}
-              <span className="font-normal text-muted-foreground">(optional)</span>
-            </button>
-            {files.length > 0 && <p className="-mt-1 text-[12px] text-muted-foreground">{ALLOWED_DESCRIPTION}. Files are private to you.</p>}
+            <span className="text-sm font-medium">Files <span className="font-normal text-muted-foreground">(optional)</span></span>
+            <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => fileInput.current?.click()} className="w-fit">
+              <Paperclip aria-hidden /> {files.length ? "Attach more files" : "Attach files"}
+            </Button>
+            <p className="text-[12px] text-muted-foreground">{ALLOWED_DESCRIPTION}. Files are private to you.</p>
           </div>
         )}
 
-        {details ? (
+        {details || mode === "entry" ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="qa-notes" className="text-sm font-medium">Notes</label>
+              <label htmlFor="qa-notes" className="text-sm font-medium">Notes <span className="font-normal text-muted-foreground">(optional)</span></label>
               <Textarea id="qa-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
                 placeholder={mode === "entry" ? "What happened, what you decided, what’s next" : "Anything you need to remember for this task"} />
             </div>
@@ -366,7 +366,7 @@ export function QuickAddButton({ mode, manuscriptId, category, label, variant = 
   const { open } = useQuickAdd();
   return (
     <Button type="button" variant={variant} onClick={() => open({ mode, manuscriptId, category })}>
-      {label}
+      <Plus strokeWidth={2.8} aria-hidden /> {label}
     </Button>
   );
 }

@@ -40,7 +40,7 @@ export const GUIDE_STEPS: GuideStep[] = [
   {
     id: "quick-add", chapter: "basics", path: "/", target: "quick-add",
     title: "Quick Add — record anything",
-    body: "The quickest way to add something. Choose Entry for something that happened (a meeting, a reading, an experiment) or Task for something to do. A title is enough; everything else is optional.",
+    body: "The quickest way to add something. Choose Journal for something that happened (a meeting, a reading, an experiment) or Task for something to do. The Journal page has its own New entry button too. A title is enough; everything else is optional.",
   },
   {
     id: "nav", chapter: "basics", path: "/", target: "nav",

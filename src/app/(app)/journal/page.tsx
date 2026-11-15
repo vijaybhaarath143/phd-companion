@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/app/app-select";
 import { toOptions } from "@/lib/options";
 import { PageHeader } from "@/components/app/ui";
+import { QuickAddButton } from "@/components/app/quick-add";
 
 export const metadata: Metadata = { title: "Journal" };
 
@@ -73,7 +74,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
 
   return (
     <div className="mx-auto flex max-w-[860px] flex-col gap-5">
-      <PageHeader title="Journal" subtitle="Everything you've recorded, newest first." />
+      <PageHeader eyebrow="Journal" title="Everything you've recorded" subtitle="Newest first. Meetings, readings, experiments, events — anything that happened." actions={<QuickAddButton mode="entry" label="New entry" variant="default" />} />
 
       <form className="flex flex-col gap-2.5" role="search" data-guide="journal-search">
         <label className="flex h-11 items-center gap-2 rounded-xl border-2 bg-card px-3.5 focus-within:ring-4 focus-within:ring-sky-soft">
@@ -129,7 +130,7 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
 
       {groups.size === 0 && journal.undated.length === 0 && (
         <p data-guide="journal-timeline" className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">
-          {!filtering ? "Nothing recorded yet. Use Quick Add to record your first entry." : journal.otherMatches.length ? "No journal entries match — see the other matches above." : "Nothing matches. Try fewer filters or other words."}
+          {!filtering ? "Nothing recorded yet. Use New entry to record your first one." : journal.otherMatches.length ? "No journal entries match — see the other matches above." : "Nothing matches. Try fewer filters or other words."}
         </p>
       )}
 
