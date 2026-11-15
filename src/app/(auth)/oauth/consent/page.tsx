@@ -90,7 +90,7 @@ export default async function ConsentPage({ searchParams }: PageProps<"/oauth/co
       <div className="flex flex-col gap-2 text-sm text-zinc-700">
         <p className="font-medium text-foreground">{capitalise(short)} will be able to:</p>
         <ul className="flex flex-col gap-1.5">
-          <li>• Read your journal, projects, manuscripts, experiments, tasks, goals, academics and files.</li>
+          <li>• Read your journal, publications, experiments, tasks, goals, academics and files.</li>
           <li>• Add journal entries, tasks, links, files and guide feedback, and update tasks and manuscript phases. What it adds is labelled “via {short === "this app" ? "an assistant" : short}”.</li>
         </ul>
         <p className="font-medium text-foreground">It can&apos;t:</p>

@@ -31,8 +31,8 @@ describe("checking tool inputs", () => {
   });
 
   it("only takes real ids", () => {
-    expect(parse("get_project", { project_id: "1; drop table projects" }).success).toBe(false);
-    expect(parse("get_project", { project_id: ID }).success).toBe(true);
+    expect(parse("get_manuscript", { manuscript_id: "1; drop table manuscripts" }).success).toBe(false);
+    expect(parse("get_manuscript", { manuscript_id: ID }).success).toBe(true);
   });
 
   it("only takes known categories, statuses and phases", () => {
@@ -59,7 +59,8 @@ describe("checking tool inputs", () => {
 
   it("takes only known timeline filters", () => {
     expect(parse("get_timeline", {}).success).toBe(true);
-    expect(parse("get_timeline", { type: "manuscript", period: "year", limit: 20, project_id: ID }).success).toBe(true);
+    expect(parse("get_timeline", { type: "manuscript", period: "year", limit: 20, manuscript_id: ID }).success).toBe(true);
+    expect(parse("get_timeline", { type: "project" }).success).toBe(false); // there are no projects any more
     expect(parse("get_timeline", { type: "party" }).success).toBe(false);
     expect(parse("get_timeline", { period: "week" }).success).toBe(false);
     expect(parse("get_timeline", { limit: 1000 }).success).toBe(false);

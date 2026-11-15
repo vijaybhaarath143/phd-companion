@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { asUser } from "@/server/auth";
 import { getAcademics } from "@/server/academics";
-import { projectOptions, requireProfile } from "@/server/profile";
+import { requireProfile } from "@/server/profile";
 import { formatPartialDate, todayIn } from "@/lib/dates";
 import { describeBucket, formatCredits } from "@/lib/credits";
 import { PageHeader } from "@/components/app/ui";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Academics" };
 export default async function AcademicsPage() {
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
-    return { profile, today: todayIn(profile.timezone), a: await getAcademics(tx), projects: await projectOptions(tx) };
+    return { profile, today: todayIn(profile.timezone), a: await getAcademics(tx) };
   });
   const { a, profile } = data;
   const c = a.credits?.summary;
@@ -59,7 +59,7 @@ export default async function AcademicsPage() {
       <CoursesSection courses={a.courses} items={a.courseItems} today={data.today} />
 
       <div className="flex flex-wrap items-start gap-4">
-        <MilestonesSection milestones={a.milestones} projects={data.projects} today={data.today} />
+        <MilestonesSection milestones={a.milestones} today={data.today} />
         <EnquiriesSection enquiries={a.enquiries} today={data.today} />
       </div>
 

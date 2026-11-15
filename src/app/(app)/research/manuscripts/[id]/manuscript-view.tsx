@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,13 +19,14 @@ import { phases, submissionStatuses, type Phase, viaLabel } from "@/lib/labels";
 
 type Props = {
   manuscript: { id: string; title: string; currentPhase: Phase; stoppedReason: string | null; articleType: string | null };
-  project: { id: string; title: string } | null;
   history: { id: string; phase: Phase; effectiveDate: string | null; effectivePrecision: Precision; recordedAt: Date; recordedLabel: string; kind: string; note: string | null; createdVia: string }[];
   submissions: { id: string; attemptNo: number; journalName: string; manuscriptRef: string | null; submittedDate: string | null; submittedPrecision: Precision; status: string; decisionDate: string | null; closedAt: Date | null; version: number }[];
   submissionHistory: { id: string; submissionId: string; status: string; decisionDate: string | null; recordedLabel: string; createdVia: string }[];
   feedback: { entryId: string; title: string; source: string | null; requestedChanges: string | null; resolutionStatus: string; entryDate: string | null; entryPrecision: Precision; taskCount: number }[];
   waitingTasks: { id: string; title: string; waitingReason: string | null }[];
   today: string;
+  /** Review steps and the like, shown under the title. */
+  children?: ReactNode;
 };
 
 type Panel = null | "change" | "earlier" | "submission" | "feedback";
@@ -59,7 +60,7 @@ function SubmissionHistory({ events }: { events: Props["submissionHistory"] }) {
   );
 }
 
-export function ManuscriptView({ manuscript, project, history, submissions, submissionHistory, feedback, waitingTasks, today }: Props) {
+export function ManuscriptView({ manuscript, history, submissions, submissionHistory, feedback, waitingTasks, today, children }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
@@ -70,10 +71,9 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
 
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <Breadcrumb items={[...(project ? [{ href: `/research/projects/${project.id}`, label: project.title.split(":")[0] }] : []), { label: "Manuscript" }]} />
+      <Breadcrumb items={[{ href: "/research", label: "Publications" }, { label: manuscript.articleType === "review" ? "Review" : "Publication" }]} />
       <div className="flex flex-col gap-1">
         <h1 className="text-[28px] leading-tight font-black md:text-[34px]">{manuscript.title}</h1>
-        {project && <p className="text-muted-foreground">{project.title}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
           <span className="text-muted-foreground">Article type</span>
           <Segmented
@@ -86,6 +86,8 @@ export function ManuscriptView({ manuscript, project, history, submissions, subm
           />
         </div>
       </div>
+
+      {children}
 
       <section className="flex flex-col gap-4 rounded-2xl border-2 bg-card shadow-edge p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">

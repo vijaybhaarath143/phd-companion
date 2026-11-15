@@ -29,7 +29,7 @@ const COUNT_LABEL: Record<PrismaCount, string> = {
 };
 
 /** The review's steps: a bar of where it stands, the steps to tick off, and the PRISMA numbers. */
-export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; steps: ReviewStep[]; prisma: Record<PrismaCount, number | null> }) {
+export function ReviewSteps({ manuscriptId, steps, prisma }: { manuscriptId: string; steps: ReviewStep[]; prisma: Record<PrismaCount, number | null> }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [pending, start] = useTransition();
@@ -42,7 +42,7 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
           Track this review step by step — protocol, search, screening, eligibility, extraction, PRISMA diagram, draft and feedback — with the
           numbers a PRISMA flow diagram needs. You can rename, skip or add steps afterwards.
         </p>
-        <Button type="button" disabled={pending} onClick={() => start(async () => { await quickAction(() => setUpReviewSteps(projectId)); })}>
+        <Button type="button" disabled={pending} onClick={() => start(async () => { await quickAction(() => setUpReviewSteps(manuscriptId)); })}>
           Set up the 11 review steps
         </Button>
       </section>
@@ -151,7 +151,7 @@ export function ReviewSteps({ projectId, steps, prisma }: { projectId: string; s
             ))}
           </ol>
           {adding && (
-            <ActionForm action={addReviewStep.bind(null, projectId)} success="Step added" onDone={() => setAdding(false)} className="flex flex-wrap gap-2 border-t-2 border-zinc-100 px-5 py-3">
+            <ActionForm action={addReviewStep.bind(null, manuscriptId)} success="Step added" onDone={() => setAdding(false)} className="flex flex-wrap gap-2 border-t-2 border-zinc-100 px-5 py-3">
               <label htmlFor="rs-new" className="sr-only">New step</label>
               <Input id="rs-new" name="title" required maxLength={200} placeholder="e.g. Second screener check" className="min-w-0 flex-[1_1_220px]" />
               <Button type="submit">Add</Button>

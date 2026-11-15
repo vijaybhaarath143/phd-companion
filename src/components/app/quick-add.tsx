@@ -22,10 +22,10 @@ import { ACCEPT, ALLOWED_DESCRIPTION, formatBytes } from "@/lib/files";
 import { fileProblem, uploadEvidence } from "@/lib/upload";
 import { isFuture, type PartialDate } from "@/lib/dates";
 import { callAction, copyToClipboard } from "@/components/app/call-action";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 type Mode = "entry" | "task";
-type OpenOptions = { mode?: Mode; projectId?: string | null; category?: string };
+type OpenOptions = { mode?: Mode; manuscriptId?: string | null; category?: string };
 type Ctx = { open: (o?: OpenOptions) => void };
 
 const QuickAddContext = createContext<Ctx>({ open: () => {} });
@@ -43,7 +43,7 @@ function useIsDesktop() {
   return desktop;
 }
 
-export function QuickAddProvider({ projects, today, children }: { projects: ProjectOption[]; today: string; children: ReactNode }) {
+export function QuickAddProvider({ publications, today, children }: { publications: PublicationOption[]; today: string; children: ReactNode }) {
   const [opts, setOpts] = useState<OpenOptions | null>(null);
   // Has she typed something that isn't saved yet? Then closing asks first.
   const [dirty, setDirty] = useState(false);
@@ -63,7 +63,7 @@ export function QuickAddProvider({ projects, today, children }: { projects: Proj
   }, [dirty, close]);
 
   const body = isOpen ? (
-    <QuickAddForm key={JSON.stringify(opts)} projects={projects} today={today} initial={opts!} onCancel={requestClose} onSaved={close} onDirtyChange={setDirty} />
+    <QuickAddForm key={JSON.stringify(opts)} publications={publications} today={today} initial={opts!} onCancel={requestClose} onSaved={close} onDirtyChange={setDirty} />
   ) : null;
 
   return (
@@ -98,14 +98,14 @@ export function QuickAddProvider({ projects, today, children }: { projects: Proj
 const EMPTY_DATE = (today: string): PartialDate => ({ date: today, precision: "day" });
 
 function QuickAddForm({
-  projects,
+  publications,
   today,
   initial,
   onCancel,
   onSaved,
   onDirtyChange,
 }: {
-  projects: ProjectOption[];
+  publications: PublicationOption[];
   today: string;
   initial: OpenOptions;
   onCancel: () => void;
@@ -119,7 +119,7 @@ function QuickAddForm({
   const [title, setTitle] = useState("");
   const [date, setDate] = useState<PartialDate>(EMPTY_DATE(today));
   const [category, setCategory] = useState(initial.category ?? "");
-  const [projectId, setProjectId] = useState(initial.projectId ?? "");
+  const [manuscriptId, setManuscriptId] = useState(initial.manuscriptId ?? "");
   const [details, setDetails] = useState(false);
   const [notes, setNotes] = useState("");
   const [people, setPeople] = useState("");
@@ -155,8 +155,8 @@ function QuickAddForm({
       // (The record's id is chosen here, so retrying can't create it twice.)
       const r = await callAction(() =>
         mode === "entry"
-          ? createEntry({ id, title, date, category: category || null, projectId: projectId || null, notes, people, planned })
-          : createTask({ id, title, dueDate: dueDate || null, priority, projectId: projectId || null, notes, remindUntilDone: remind }),
+          ? createEntry({ id, title, date, category: category || null, manuscriptId: manuscriptId || null, notes, people, planned })
+          : createTask({ id, title, dueDate: dueDate || null, priority, manuscriptId: manuscriptId || null, notes, remindUntilDone: remind }),
       );
       if (!r) return;
       if (!r.ok) {
@@ -196,7 +196,7 @@ function QuickAddForm({
         setDueDate("");
         setRemind(false);
         setFiles([]);
-        // keep date, category and project — handy when backfilling several past entries
+        // keep date, category and publication — handy when backfilling several past entries
         document.getElementById("qa-title")?.focus();
       } else {
         onSaved();
@@ -282,10 +282,12 @@ function QuickAddForm({
               <AppSelect id="qa-cat" value={category} onValueChange={setCategory} options={toOptions(categories, "No category")} />
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="qa-project" className="text-sm font-medium">Project <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <AppSelect id="qa-project" value={projectId} onValueChange={setProjectId} options={rowOptions(projects, (p) => p.title, "No project")} />
-          </div>
+          {publications.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="qa-publication" className="text-sm font-medium">Publication <span className="font-normal text-muted-foreground">(optional)</span></label>
+              <AppSelect id="qa-publication" value={manuscriptId} onValueChange={setManuscriptId} options={rowOptions(publications, (p) => p.title, "Not about a publication")} />
+            </div>
+          )}
         </div>
 
         {mode === "entry" && (
@@ -360,10 +362,10 @@ function QuickAddForm({
   );
 }
 
-export function QuickAddButton({ mode, projectId, category, label, variant = "outline" }: { mode?: Mode; projectId?: string; category?: string; label: string; variant?: "outline" | "default" }) {
+export function QuickAddButton({ mode, manuscriptId, category, label, variant = "outline" }: { mode?: Mode; manuscriptId?: string; category?: string; label: string; variant?: "outline" | "default" }) {
   const { open } = useQuickAdd();
   return (
-    <Button type="button" variant={variant} onClick={() => open({ mode, projectId, category })}>
+    <Button type="button" variant={variant} onClick={() => open({ mode, manuscriptId, category })}>
       {label}
     </Button>
   );

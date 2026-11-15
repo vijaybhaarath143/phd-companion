@@ -7,48 +7,17 @@ import { run, ValidationError, oneOf, required, text, uuidOrNull, dateOrNull, ve
 import { readPartialDate } from "@/lib/dates";
 import { cleanTitle, insertFeedback, insertPhaseEvent, insertTrial } from "@/server/writes";
 import { DEFAULT_REVIEW_STEPS } from "@/lib/labels";
-const PROJECT_TYPES = ["systematic_review", "narrative_review", "experimental", "method_development",
-  "instrument_development", "collaboration", "other"] as const;
 const EXPERIMENT_STATUSES = ["planned", "in_progress", "completed", "inconclusive", "unsuccessful", "paused"] as const;
-
-// ---------------------------------------------------------------- projects
-
-export async function createProject(form: FormData) {
-  const r = await run(async (tx) => {
-    const title = required(form.get("title"), "Project title");
-    const [p] = await tx<{ id: string }[]>`
-      insert into public.projects (title, type) values (${title}, ${oneOf(form.get("type"), PROJECT_TYPES)}) returning id`;
-    return p.id;
-  });
-  if (r.ok) redirect(`/research/projects/${r.data}`);
-  return r;
-}
-
-export async function updateProject(id: string, form: FormData) {
-  return run(async (tx) => {
-    const version = versionOf(form.get("version"));
-    const fields: Record<string, unknown> = {};
-    if (form.has("status")) fields.status = oneOf(form.get("status"), ["proposed", "planning", "in_progress", "paused", "completed"] as const, "in_progress");
-    if (form.has("objective")) fields.objective = text(form.get("objective"), 5000);
-    if (form.has("title")) fields.title = required(form.get("title"), "Project title");
-    if (form.has("type")) fields.type = oneOf(form.get("type"), PROJECT_TYPES);
-    if (!Object.keys(fields).length) return;
-    expectRow(await tx`update public.projects set ${tx(fields)}, version = version + 1
-                       where id = ${id} and version = ${version} and deleted_at is null returning id`);
-    refresh();
-  });
-}
 
 // ---------------------------------------------------------------- manuscripts
 
-export async function createManuscript(projectId: string, form: FormData) {
+/** A new publication: a review (it gets review steps) or an original article. */
+export async function createManuscript(form: FormData) {
   const r = await run(async (tx) => {
-    const title = required(form.get("title"), "Manuscript title");
+    const title = required(form.get("title"), "Publication title");
     const [m] = await tx<{ id: string }[]>`
-      insert into public.manuscripts (project_id, title, article_type)
-      values (${uuidOrNull(projectId)}, ${title},
-              coalesce((select case when type in ('systematic_review', 'narrative_review') then 'review' end
-                          from public.projects where id = ${uuidOrNull(projectId)}), 'original'))
+      insert into public.manuscripts (title, article_type)
+      values (${title}, ${oneOf(form.get("articleType"), ["review", "original"] as const, "original")})
       returning id`;
     await tx`insert into public.manuscript_phase_events (manuscript_id, phase, kind, effective_precision) values (${m.id}, 'planning', 'change', 'none')`;
     return m.id;
@@ -155,12 +124,12 @@ export async function reopenFeedback(entryId: string) {
 
 // ---------------------------------------------------------------- experiments
 
-export async function createExperiment(projectId: string | null, form: FormData) {
+export async function createExperiment(form: FormData) {
   const r = await run(async (tx) => {
     const title = required(form.get("title"), "Experiment title");
     const [e] = await tx<{ id: string }[]>`
-      insert into public.entries (title, kind, category, entry_precision, project_id)
-      values (${title}, 'experiment', 'experiment', 'none', ${uuidOrNull(projectId)}) returning id`;
+      insert into public.entries (title, kind, category, entry_precision)
+      values (${title}, 'experiment', 'experiment', 'none') returning id`;
     await tx`insert into public.experiments (entry_id) values (${e.id})`;
     return e.id;
   });
@@ -206,12 +175,12 @@ export async function updateExperiment(
   });
 }
 
-/** Rename an experiment, or move it to another project (or none). */
-export async function updateExperimentDetails(entryId: string, expectedVersion: number, details: { title: string; projectId: string | null }) {
+/** Rename an experiment. */
+export async function updateExperimentDetails(entryId: string, expectedVersion: number, details: { title: string }) {
   return run(async (tx) => {
     const title = cleanTitle(details.title);
     const [row] = await tx<{ version: number }[]>`
-      update public.entries set title = ${title}, project_id = ${uuidOrNull(details.projectId)}, version = version + 1
+      update public.entries set title = ${title}, version = version + 1
       where id = ${entryId} and kind = 'experiment' and version = ${expectedVersion} and deleted_at is null
       returning version`;
     if (!row) throw new ConflictError();
@@ -222,19 +191,19 @@ export async function updateExperimentDetails(entryId: string, expectedVersion: 
 
 async function leaveExperiment(entryId: string, how: "archive" | "trash") {
   const r = await run(async (tx) => {
-    const [e] = await tx<{ projectId: string | null }[]>`
+    const [e] = await tx<{ id: string }[]>`
       update public.entries
       set ${how === "archive" ? tx`archived_at = now()` : tx`deleted_at = now()`}, version = version + 1
       where id = ${entryId} and kind = 'experiment' and deleted_at is null
-      returning project_id`;
+      returning id`;
     if (!e) throw new ValidationError("That experiment wasn't found — it may already be in Trash.");
-    return e.projectId;
+    return e.id;
   });
-  if (r.ok) redirect(r.data ? `/research/projects/${r.data}` : "/research");
+  if (r.ok) redirect("/research?view=benchwork");
   return r;
 }
 
-/** Hidden from the project and the Journal, kept (Settings → Archive restores it). */
+/** Hidden from Benchwork and the Journal, kept (Settings → Archive restores it). */
 export async function archiveExperiment(entryId: string) {
   return leaveExperiment(entryId, "archive");
 }
@@ -247,9 +216,8 @@ export async function trashExperiment(entryId: string) {
 export async function addBlocker(entryId: string, form: FormData) {
   return run(async (tx) => {
     const description = required(form.get("description"), "What's blocking", 1000);
-    const [e] = await tx<{ projectId: string | null }[]>`select project_id from public.entries where id = ${entryId}`;
-    await tx`insert into public.blockers (entry_id, project_id, category, description, opened_on)
-             values (${entryId}, ${e?.projectId ?? null},
+    await tx`insert into public.blockers (entry_id, category, description, opened_on)
+             values (${entryId},
                      ${oneOf(form.get("category"), ["equipment", "procurement", "protocol", "sample_preparation", "inconsistency", "other"] as const, "other")},
                      ${description}, app.user_today())`;
     refresh();
@@ -270,15 +238,15 @@ const STEP_STATUSES = ["not_started", "in_progress", "done", "skipped"] as const
 const COUNT_KINDS = ["identified", "duplicates_removed", "screened", "excluded_screening", "full_text_retrieved", "excluded_eligibility", "included"] as const;
 
 /** Start tracking a review with the standard steps (only when it has none yet). */
-export async function setUpReviewSteps(projectId: string) {
+export async function setUpReviewSteps(manuscriptId: string) {
   return run(async (tx) => {
-    // lock the project, so two "Set up" clicks at once can't both add the steps
-    const [p] = await tx`select 1 from public.projects where id = ${uuidOrNull(projectId)} and deleted_at is null for update`;
-    if (!p) throw new ValidationError("That project wasn't found.");
-    const [has] = await tx`select 1 from public.review_steps where project_id = ${projectId} and removed_at is null limit 1`;
+    // lock the publication, so two "Set up" clicks at once can't both add the steps
+    const [m] = await tx`select 1 from public.manuscripts where id = ${uuidOrNull(manuscriptId)} and deleted_at is null for update`;
+    if (!m) throw new ValidationError("That publication wasn't found.");
+    const [has] = await tx`select 1 from public.review_steps where manuscript_id = ${manuscriptId} and removed_at is null limit 1`;
     if (has) return;
-    const rows = DEFAULT_REVIEW_STEPS.map((s, i) => ({ project_id: projectId, sort: i + 1, title: s.title, count_kind: s.count }));
-    await tx`insert into public.review_steps ${tx(rows, "project_id", "sort", "title", "count_kind")}`;
+    const rows = DEFAULT_REVIEW_STEPS.map((s, i) => ({ manuscript_id: manuscriptId, sort: i + 1, title: s.title, count_kind: s.count }));
+    await tx`insert into public.review_steps ${tx(rows, "manuscript_id", "sort", "title", "count_kind")}`;
     refresh();
   });
 }
@@ -301,7 +269,7 @@ export async function updateReviewStep(id: string, form: FormData) {
         count = ${count},
         note = ${text(form.get("note"), 5000)},
         version = version + 1
-      where id = ${uuidOrNull(id)} and version = ${version} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null)
+      where id = ${uuidOrNull(id)} and version = ${version} and removed_at is null and exists (select 1 from public.manuscripts m where m.id = manuscript_id and m.deleted_at is null)
       returning id`);
     refresh();
   });
@@ -313,20 +281,20 @@ export async function toggleReviewStep(id: string, done: boolean) {
     const [row] = await tx`
       update public.review_steps
       set status = ${done ? "done" : "not_started"}, done_on = ${done ? tx`app.user_today()` : null}, version = version + 1
-      where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null) returning id`;
+      where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.manuscripts m where m.id = manuscript_id and m.deleted_at is null) returning id`;
     if (!row) throw new ValidationError("That step wasn't found.");
     refresh();
   });
 }
 
-export async function addReviewStep(projectId: string, form: FormData) {
+export async function addReviewStep(manuscriptId: string, form: FormData) {
   return run(async (tx) => {
     const title = required(form.get("title"), "Step", 200);
-    const [p] = await tx`select 1 from public.projects where id = ${uuidOrNull(projectId)} and deleted_at is null for update`;
-    if (!p) throw new ValidationError("That project wasn't found.");
+    const [m] = await tx`select 1 from public.manuscripts where id = ${uuidOrNull(manuscriptId)} and deleted_at is null for update`;
+    if (!m) throw new ValidationError("That publication wasn't found.");
     const [{ next }] = await tx<{ next: number }[]>`
-      select coalesce(max(sort), 0) + 1 as next from public.review_steps where project_id = ${projectId}`;
-    await tx`insert into public.review_steps (project_id, sort, title) values (${projectId}, ${next}, ${title})`;
+      select coalesce(max(sort), 0) + 1 as next from public.review_steps where manuscript_id = ${manuscriptId}`;
+    await tx`insert into public.review_steps (manuscript_id, sort, title) values (${manuscriptId}, ${next}, ${title})`;
     refresh();
   });
 }
@@ -334,7 +302,7 @@ export async function addReviewStep(projectId: string, form: FormData) {
 /** Removing a step hides it (kept in the export, like everything else). */
 export async function removeReviewStep(id: string) {
   return run(async (tx) => {
-    const [row] = await tx`update public.review_steps set removed_at = now(), version = version + 1 where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.projects p where p.id = project_id and p.deleted_at is null) returning id`;
+    const [row] = await tx`update public.review_steps set removed_at = now(), version = version + 1 where id = ${uuidOrNull(id)} and removed_at is null and exists (select 1 from public.manuscripts m where m.id = manuscript_id and m.deleted_at is null) returning id`;
     if (!row) throw new ValidationError("That step wasn't found.");
     refresh();
   });

@@ -1,138 +1,18 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BookOpen, CalendarDays, ChevronRight, Plus } from "lucide-react";
-import { cn } from "cn";
+import { notFound, redirect } from "next/navigation";
 import { asUser } from "@/server/auth";
-import { getProjectBundle, isReviewProject, listProjects, prismaNumbers } from "@/server/research";
-import { ReviewSteps } from "./review-steps";
-import { ResearchTabs } from "../../research-tabs";
-import { requireProfile } from "@/server/profile";
-import { formatPartialDate } from "@/lib/dates";
-import { categories, experimentStatuses, phases, projectStatuses, projectTypes } from "@/lib/labels";
-import { Badge } from "@/components/ui/badge";
-import { Empty, IconLink, Rows, RowLink, Section } from "@/components/app/ui";
-import { QuickAddButton } from "@/components/app/quick-add";
-import { ProjectActions, RememberProject } from "./project-actions";
 import { isUuid } from "@/lib/utils";
-import { Evidence } from "@/components/app/evidence";
 
-export const metadata: Metadata = { title: "Project" };
-
-export default async function ProjectPage({ params }: PageProps<"/research/projects/[id]">) {
+/**
+ * Projects are gone: the PhD itself is the one project. An old link to a project goes to the
+ * publication it became (where its review steps now live), else to Research.
+ */
+export default async function OldProjectPage({ params }: PageProps<"/research/projects/[id]">) {
   const { id } = await params;
   if (!isUuid(id)) notFound();
-  const data = await asUser(async (tx) => {
-    await requireProfile(tx);
-    return { bundle: await getProjectBundle(tx, id), projects: await listProjects(tx) };
-  });
-  if (!data.bundle) notFound();
-  const { project, manuscripts, experiments, tasks, entries, evidence, steps } = data.bundle;
-
-  return (
-    <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
-      <RememberProject id={project.id} />
-      <ResearchTabs current="projects" projectHref={`/research/projects/${project.id}`} />
-      <nav aria-label="Projects" data-guide="projects" className="flex flex-wrap gap-2">
-        {data.projects.map((p) => (
-          <Link
-            key={p.id}
-            href={`/research/projects/${p.id}`}
-            aria-current={p.id === id ? "page" : undefined}
-            className={cn("inline-flex h-9 items-center rounded-full border px-3.5 text-[13px] font-medium", p.id === id ? "border-primary bg-primary text-primary-foreground" : "bg-background text-zinc-700 hover:bg-muted")}
-          >
-            {p.title.split(":")[0]}
-          </Link>
-        ))}
-        <Link href="/research?new=1" className="inline-flex h-9 items-center gap-1 rounded-full border border-dashed px-3.5 text-[13px] font-medium text-zinc-700 hover:bg-muted">
-          <Plus className="size-3.5" aria-hidden /> New project
-        </Link>
-      </nav>
-
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-2">
-          <h1 className="text-[28px] leading-tight font-black md:text-[34px] text-balance">{project.title}</h1>
-          <div className="flex flex-wrap gap-2">
-            {project.type && <Badge variant="outline">{projectTypes[project.type as keyof typeof projectTypes]}</Badge>}
-            <Badge variant="outline">{projectStatuses[project.status as keyof typeof projectStatuses]}</Badge>
-          </div>
-        </div>
-        <QuickAddButton projectId={project.id} label="Add entry to this project" />
-      </div>
-
-      {(steps.length > 0 || isReviewProject(project.type)) && <ReviewSteps projectId={project.id} steps={steps} prisma={prismaNumbers(steps)} />}
-
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
-          <Section guide="manuscripts" title="Manuscripts" action={<ProjectActions kind="manuscript" projectId={project.id} />}>
-            {manuscripts.length ? (
-              <ul className="divide-y-2 divide-zinc-100 border-t-2 border-zinc-100">
-                {manuscripts.map((m) => (
-                  <li key={m.id}>
-                    <Link href={`/research/manuscripts/${m.id}`} className="flex min-h-14 items-center gap-3 px-5 py-3 hover:bg-zinc-50">
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-medium">{m.title}</span>
-                        <span className="block text-[13px] text-zinc-600">Phase: {phases[m.currentPhase]}</span>
-                      </span>
-                      {m.openFeedback > 0 && <Badge variant="attention">Feedback to address</Badge>}
-                      {m.openFeedback === 0 && m.waiting > 0 && <Badge variant="attention">Guide feedback pending</Badge>}
-                      <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty>No manuscript yet.</Empty>
-            )}
-          </Section>
-
-          <Section guide="project-tasks" title="Open tasks" action={<IconLink href="/planner" label="All tasks in Planner"><CalendarDays /></IconLink>}>
-            {tasks.length ? (
-              <ProjectActions kind="tasks" projectId={project.id} tasks={tasks} />
-            ) : (
-              <>
-                <Empty>No open tasks.</Empty>
-                <ProjectActions kind="tasks" projectId={project.id} tasks={[]} />
-              </>
-            )}
-          </Section>
-
-          <Section guide="experiments" title="Experiments" action={<ProjectActions kind="experiment" projectId={project.id} />}>
-            {experiments.length ? (
-              <Rows>
-                {experiments.map((x) => (
-                  <RowLink key={x.id} href={`/research/experiments/${x.id}`} title={x.title}
-                    detail={formatPartialDate(x.entryDate, x.entryPrecision)}
-                    badge={x.status ? experimentStatuses[x.status as keyof typeof experimentStatuses] : "Status not set"} />
-                ))}
-              </Rows>
-            ) : (
-              <Empty>No experiments in this project.</Empty>
-            )}
-          </Section>
-
-          <Section title="Recent entries" action={<IconLink href={`/journal?project=${project.id}`} label="All entries in Journal"><BookOpen /></IconLink>}>
-            {entries.length ? (
-              <Rows>
-                {entries.map((e) => (
-                  <RowLink key={e.id} href={`/journal/${e.id}`} title={e.title}
-                    detail={[formatPartialDate(e.entryDate, e.entryPrecision), e.category ? categories[e.category as keyof typeof categories] : null].filter(Boolean).join(" · ")} />
-                ))}
-              </Rows>
-            ) : (
-              <Empty>Nothing recorded for this project yet.</Empty>
-            )}
-          </Section>
-        </div>
-
-        <div className="flex min-w-0 flex-[2_1_280px] flex-col gap-4">
-          <ProjectActions kind="about" projectId={project.id} project={project} />
-          <section data-guide="evidence" className="flex flex-col gap-3 rounded-2xl border-2 bg-card shadow-edge px-5 py-4">
-            <h2 className="text-[15px] font-extrabold">Evidence</h2>
-            <Evidence items={evidence} parentType="project" parentId={project.id} hint="Drafts, figures, or a link to a shared folder." />
-          </section>
-        </div>
-      </div>
-    </div>
-  );
+  const [m] = await asUser((tx) => tx<{ id: string }[]>`
+    select coalesce(
+      (select r.manuscript_id from public.review_steps r where r.project_id = ${id} limit 1),
+      (select m.id from public.manuscripts m where m.project_id = ${id} and m.deleted_at is null order by m.created_at limit 1)
+    ) as id`);
+  redirect(m?.id ? `/research/manuscripts/${m.id}` : "/research");
 }

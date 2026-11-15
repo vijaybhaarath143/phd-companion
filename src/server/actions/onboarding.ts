@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { ensureProfile } from "@/server/profile";
-import { oneOf, required, run, text } from "@/server/actions/run";
+import { required, run, text } from "@/server/actions/run";
 import type { ActionResult } from "@/lib/result";
 
 /**
@@ -41,17 +41,13 @@ export async function saveProgramme(form: FormData): Promise<ActionResult<undefi
   return r;
 }
 
-export async function createFirstProject(form: FormData): Promise<ActionResult<undefined>> {
+/** The last step: the PhD's title (the one project), then onboarding is done. */
+export async function savePhdTitle(form: FormData): Promise<ActionResult<undefined>> {
   const r = await run(async (tx) => {
-    const title = text(form.get("title"), 300);
-    const type = oneOf(form.get("type"), ["systematic_review", "narrative_review", "experimental", "method_development",
-      "instrument_development", "collaboration", "other"] as const);
+    const title = text(form.get("phdTitle"), 300);
     await ensureProfile(tx);
-    // Only the first tap counts: a second "Finish" (or a retry after a dropped connection)
-    // finds onboarding already done and doesn't add the project again.
-    const [first] = await tx`update public.profiles set onboarded_at = now()
-                             where user_id = auth.uid() and onboarded_at is null returning user_id`;
-    if (first && title) await tx`insert into public.projects (title, type) values (${title}, ${type})`;
+    await tx`update public.profiles set phd_title = coalesce(${title}, phd_title), onboarded_at = coalesce(onboarded_at, now()),
+               version = version + 1 where user_id = auth.uid()`;
     return undefined;
   });
   if (r.ok) redirect("/");

@@ -9,7 +9,6 @@ import {
   FileText,
   Flag,
   FlaskConical,
-  FolderOpen,
   GraduationCap,
   History,
   Link2,
@@ -21,12 +20,12 @@ import {
 } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { getTimeline, getTimelineSummary, isHighlight, TIMELINE_TYPES, type TimelineItem, type TimelineSummary, type TimelineType } from "@/server/timeline";
-import { projectOptions, requireProfile } from "@/server/profile";
+import { requireProfile } from "@/server/profile";
 import { formatDay, formatPartialDate, monthKey, monthNames, todayIn, type Precision } from "@/lib/dates";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
+import { toOptions } from "@/lib/options";
 import { PageHeader } from "@/components/app/ui";
 import { TimelineAddButton, TimelineFiles } from "./timeline-client";
 
@@ -42,7 +41,6 @@ const ICONS: Record<TimelineType, LucideIcon> = {
   milestone: Flag,
   enquiry: Building2,
   goal: Target,
-  project: FolderOpen,
   file: Paperclip,
 };
 
@@ -57,7 +55,6 @@ const TONES: Record<TimelineType, string> = {
   milestone: "bg-grape-soft text-grape",
   enquiry: "bg-muted text-zinc-700",
   goal: "bg-muted text-zinc-700",
-  project: "bg-leaf-soft text-primary",
   file: "bg-muted text-zinc-700",
 };
 
@@ -72,7 +69,6 @@ const COUNTED: Record<TimelineType, [string, string, "info" | "success" | "atten
   milestone: ["milestone", "milestones", "grape"],
   enquiry: ["enquiry", "enquiries", "muted"],
   goal: ["goal", "goals", "muted"],
-  project: ["project update", "project updates", "success"],
   file: ["file or link", "files and links", "muted"],
 };
 
@@ -112,21 +108,20 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export default async function TimelinePage({ searchParams }: PageProps<"/timeline">) {
   const sp = await searchParams;
   const pick = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
-  const filters = { type: pick("type"), project: pick("project"), period: pick("period"), limit: Number(pick("limit")) || undefined };
+  const filters = { type: pick("type"), publication: pick("publication"), period: pick("period"), limit: Number(pick("limit")) || undefined };
   const view: "highlights" | "all" = pick("view") === "highlights" ? "highlights" : "all";
 
-  const { timeline, summary, projects, today, profile } = await asUser(async (tx) => {
+  const { timeline, summary, today, profile } = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
     const today = todayIn(profile.timezone);
     return {
       profile,
       timeline: await getTimeline(tx, { ...filters, today, timezone: profile.timezone }),
-      summary: await getTimelineSummary(tx, { type: filters.type, project: filters.project, today, timezone: profile.timezone }),
-      projects: await projectOptions(tx),
+      summary: await getTimelineSummary(tx, { type: filters.type, publication: filters.publication, today, timezone: profile.timezone }),
       today,
     };
   });
-  const filtering = Boolean(timeline.type || timeline.project || timeline.period !== "all");
+  const filtering = Boolean(timeline.type || timeline.publication || timeline.period !== "all");
   const nothingYet = !filtering && timeline.dated.length === 0 && timeline.undated.length === 0;
   const thisMonth = monthKey(today);
 
@@ -134,7 +129,7 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
     `/timeline?${new URLSearchParams(
       Object.entries({
         type: timeline.type ?? undefined,
-        project: timeline.project ?? undefined,
+        publication: timeline.publication ?? undefined,
         period: timeline.period !== "all" ? timeline.period : undefined,
         view: view === "highlights" ? "highlights" : undefined,
         ...extra,
@@ -180,7 +175,7 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
         </section>
       )}
 
-      {!nothingYet && summary.total > 0 && <SummaryCard summary={summary} start={start} thisMonth={thisMonth} filtering={Boolean(timeline.type || timeline.project)} />}
+      {!nothingYet && summary.total > 0 && <SummaryCard summary={summary} start={start} thisMonth={thisMonth} filtering={Boolean(timeline.type || timeline.publication)} />}
 
       {!nothingYet && (
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -202,7 +197,7 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
           <form className="flex flex-wrap items-end gap-2" data-guide="timeline-filters">
             {view === "highlights" && <input type="hidden" name="view" value="highlights" />}
             <AppSelect name="type" defaultValue={timeline.type ?? ""} aria-label="Type" size="sm" className="w-auto" options={toOptions(TIMELINE_TYPES, "Everything")} />
-            <AppSelect name="project" defaultValue={timeline.project ?? ""} aria-label="Project" size="sm" className="w-auto max-w-56" options={rowOptions(projects, (p) => p.title.split(":")[0], "All projects")} />
+            {timeline.publication && <input type="hidden" name="publication" value={timeline.publication} />}
             <AppSelect name="period" defaultValue={timeline.period} aria-label="Period" size="sm" className="w-auto" options={toOptions(PERIODS)} />
             <Button type="submit" size="sm">Apply</Button>
             {filtering && <Button asChild size="sm" variant="ghost"><Link href={view === "highlights" ? "/timeline?view=highlights" : "/timeline"}>Clear</Link></Button>}
@@ -214,7 +209,7 @@ export default async function TimelinePage({ searchParams }: PageProps<"/timelin
         <p data-guide="timeline" className="rounded-2xl border-2 bg-card px-5 py-8 text-center text-muted-foreground shadow-edge">
           {view === "highlights"
             ? "No big moments here yet. They appear when you reach a milestone, submit a paper, finish a course or complete a review step."
-            : "Nothing matches. Try another type, project or period."}
+            : "Nothing matches. Try another type or period."}
         </p>
       )}
 
@@ -464,7 +459,7 @@ function ItemRow({ it, today }: { it: TimelineItem; today: string }) {
   );
 }
 
-/** A big moment: a milestone, a submission or decision, a course finished or recognised, a project started, a review step done. */
+/** A big moment: a milestone, a submission or decision, a course finished or recognised, a review step done. */
 function MomentCard({ it }: { it: TimelineItem }) {
   const Icon = it.type === "file" && it.event === "link" ? Link2 : ICONS[it.type];
   const grape = grapeMoment(it);

@@ -3,10 +3,10 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { ConflictError } from "@/server/db";
-import { run, oneOf, uuidOrNull, dateOrNull } from "@/server/actions/run";
+import { run, oneOf, dateOrNull } from "@/server/actions/run";
 import { getProfile } from "@/server/profile";
 import { todayIn, type PartialDate } from "@/lib/dates";
-import { CATEGORY_KEYS, checkPartial, cleanText, cleanTitle, insertEntry, insertLink, kindFor, type NewEntryInput } from "@/server/writes";
+import { CATEGORY_KEYS, checkPartial, cleanText, cleanTitle, insertEntry, insertLink, kindFor, publicationOrNull, type NewEntryInput } from "@/server/writes";
 
 export type NewEntry = NewEntryInput;
 
@@ -19,7 +19,7 @@ export async function createEntry(input: NewEntry) {
   });
 }
 
-const ENTRY_FIELDS = ["title", "category", "status", "description", "people", "outcome", "skillsLearned", "projectId"] as const;
+const ENTRY_FIELDS = ["title", "category", "status", "description", "people", "outcome", "skillsLearned", "manuscriptId"] as const;
 const EVENT_FIELDS = ["organiser", "location", "registration", "participation", "presentationTitle", "award", "submissionOutcome"] as const;
 const FEEDBACK_FIELDS = ["source", "receivedVia", "requestedChanges", "resolutionNote"] as const;
 const ENQUIRY_FIELDS = ["office", "contact", "response", "followUpDate", "status"] as const;
@@ -53,7 +53,7 @@ export async function updateEntry(id: string, expectedVersion: number, patch: Pa
     if ("title" in entry) entry.title = cleanTitle(entry.title);
     if ("category" in entry) entry.category = oneOf(entry.category, CATEGORY_KEYS);
     if ("status" in entry) entry.status = oneOf(entry.status, ["planned", "done", "postponed", "cancelled"] as const);
-    if ("projectId" in entry) entry.projectId = uuidOrNull(entry.projectId);
+    if ("manuscriptId" in entry) entry.manuscriptId = await publicationOrNull(tx, entry.manuscriptId);
 
     // A new category brings the matching kind of record (e.g. "Conference" → event details),
     // the same way adding the entry with that category would.

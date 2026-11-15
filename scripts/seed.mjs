@@ -34,7 +34,7 @@ const other = await user("other@phd.test");
 for (const id of [scholar, newbie, other]) {
   await sql`delete from public.profiles where user_id = ${id}`;
   for (const t of ["tasks", "goals", "milestones", "credit_recognitions", "courses", "requirements",
-                   "submissions", "manuscript_phase_events", "attachments", "blockers"]) {
+                   "submissions", "manuscript_phase_events", "attachments", "blockers", "review_steps", "notes"]) {
     await sql`delete from ${sql("public." + t)} where owner_id = ${id}`;
   }
   await sql`delete from public.entries where owner_id = ${id}`;
@@ -43,20 +43,18 @@ for (const id of [scholar, newbie, other]) {
 }
 
 // ---------------------------------------------------------------- scholar
-await sql`insert into public.profiles (user_id, display_name, department, programme_start, programme_start_precision, onboarded_at)
-          values (${scholar}, 'Test Scholar', 'Allied Health Sciences', '2026-06-01', 'month', now())`;
+// The whole PhD is the one project; its reviews are publications.
+await sql`insert into public.profiles (user_id, display_name, department, phd_title, programme_start, programme_start_precision, onboarded_at)
+          values (${scholar}, 'Test Scholar', 'Allied Health Sciences', 'Electrochemical biosensors for food quality', '2026-06-01', 'month', now())`;
 
-const [slr1] = await sql`insert into public.projects (owner_id, title, type, status)
-  values (${scholar}, 'SLR 1: Electrochemical Biosensors for Starch Detection in Foods', 'systematic_review', 'in_progress') returning id`;
-const [slr2] = await sql`insert into public.projects (owner_id, title, type, status)
-  values (${scholar}, 'SLR 2: MOF-Modified Screen-Printed Electrodes for Enzymatic Biosensing', 'systematic_review', 'planning') returning id`;
-const [lab] = await sql`insert into public.projects (owner_id, title, type, status)
-  values (${scholar}, 'Laboratory work', 'experimental', 'in_progress') returning id`;
-
-const [ms] = await sql`insert into public.manuscripts (owner_id, project_id, title)
-  values (${scholar}, ${slr1.id}, 'SLR 1 manuscript') returning id`;
+const [ms] = await sql`insert into public.manuscripts (owner_id, title, article_type)
+  values (${scholar}, 'SLR 1: Electrochemical Biosensors for Starch Detection in Foods', 'review') returning id`;
 await sql`insert into public.manuscript_phase_events (owner_id, manuscript_id, phase, effective_date, effective_precision, kind, note)
   values (${scholar}, ${ms.id}, 'review', null, 'none', 'change', 'Manuscript finalisation; guide feedback pending')`;
+const [ms2] = await sql`insert into public.manuscripts (owner_id, title, article_type)
+  values (${scholar}, 'SLR 2: MOF-Modified Screen-Printed Electrodes for Enzymatic Biosensing', 'review') returning id`;
+await sql`insert into public.manuscript_phase_events (owner_id, manuscript_id, phase, effective_precision, kind)
+  values (${scholar}, ${ms2.id}, 'planning', 'none', 'change')`;
 
 async function entry(e) {
   const [row] = await sql`insert into public.entries ${sql({ owner_id: scholar, entry_precision: "none", entry_date: null, ...e })} returning id`;
@@ -79,16 +77,16 @@ await event({ title: "World Food Day programme", category: "conference", entry_d
 await event({ title: "Research-writing programme", category: "training" }, { participation: "attended" });
 await event({ title: "Biosensor programme, Karaikudi", category: "training", entry_date: "2027-01-01", entry_precision: "month", status: "planned" },
             { registration: "registered" });
-const exp = await entry({ title: "Initial experimental attempt", kind: "experiment", category: "experiment", project_id: lab.id });
+const exp = await entry({ title: "Initial experimental attempt", kind: "experiment", category: "experiment" });
 await sql`insert into public.experiments (owner_id, entry_id) values (${scholar}, ${exp})`;
 
 const tasks = [
-  { title: "Finalise SLR 1 figures and manuscript structure", project_id: slr1.id, manuscript_id: ms.id },
-  { title: "Receive and address guide feedback", project_id: slr1.id, manuscript_id: ms.id, status: "waiting", waiting_reason: "Waiting for the guide's feedback" },
-  { title: "Shortlist an appropriate journal", project_id: slr1.id, manuscript_id: ms.id },
-  { title: "Establish SLR 2 scope and review protocol", project_id: slr2.id },
+  { title: "Finalise SLR 1 figures and manuscript structure", manuscript_id: ms.id },
+  { title: "Receive and address guide feedback", manuscript_id: ms.id, status: "waiting", waiting_reason: "Waiting for the guide's feedback" },
+  { title: "Shortlist an appropriate journal", manuscript_id: ms.id },
+  { title: "Establish SLR 2 scope and review protocol", manuscript_id: ms2.id },
   { title: "Continue coursework requirements" },
-  { title: "Plan subsequent experimental work", project_id: lab.id },
+  { title: "Plan subsequent experimental work" },
 ];
 for (const t of tasks) await sql`insert into public.tasks ${sql({ owner_id: scholar, ...t })}`;
 
@@ -102,7 +100,7 @@ await sql`insert into public.milestones (owner_id, title, status, done_on, done_
 
 // ---------------------------------------------------------------- other person (must never be visible to scholar)
 await sql`insert into public.profiles (user_id, display_name, onboarded_at) values (${other}, 'Other Person', now())`;
-await sql`insert into public.projects (owner_id, title) values (${other}, 'Someone else''s private project')`;
+await sql`insert into public.manuscripts (owner_id, title) values (${other}, 'Someone else''s private paper')`;
 
 console.log("Seeded. Sign in at http://localhost:3000 with scholar@phd.test (codes appear at http://127.0.0.1:54324).");
 await sql.end();

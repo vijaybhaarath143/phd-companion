@@ -85,7 +85,7 @@ describe("journal entries", () => {
       const pct = await getJournal(tx, { q: "100%" });
       expect(pct.dated.map((x) => x.title)).toContain("Yield was 100% today");
       expect(pct.otherMatches).toEqual([]);
-      const odd = await getJournal(tx, { project: "abc", from: "2026-13", to: "2026-00" });
+      const odd = await getJournal(tx, { publication: "abc", from: "2026-13", to: "2026-00" });
       expect(odd.dated.length).toBeGreaterThan(0);
     });
   });

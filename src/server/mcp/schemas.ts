@@ -34,8 +34,8 @@ const dateHelp =
   "When it happened or will happen: YYYY-MM-DD if the day is known, YYYY-MM if only the month is known. Leave out if unknown — never guess a day.";
 
 const recordType = z
-  .enum(["entry", "project", "manuscript", "course", "milestone"])
-  .describe("What kind of record: entry (journal entry, experiment or feedback), project, manuscript, course or milestone.");
+  .enum(["entry", "manuscript", "course", "milestone"])
+  .describe("What kind of record: entry (journal entry, experiment or feedback), manuscript (a publication), course or milestone.");
 
 const categoryKeys = Object.keys(categories) as [keyof typeof categories, ...(keyof typeof categories)[]];
 const timelineTypes = Object.keys(TIMELINE_TYPES) as [keyof typeof TIMELINE_TYPES, ...(keyof typeof TIMELINE_TYPES)[]];
@@ -66,17 +66,15 @@ export const schemas = {
   list_journal_entries: {
     query: z.string().trim().max(200).optional().describe("Only entries mentioning these words."),
     category: z.enum(categoryKeys).optional().describe("Only this kind of entry."),
-    project_id: id("project").optional(),
+    manuscript_id: id("manuscript").optional().describe("Only entries about this publication."),
     from_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use YYYY-MM.").optional().describe("Only entries from this month on (YYYY-MM)."),
     to_month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use YYYY-MM.").optional().describe("Only entries up to the end of this month (YYYY-MM)."),
     limit: z.number().int().min(1).max(200).optional().describe("Most dated entries to return, newest first (default 50)."),
   },
   get_journal_entry: { entry_id: id("journal entry") },
-  list_projects: {},
-  get_project: { project_id: id("project") },
-  list_manuscripts: { project_id: id("project").optional().describe("Only manuscripts in this project.") },
+  list_manuscripts: {},
   get_manuscript: { manuscript_id: id("manuscript") },
-  list_experiments: { project_id: id("project").optional().describe("Only experiments in this project.") },
+  list_experiments: {},
   get_experiment: { experiment_id: id("experiment") },
   list_tasks: {
     show: z.enum(["open", "waiting", "done"]).optional().describe("open (default: to do, doing and waiting), waiting only, or done (done and cancelled)."),
@@ -85,7 +83,7 @@ export const schemas = {
   get_academics: {},
   get_timeline: {
     type: z.enum(timelineTypes).optional().describe("Only one kind of thing: " + Object.entries(TIMELINE_TYPES).map(([k, v]) => `${k} (${v})`).join(", ") + "."),
-    project_id: id("project").optional().describe("Only things belonging to this project."),
+    manuscript_id: id("manuscript").optional().describe("Only things about this publication."),
     period: z.enum(["month", "year", "all"]).optional().describe("this month, this year, or all (default) — 'all' also lists things with no date yet."),
     limit: z.number().int().min(1).max(300).optional().describe("Most dated items to return, newest first (default 100)."),
     before: z
@@ -105,7 +103,7 @@ export const schemas = {
     title: z.string().trim().min(1, "Add a title.").max(300),
     date: partialDate.optional().describe(dateHelp),
     category: z.enum(categoryKeys).optional().describe("What kind of entry this is."),
-    project_id: id("project").optional().describe("The project it belongs to, if any."),
+    manuscript_id: id("manuscript").optional().describe("The publication it's about, if any."),
     notes: z.string().max(20000).optional().describe("What happened, in her words."),
     people: z.string().max(500).optional().describe("People involved, e.g. her guide."),
     planned: z.boolean().optional().describe("True if this is something planned for a future date (marks it Planned)."),
@@ -116,8 +114,7 @@ export const schemas = {
     due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("Due date, YYYY-MM-DD."),
     priority: z.enum(["high", "normal", "low", "important"]).optional().describe("high, normal (default) or low. \"important\" is read as high."),
     remind_until_done: z.boolean().optional().describe("True to keep a reminder banner on every page until the task is done."),
-    project_id: id("project").optional(),
-    manuscript_id: id("manuscript").optional(),
+    manuscript_id: id("manuscript").optional().describe("The publication it's for, if any."),
     from_entry_id: id("journal entry").optional().describe("The journal entry this task came out of, if any."),
     notes: z.string().max(5000).optional(),
     request_id: requestId,
@@ -169,7 +166,7 @@ export const schemas = {
     record_id: id("record"),
   },
   update_review_step: {
-    step_id: id("review step").describe("The review step's id (from get_project's review_steps)."),
+    step_id: id("review step").describe("The review step's id (from get_manuscript's review_steps)."),
     status: z.enum(["not_started", "in_progress", "done", "skipped"]).optional().describe("Where the step stands. done records today unless done_on is given."),
     done_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").refine(isRealDay, "That day doesn't exist.").optional().describe("When it was done, YYYY-MM-DD."),
     count: z.number().int().min(0).max(10_000_000).nullable().optional().describe("The PRISMA number this step records (see the step's count_kind), e.g. records identified. null clears it."),
@@ -197,7 +194,7 @@ export const schemas = {
     title: z.string().trim().max(300).optional(),
     body: z.string().max(100000).optional().describe("The note's text (for a checklist: notes under the list)."),
     items: z.array(z.string().trim().min(1).max(1000)).max(500).optional().describe("Checklist items, not ticked yet."),
-    project_id: id("project").optional(),
+    manuscript_id: id("manuscript").optional().describe("The publication it's about, if any."),
     request_id: requestId,
   },
 } satisfies Record<string, z.ZodRawShape>;

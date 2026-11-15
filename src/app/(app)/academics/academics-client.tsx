@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
+import { toOptions } from "@/lib/options";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ActionForm } from "@/components/app/action-form";
 import { PartialDateInput } from "@/components/app/partial-date-input";
@@ -20,7 +20,6 @@ import { undoRemove, undoTrash } from "@/server/actions/settings";
 import { formatCredits } from "@/lib/credits";
 import { formatFullDay, formatPartialDate, type Precision } from "@/lib/dates";
 import { courseStatuses, enquiryStatuses, milestoneStatuses, suggestedMilestones } from "@/lib/labels";
-import type { ProjectOption } from "@/server/profile";
 
 export function RequirementEditor({ requirement }: { requirement: { label: string; periodLabel: string | null; requiredCredits: number | null; version: number } | null }) {
   const [open, setOpen] = useState(false);
@@ -162,7 +161,7 @@ export function CoursesSection({ courses, items, today }: { courses: Course[]; i
   );
 }
 
-type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; projectTitle: string | null; version: number };
+type Milestone = { id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; version: number };
 
 /** The milestone's "Update": starts from what's recorded (done date, target), never from today. */
 function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDone: () => void }) {
@@ -189,7 +188,7 @@ function MilestoneForm({ m, today, onDone }: { m: Milestone; today: string; onDo
   );
 }
 
-export function MilestonesSection({ milestones, projects, today }: { milestones: Milestone[]; projects: ProjectOption[]; today: string }) {
+export function MilestonesSection({ milestones, today }: { milestones: Milestone[]; today: string }) {
   const [adding, setAdding] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const existing = new Set(milestones.map((m) => m.title.toLowerCase()));
@@ -203,8 +202,6 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
         <ActionForm key={adding} action={addMilestone} success="Milestone added" onDone={() => setAdding(null)} className="mx-5 mb-4 flex flex-col gap-3 rounded-xl border-2 bg-zinc-50 p-4">
           <div className="flex flex-col gap-1.5"><label htmlFor="m-t" className="text-sm font-medium">Milestone</label><Input id="m-t" name="title" required defaultValue={adding} /></div>
           <PartialDateInput name="target" label="Target date" today={today} noneLabel="No date yet" defaultValue={{ date: null, precision: "none" }} />
-          <div className="flex flex-col gap-1.5"><label htmlFor="m-p" className="text-sm font-medium">Project <span className="font-normal text-muted-foreground">(optional)</span></label>
-            <AppSelect id="m-p" name="projectId" defaultValue="" options={rowOptions(projects, (p) => p.title, "Not a project milestone")} /></div>
           <Button type="submit" className="self-start">Add</Button>
         </ActionForm>
       )}
@@ -219,7 +216,6 @@ export function MilestonesSection({ milestones, projects, today }: { milestones:
                     {m.status === "done"
                       ? m.donePrecision === "none" ? "Done · date not recorded" : `Done ${formatPartialDate(m.doneOn, m.donePrecision)}`
                       : m.targetPrecision === "none" ? "No target date" : `Target ${formatPartialDate(m.targetDate, m.targetPrecision)}`}
-                    {m.projectTitle ? ` · ${m.projectTitle.split(":")[0]}` : ""}
                   </span>
                 </span>
                 <Badge variant={m.status === "done" ? "success" : m.status === "skipped" ? "muted" : "outline"}>{milestoneStatuses[m.status as keyof typeof milestoneStatuses]}</Badge>

@@ -58,7 +58,7 @@ export default async function HomePage() {
   if (home.isEmpty) {
     return (
       <div className="mx-auto flex max-w-[960px] flex-col gap-6">
-        <PageHeader eyebrow={longToday(tz)} title={name ? `Welcome, ${name}` : "Welcome"} />
+        <PageHeader eyebrow={longToday(tz)} title={name ? `Welcome, ${name}` : "Welcome"} subtitle={profile.phdTitle ?? undefined} />
         <GuideInvite />
         {home.attention.length > 0 && <Attention home={home} />}
         <section className="flex flex-col items-center gap-4 rounded-2xl border-2 bg-card shadow-edge px-8 py-10 text-center">
@@ -72,11 +72,11 @@ export default async function HomePage() {
           <QuickAddButton label="Quick Add" variant="default" />
         </section>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-          <Section guide="working-on" title="Your projects" action={<IconLink href="/research" label="Open Research"><FlaskConical /></IconLink>}>
+          <Section guide="working-on" title="Your publications" action={<IconLink href="/research" label="Open Research"><FlaskConical /></IconLink>}>
             {home.workingOn.length ? (
-              <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail="No entries yet" />)}</Rows>
+              <Rows>{home.workingOn.map((p) => <RowLink key={p.id} href={p.href} title={p.title} detail={p.detail} />)}</Rows>
             ) : (
-              <Empty>No projects yet.</Empty>
+              <Empty>No publications yet. Add a review or an article in Research when you start one.</Empty>
             )}
           </Section>
           <Section title="Requirements" padded>
@@ -91,7 +91,7 @@ export default async function HomePage() {
   const c = home.credits?.summary;
   return (
     <div className="mx-auto flex max-w-[1060px] flex-col gap-6">
-      <PageHeader eyebrow={longToday(tz)} title={greeting(tz) + (name ? `, ${name}` : "")} actions={<QuickAddButton label="Quick Add" variant="default" />} />
+      <PageHeader eyebrow={longToday(tz)} title={greeting(tz) + (name ? `, ${name}` : "")} subtitle={profile.phdTitle ?? undefined} actions={<QuickAddButton label="Quick Add" variant="default" />} />
       <GuideInvite />
       {backup}
       <Link href="/journal?search=1" data-guide="search" className="flex h-11 items-center gap-2 rounded-xl border-2 bg-card px-3.5 text-muted-foreground md:hidden">
@@ -111,7 +111,7 @@ export default async function HomePage() {
                 {home.workingOn.map((p) => (
                   <li key={p.id}>
                     <Link href={p.href} className="block px-5 py-3 transition-colors hover:bg-zinc-50">
-                      <span className="block font-medium">{p.title}</span>
+                      <span className="block font-display text-[15px] font-bold">{p.title}</span>
                       <span className="block text-[13px] text-muted-foreground">{p.detail}</span>
                       {p.steps && <StepBar done={p.steps.done} total={p.steps.total} currentNo={p.steps.currentNo} className="mt-2" />}
                     </Link>
@@ -119,7 +119,7 @@ export default async function HomePage() {
                 ))}
               </ul>
             ) : (
-              <Empty>No active projects. <Link href="/research" className="underline">Add one</Link>.</Empty>
+              <Empty>No publications in progress. <Link href="/research" className="underline">Add one in Research</Link>.</Empty>
             )}
           </Section>
         </div>

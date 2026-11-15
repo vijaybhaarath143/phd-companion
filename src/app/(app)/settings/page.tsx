@@ -51,7 +51,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     const trash = await tx<Row[]>`
       select 'entries' as table, id, title, deleted_at as at from public.entries where deleted_at is not null
       union all select 'tasks', id, title, deleted_at from public.tasks where deleted_at is not null
-      union all select 'projects', id, title, deleted_at from public.projects where deleted_at is not null
       union all select 'courses', id, name, deleted_at from public.courses where deleted_at is not null
       union all select 'goals', id, title, deleted_at from public.goals where deleted_at is not null
       union all select 'notes', id, title, deleted_at from public.notes where deleted_at is not null
@@ -75,7 +74,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     <div className="mx-auto flex max-w-[900px] flex-col gap-5">
       <PageHeader title="Settings" />
 
-      <Block title="Profile" hint="Shown on Home and in exports.">
+      <Block id="profile" title="Profile" hint="Your PhD title and details. Shown on Home, in the sidebar and in exports.">
         <ProfileForm profile={data.profile} thisYear={Number(todayIn(tz).slice(0, 4))} />
       </Block>
 
@@ -97,7 +96,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </div>
         <div id="archive" className="scroll-mt-6 border-t-2 border-zinc-100 pt-4">
           <p className="font-medium">Archive</p>
-          <p className="text-[13px] text-muted-foreground">Archived entries and experiments are hidden from the Journal and projects but kept. {archived.length ? "" : "Nothing archived."}</p>
+          <p className="text-[13px] text-muted-foreground">Archived entries and experiments are hidden from the Journal and Benchwork but kept. {archived.length ? "" : "Nothing archived."}</p>
           <TrashList items={archived} kind="archive" />
           {data.archived.length > archiveLimit && <ShowMore sp={sp} param="archive" current={archiveLimit} anchor="archive" />}
         </div>

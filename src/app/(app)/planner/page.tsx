@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "cn";
 import { asUser } from "@/server/auth";
 import { getCalendar, listGoals, listTasks, openTaskOptions, taskCounts } from "@/server/planner";
-import { projectOptions, requireProfile } from "@/server/profile";
+import { publicationOptions, requireProfile } from "@/server/profile";
 import { formatPartialDate, isMonthKey, monthLabel, todayIn } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
       counts: await taskCounts(tx),
       tasks: tasks.slice(0, limit),
       moreTasks: tasks.length > limit,
-      projects: await projectOptions(tx),
+      publications: await publicationOptions(tx),
       taskOptions: view === "tasks" ? await openTaskOptions(tx) : [],
       calendar: view === "calendar" ? await getCalendar(tx, month, today) : null,
       goals: view === "goals" ? await listGoals(tx) : [],
@@ -74,7 +74,7 @@ export default async function PlannerPage({ searchParams }: PageProps<"/planner"
               </Link>
             ))}
           </div>
-          <TaskList tasks={data.tasks} projects={data.projects} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use Add task to plan your next step."} />
+          <TaskList tasks={data.tasks} publications={data.publications} taskOptions={data.taskOptions} today={data.today} empty={show === "done" ? "Nothing finished yet." : show === "waiting" ? "Nothing is waiting." : "Nothing to do. Use Add task to plan your next step."} />
           {data.moreTasks && (
             <Link
               href={`/planner?${new URLSearchParams({ ...(show === "open" ? {} : { show }), limit: String(limit + 300) }).toString()}`}

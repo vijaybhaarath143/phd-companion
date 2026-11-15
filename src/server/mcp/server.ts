@@ -14,7 +14,7 @@ import { getNote, listNotesFull } from "@/server/notes";
 import { alreadyAdded, confirmAdded, insertFeedbackWithId, insertLinkWithId, tasksFrom } from "@/server/mcp/idempotent";
 import { getHome, getReminders, type Reminder } from "@/server/home";
 import { getJournal, getEntry } from "@/server/journal";
-import { listProjects, getProjectBundle, getManuscriptBundle, getExperimentBundle, getTrials, prismaNumbers } from "@/server/research";
+import { getManuscriptBundle, getExperimentBundle, getTrials, prismaNumbers } from "@/server/research";
 import { listTasks, listGoals } from "@/server/planner";
 import { getAcademics } from "@/server/academics";
 import { getTimeline, type TimelineItem } from "@/server/timeline";
@@ -55,7 +55,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
     { name: "phd-companion", title: "PhD Companion", version: "1.0.0" },
     {
       instructions:
-        "PhD Companion is one PhD scholar's private record of her doctorate: journal entries, projects, manuscripts, " +
+        "PhD Companion is one PhD scholar's private record of her doctorate — her whole PhD is the one project (its title is in get_home_summary): journal entries, publications (manuscripts), " +
         "experiments, tasks, goals, academics (credits, courses, milestones, office enquiries) and evidence files. " +
         "Dates can be partial: a day, only a month ('day not known'), or no date yet — never invent a day. " +
         "Start with get_home_summary or search. You can add and update records, but nothing is ever erased: " +
@@ -87,7 +87,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
 
   // ---------------------------------------------------------------- reading
 
-  tool("search", "Search everything", "Search all her records — journal entries (including experiments, feedback, enquiries), projects, manuscripts, journal submissions, tasks, courses, and files/links — for some words.", READ, async ({ query, limit }) =>
+  tool("search", "Search everything", "Search all her records — journal entries (including experiments, feedback, enquiries), publications, journal submissions, tasks, courses, and files/links — for some words.", READ, async ({ query, limit }) =>
     db(async (tx) => {
       const j = await getJournal(tx, { q: query, limit: 50 });
       const like = `%${query}%`;
@@ -105,7 +105,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
     }),
   );
 
-  tool("get_home_summary", "Get Home summary", "Her reminders (every open task, course deadline and coming event: overdue, today, the next 7 days, later, no date), what else needs her attention (open guide feedback, waiting tasks, follow-ups, blockers, undated entries), what's coming up, the projects she's working on (with review-step progress), recent entries and her coursework credit total — the app's Home page.", READ, async () =>
+  tool("get_home_summary", "Get Home summary", "Her reminders (every open task, course deadline and coming event: overdue, today, the next 7 days, later, no date), what else needs her attention (open guide feedback, waiting tasks, follow-ups, blockers, undated entries), what's coming up, the publications she's working on (with review-step progress) and her benchwork, recent entries and her coursework credit total — the app's Home page.", READ, async () =>
     db(async (tx) => {
       const profile = await getProfile(tx);
       const today = todayIn(profile?.timezone ?? "Asia/Kolkata");
@@ -117,6 +117,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
       const group = (items: Reminder[]) => ({ items: items.slice(0, MAX).map(reminder), total: items.length });
       return {
         today,
+        phd_title: profile?.phdTitle ?? null,
         reminders: { overdue: group(r.overdue), today: group(r.today), next_7_days: group(r.week), later: group(r.later), no_date: group(r.undated) },
         needs_attention: h.attention.map(withLink),
         needs_attention_total: h.attentionTotal,
@@ -128,10 +129,10 @@ export function createConnectorServer(ctx: ConnectorContext) {
     }),
   );
 
-  tool("list_journal_entries", "List journal entries", `List journal entries, newest first, optionally filtered by words, category, project or months. Each has a partial date: day, month only ('day not known'), or no date yet (undated entries are listed separately, the ${MAX_UNDATED} most recent). When more_older_entries is true, call again with the same filters and to_month set to older_entries_to_month to read further back.`, READ, async (a) =>
+  tool("list_journal_entries", "List journal entries", `List journal entries, newest first, optionally filtered by words, category, publication or months. Each has a partial date: day, month only ('day not known'), or no date yet (undated entries are listed separately, the ${MAX_UNDATED} most recent). When more_older_entries is true, call again with the same filters and to_month set to older_entries_to_month to read further back.`, READ, async (a) =>
     db(async (tx) => {
       const limit = a.limit ?? 50;
-      const j = await getJournal(tx, { q: a.query, category: a.category, project: a.project_id, from: a.from_month, to: a.to_month, limit: Math.max(limit, 50) });
+      const j = await getJournal(tx, { q: a.query, category: a.category, publication: a.manuscript_id, from: a.from_month, to: a.to_month, limit: Math.max(limit, 50) });
       let shown = j.dated.slice(0, limit);
       const more = j.hasOlder || j.dated.length > limit;
       // End the page at a whole month, so "to_month" picks up exactly where it stopped.
@@ -146,7 +147,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
           olderTo = lastMonth;
         } else {
           olderTo = previousMonth(lastMonth);
-          pageNote = `More than ${limit} entries in ${lastMonth}; not all of that month is shown. Narrow with query, category or project, or raise limit.`;
+          pageNote = `More than ${limit} entries in ${lastMonth}; not all of that month is shown. Narrow with query, category or manuscript_id, or raise limit.`;
         }
       }
       return {
@@ -169,45 +170,22 @@ export function createConnectorServer(ctx: ConnectorContext) {
     }),
   );
 
-  tool("list_projects", "List projects", "Her current research projects (not archived), with status.", READ, async () =>
-    db(async (tx) => (await listProjects(tx)).map((p) => ({ ...p, link: link(`/research/projects/${p.id}`) }))),
-  );
-
-  tool("get_project", "Get a project's details", "One project: objective, status, dates, its manuscripts (with phase and article type), experiments, open tasks, recent journal entries, milestones, files/links — and, for a review, its review steps (status, done date, PRISMA counts) with the PRISMA numbers.", READ, async ({ project_id }) =>
+  tool("list_manuscripts", "List publications", "Her publications (manuscripts) — review and original articles — with article type, current phase, open guide feedback and latest journal submission. Her whole PhD is the one project; there are no separate projects.", READ, async () =>
     db(async (tx) => {
-      const b = await getProjectBundle(tx, project_id);
-      if (!b) throw new ValidationError("That project wasn't found.");
-      return {
-        ...b,
-        manuscripts: b.manuscripts.map((m) => ({ ...m, phase_label: phases[m.currentPhase], link: link(`/research/manuscripts/${m.id}`) })),
-        experiments: b.experiments.map((x) => ({ ...x, date_label: formatPartialDate(x.entryDate, x.entryPrecision), link: link(`/research/experiments/${x.id}`) })),
-        entries: b.entries.map((e) => ({ ...e, date_label: formatPartialDate(e.entryDate, e.entryPrecision), link: link(`/journal/${e.id}`) })),
-        milestones: b.milestones.map((m) => ({ ...m, target_label: formatPartialDate(m.targetDate, m.targetPrecision) })),
-        review_steps: b.steps,
-        prisma_numbers: b.steps.length ? prismaNumbers(b.steps) : undefined,
-        steps: undefined,
-        link: link(`/research/projects/${project_id}`),
-      };
-    }),
-  );
-
-  tool("list_manuscripts", "List manuscripts", "Her manuscripts with their current phase, project, open guide feedback and latest journal submission.", READ, async ({ project_id }) =>
-    db(async (tx) => {
-      const rows = await tx<{ id: string; title: string; currentPhase: Phase; projectId: string | null; projectTitle: string | null; openFeedback: number; latestJournal: string | null; latestStatus: string | null }[]>`
-        select m.id, m.title, m.current_phase, m.project_id, p.title as project_title,
+      const rows = await tx<{ id: string; title: string; articleType: string | null; currentPhase: Phase; openFeedback: number; latestJournal: string | null; latestStatus: string | null }[]>`
+        select m.id, m.title, m.article_type, m.current_phase,
           (select count(*)::int from public.feedback f join public.entries e on e.id = f.entry_id
             where f.manuscript_id = m.id and f.resolution_status = 'open' and e.deleted_at is null) as open_feedback,
           s.journal_name as latest_journal, s.status as latest_status
         from public.manuscripts m
-        left join public.projects p on p.id = m.project_id
         left join lateral (select journal_name, status from public.submissions where manuscript_id = m.id order by attempt_no desc limit 1) s on true
-        where m.deleted_at is null and m.archived_at is null and (${project_id ?? null}::uuid is null or m.project_id = ${project_id ?? null})
+        where m.deleted_at is null and m.archived_at is null
         order by m.created_at`;
       return rows.map((m) => ({ ...m, phase_label: phases[m.currentPhase], link: link(`/research/manuscripts/${m.id}`) }));
     }),
   );
 
-  tool("get_manuscript", "Get a manuscript", "One manuscript: current phase, full phase history (with partial dates), every journal submission and its decision, guide feedback (open and resolved) and tasks waiting on it.", READ, async ({ manuscript_id }) =>
+  tool("get_manuscript", "Get a manuscript", "One publication: current phase, full phase history (with partial dates), every journal submission and its decision, guide feedback (open and resolved), open tasks, recent journal entries about it, files/links — and, for a review, its review steps (status, done date, PRISMA counts) with the PRISMA numbers.", READ, async ({ manuscript_id }) =>
     db(async (tx) => {
       const b = await getManuscriptBundle(tx, manuscript_id);
       if (!b) throw new ValidationError("That manuscript wasn't found.");
@@ -217,17 +195,20 @@ export function createConnectorServer(ctx: ConnectorContext) {
         history: b.history.map((h) => ({ ...h, phase_label: phases[h.phase], date_label: formatPartialDate(h.effectiveDate, h.effectivePrecision) })),
         submissions: b.submissions.map((s) => ({ ...s, submitted_label: formatPartialDate(s.submittedDate, s.submittedPrecision) })),
         feedback: b.feedback.map((f) => ({ ...f, date_label: formatPartialDate(f.entryDate, f.entryPrecision), link: link(`/journal/${f.entryId}`) })),
+        entries: b.entries.map((e) => ({ ...e, date_label: formatPartialDate(e.entryDate, e.entryPrecision), link: link(`/journal/${e.id}`) })),
+        review_steps: b.steps,
+        prisma_numbers: b.steps.length ? prismaNumbers(b.steps) : undefined,
+        steps: undefined,
       };
     }),
   );
 
-  tool("list_experiments", "List experiments", "Her laboratory experiments with status, date and project.", READ, async ({ project_id }) =>
+  tool("list_experiments", "List experiments", "Her laboratory experiments (Benchwork) with status and date.", READ, async () =>
     db(async (tx) => {
-      const rows = await tx<{ id: string; title: string; status: string | null; entryDate: string | null; entryPrecision: Precision; projectTitle: string | null; updatedAt: Date }[]>`
-        select e.id, e.title, x.status, e.entry_date, e.entry_precision, p.title as project_title, x.updated_at
+      const rows = await tx<{ id: string; title: string; status: string | null; entryDate: string | null; entryPrecision: Precision; updatedAt: Date }[]>`
+        select e.id, e.title, x.status, e.entry_date, e.entry_precision, x.updated_at
         from public.entries e join public.experiments x on x.entry_id = e.id
-        left join public.projects p on p.id = e.project_id
-        where e.deleted_at is null and e.archived_at is null and (${project_id ?? null}::uuid is null or e.project_id = ${project_id ?? null})
+        where e.deleted_at is null and e.archived_at is null
         order by e.date_from desc nulls last, e.created_at desc limit 200`;
       return rows.map((x) => ({ ...x, date_label: formatPartialDate(x.entryDate, x.entryPrecision), link: link(`/research/experiments/${x.id}`) }));
     }),
@@ -273,13 +254,13 @@ export function createConnectorServer(ctx: ConnectorContext) {
     }),
   );
 
-  tool("get_timeline", "Get the timeline", `Everything she has recorded in date order, newest first — journal entries, experiments, tasks (added, due, done), manuscript phases and journal submissions, guide feedback, courses, milestones, office enquiries, goals, projects and files. Each item keeps its partial date (a day, or a month with the day not known); with period 'all', things with no date yet are listed separately (the ${MAX_UNDATED} most recently added, on the first page only). Future items are marked. When more_older_items is true, call again with the same filters and before: next_before to read further back.`, READ, async ({ type, project_id, period, limit, before }) =>
+  tool("get_timeline", "Get the timeline", `Everything she has recorded in date order, newest first — journal entries, experiments, tasks (added, due, done), manuscript phases and journal submissions, guide feedback, courses, milestones, office enquiries, goals and files. Each item keeps its partial date (a day, or a month with the day not known); with period 'all', things with no date yet are listed separately (the ${MAX_UNDATED} most recently added, on the first page only). Future items are marked. When more_older_items is true, call again with the same filters and before: next_before to read further back.`, READ, async ({ type, manuscript_id, period, limit, before }) =>
     db(async (tx) => {
       const profile = await getProfile(tx);
       const timezone = profile?.timezone ?? "Asia/Kolkata";
       const today = todayIn(timezone);
       const want = limit ?? 100;
-      const t = await getTimeline(tx, { type, project: project_id, period, before, limit: Math.max(want, 50), today, timezone });
+      const t = await getTimeline(tx, { type, publication: manuscript_id, period, before, limit: Math.max(want, 50), today, timezone });
       let page = t.dated.slice(0, want);
       const more = t.hasOlder || t.dated.length > want;
       // Next page starts at the oldest day shown; that day's items move to the next page whole,
@@ -294,7 +275,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
           nextBefore = addDays(oldest, 1);
         } else {
           nextBefore = oldest;
-          pageNote = `More than ${want} items on ${oldest}; not all of them are shown. Narrow with type or project_id, or raise limit.`;
+          pageNote = `More than ${want} items on ${oldest}; not all of them are shown. Narrow with type or manuscript_id, or raise limit.`;
         }
       }
       const item = (i: TimelineItem) => ({
@@ -319,13 +300,13 @@ export function createConnectorServer(ctx: ConnectorContext) {
         how_to_see_older: nextBefore ? `Call get_timeline again with the same filters and before: "${nextBefore}".` : undefined,
         page_note: pageNote,
         undated_items: t.undated.slice(0, MAX_UNDATED).map(item),
-        more_undated_items: t.undated.length > MAX_UNDATED ? `${t.undated.length - MAX_UNDATED} more things with no date yet are not listed — narrow with type or project_id, or see the Timeline in the app.` : undefined,
+        more_undated_items: t.undated.length > MAX_UNDATED ? `${t.undated.length - MAX_UNDATED} more things with no date yet are not listed — narrow with type or manuscript_id, or see the Timeline in the app.` : undefined,
         link: link("/timeline"),
       };
     }),
   );
 
-  tool("list_files_and_links", "List a record's files and links", "The evidence files and links attached to a journal entry, project, manuscript, course or milestone. Use read_file_text to read a file.", READ, async ({ record_type, record_id }) =>
+  tool("list_files_and_links", "List a record's files and links", "The evidence files and links attached to a journal entry, publication (manuscript), course or milestone. Use read_file_text to read a file.", READ, async ({ record_type, record_id }) =>
     db(async (tx) => {
       if (!(await parentExists(tx, record_type, record_id))) throw new ValidationError("That record wasn't found.");
       return evidenceFor(tx, record_type, record_id);
@@ -369,7 +350,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
       const profile = await getProfile(tx);
       const r = await insertEntry(
         tx,
-        { id: a.request_id ?? crypto.randomUUID(), title: a.title, date: toPartialDate(a.date), category: a.category ?? null, projectId: a.project_id ?? null, notes: a.notes ?? null, people: a.people ?? null, planned: a.planned ?? false },
+        { id: a.request_id ?? crypto.randomUUID(), title: a.title, date: toPartialDate(a.date), category: a.category ?? null, manuscriptId: a.manuscript_id ?? null, notes: a.notes ?? null, people: a.people ?? null, planned: a.planned ?? false },
         todayIn(profile?.timezone ?? "Asia/Kolkata"),
       );
       if (a.request_id) await confirmAdded(tx, "entry", r.id);
@@ -378,13 +359,13 @@ export function createConnectorServer(ctx: ConnectorContext) {
     }),
   );
 
-  tool("create_task", "Add a task", "Add a task to her planner, optionally with a due date and linked to a project, manuscript or the journal entry it came from." + REQUEST_ID_HELP, WRITE, async (a) =>
+  tool("create_task", "Add a task", "Add a task to her planner, optionally with a due date and linked to a publication (manuscript) or the journal entry it came from." + REQUEST_ID_HELP, WRITE, async (a) =>
     db(async (tx) => {
       if (await alreadyAdded(tx, "task", a.request_id)) {
         const [t] = await tx<{ id: string; title: string; status: string }[]>`select id, title, status from public.tasks where id = ${a.request_id!}`;
         return { added: false, already_added: true, note: "This request_id was used before; nothing new was added.", ...t, link: link("/planner") };
       }
-      const r = await insertTask(tx, { id: a.request_id ?? crypto.randomUUID(), title: a.title, dueDate: a.due_date ?? null, priority: a.priority === "important" ? "high" : (a.priority ?? "normal"), remindUntilDone: a.remind_until_done === true, projectId: a.project_id ?? null, notes: a.notes ?? null, originEntryId: a.from_entry_id ?? null, manuscriptId: a.manuscript_id ?? null });
+      const r = await insertTask(tx, { id: a.request_id ?? crypto.randomUUID(), title: a.title, dueDate: a.due_date ?? null, priority: a.priority === "important" ? "high" : (a.priority ?? "normal"), remindUntilDone: a.remind_until_done === true, notes: a.notes ?? null, originEntryId: a.from_entry_id ?? null, manuscriptId: a.manuscript_id ?? null });
       if (a.request_id) await confirmAdded(tx, "task", r.id);
       return { added: true, id: r.id, link: link("/planner") };
     }),
@@ -400,7 +381,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
     });
   });
 
-  tool("add_link", "Add a link", "Attach a web link (a paper, dataset, shared document, etc.) as evidence on a journal entry, project, manuscript, course or milestone." + REQUEST_ID_HELP, WRITE, async (a) =>
+  tool("add_link", "Add a link", "Attach a web link (a paper, dataset, shared document, etc.) as evidence on a journal entry, publication (manuscript), course or milestone." + REQUEST_ID_HELP, WRITE, async (a) =>
     db(async (tx) => {
       if (await alreadyAdded(tx, "attachment", a.request_id)) {
         return { added: false, already_added: true, note: "This request_id was used before; nothing new was added.", id: a.request_id };
@@ -490,10 +471,10 @@ export function createConnectorServer(ctx: ConnectorContext) {
 
   // ---------------------------------------------------------------- scholar feedback (Nov 2026)
 
-  tool("update_review_step", "Update a review step", "Change one step of a review's milestones (from get_project's review_steps): its status, the day it was done, the PRISMA number it records (e.g. records identified, duplicates removed) and a note. Fields left out stay as they are.", { ...OVERWRITE, idempotentHint: true }, async (a) =>
+  tool("update_review_step", "Update a review step", "Change one step of a review's milestones (from get_manuscript's review_steps): its status, the day it was done, the PRISMA number it records (e.g. records identified, duplicates removed) and a note. Fields left out stay as they are.", { ...OVERWRITE, idempotentHint: true }, async (a) =>
     db(async (tx) => {
       const s = await setReviewStep(tx, { stepId: a.step_id, status: a.status, doneOn: a.done_on, count: a.count, note: a.note });
-      return { updated: true, ...s, link: link(`/research/projects/${s.projectId}#progress`) };
+      return { updated: true, ...s, link: link(`/research/manuscripts/${s.manuscriptId}#progress`) };
     }),
   );
 
@@ -526,7 +507,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
     db(async (tx) => {
       const [{ total }] = await tx<{ total: number }[]>`select count(*)::int as total from public.notes where deleted_at is null`;
       const notes = (await listNotesFull(tx, 50)).map((n) => ({
-        id: n.id, kind: n.kind, title: n.title, pinned: n.pinned, updated_at: n.updatedAt, project_id: n.projectId,
+        id: n.id, kind: n.kind, title: n.title, pinned: n.pinned, updated_at: n.updatedAt, manuscript_id: n.manuscriptId,
         items_total: n.itemsTotal, items_done: n.itemsDone,
         untrusted_excerpt: excerpt(n.body ?? n.items.map((i) => i.text).join("; ")),
         link: link(`/notes?id=${n.id}`),
@@ -541,7 +522,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
       if (!n) throw new ValidationError("That note wasn't found (it may be in Trash).");
       const MAX_ITEMS = 200;
       return {
-        id: n.id, kind: n.kind, title: n.title, pinned: n.pinned, updated_at: n.updatedAt, project_id: n.projectId,
+        id: n.id, kind: n.kind, title: n.title, pinned: n.pinned, updated_at: n.updatedAt, manuscript_id: n.manuscriptId,
         untrusted_body: n.body,
         untrusted_items: n.items.slice(0, MAX_ITEMS).map((i) => ({ text: i.text.slice(0, 500), done: i.done })),
         more_items: n.items.length > MAX_ITEMS ? `${n.items.length - MAX_ITEMS} more items — she can see them all in the app.` : undefined,
@@ -556,7 +537,7 @@ export function createConnectorServer(ctx: ConnectorContext) {
       if (await alreadyAdded(tx, "note", a.request_id)) {
         return { added: false, already_added: true, note: "This request_id was used before; nothing new was added.", id: a.request_id, link: link(`/notes?id=${a.request_id}`) };
       }
-      const r = await insertNote(tx, { id: a.request_id, kind: a.kind, title: a.title ?? null, body: a.body ?? null, items: a.items, projectId: a.project_id ?? null });
+      const r = await insertNote(tx, { id: a.request_id, kind: a.kind, title: a.title ?? null, body: a.body ?? null, items: a.items, manuscriptId: a.manuscript_id ?? null });
       if (a.request_id) await confirmAdded(tx, "note", r.id);
       return { added: true, id: r.id, link: link(`/notes?id=${r.id}`) };
     }),
@@ -567,12 +548,11 @@ export function createConnectorServer(ctx: ConnectorContext) {
 
 /**
  * SQL condition for `public.attachments a`: the record it is attached to still exists and
- * isn't in Trash (files on a trashed entry or project stay out of reach, as in the app).
+ * isn't in Trash (files on a trashed entry or publication stay out of reach, as in the app).
  */
 function parentNotInTrash(tx: Tx) {
   return tx`case a.parent_type
     when 'entry'      then exists (select 1 from public.entries p     where p.id = a.parent_id and p.deleted_at is null)
-    when 'project'    then exists (select 1 from public.projects p    where p.id = a.parent_id and p.deleted_at is null)
     when 'manuscript' then exists (select 1 from public.manuscripts p where p.id = a.parent_id and p.deleted_at is null)
     when 'course'     then exists (select 1 from public.courses p     where p.id = a.parent_id and p.deleted_at is null)
     when 'milestone'  then exists (select 1 from public.milestones p  where p.id = a.parent_id)
@@ -617,7 +597,7 @@ export function clipLongText(value: unknown, link?: string): unknown {
 }
 
 function entrySummary(
-  e: { id: string; title: string; kind: string; category: string | null; status: string | null; entryDate: string | null; entryPrecision: Precision; projectTitle: string | null; experimentStatus: string | null },
+  e: { id: string; title: string; kind: string; category: string | null; status: string | null; entryDate: string | null; entryPrecision: Precision; manuscriptTitle: string | null; experimentStatus: string | null },
   link: (p: string) => string,
 ) {
   return {
@@ -628,7 +608,7 @@ function entrySummary(
     date: e.entryDate,
     date_precision: e.entryPrecision,
     date_label: formatPartialDate(e.entryDate, e.entryPrecision),
-    project: e.projectTitle,
+    publication: e.manuscriptTitle,
     experiment_status: e.experimentStatus ?? undefined,
     link: link(e.kind === "experiment" ? `/research/experiments/${e.id}` : `/journal/${e.id}`),
   };

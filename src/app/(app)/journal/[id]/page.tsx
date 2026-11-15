@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { asUser } from "@/server/auth";
 import { getEntry } from "@/server/journal";
-import { projectOptions, requireProfile } from "@/server/profile";
+import { publicationOptions, requireProfile } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
 import { isUuid } from "@/lib/utils";
 import { EntryEditor } from "./entry-editor";
@@ -16,9 +16,9 @@ export default async function EntryPage({ params, searchParams }: PageProps<"/jo
   const data = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
     const entry = await getEntry(tx, id);
-    return { entry, projects: await projectOptions(tx), today: todayIn(profile.timezone) };
+    return { entry, publications: await publicationOptions(tx), today: todayIn(profile.timezone) };
   });
   if (!data.entry) notFound();
   if (data.entry.hasExperiment) redirect(`/research/experiments/${id}${openDate ? "?date=1" : ""}`);
-  return <EntryEditor key={id} entry={data.entry} projects={data.projects} today={data.today} openDate={openDate} />;
+  return <EntryEditor key={id} entry={data.entry} publications={data.publications} today={data.today} openDate={openDate} />;
 }

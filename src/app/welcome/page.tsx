@@ -3,11 +3,10 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, monthOptions, valueOptions } from "@/lib/options";
+import { monthOptions, valueOptions } from "@/lib/options";
 import { asUser } from "@/server/auth";
 import { getProfile } from "@/server/profile";
 import { todayIn } from "@/lib/dates";
-import { projectTypes } from "@/lib/labels";
 import { ContinueButton, SkipButton, WelcomeForm } from "./welcome-form";
 
 export const metadata: Metadata = { title: "Welcome" };
@@ -101,18 +100,12 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {step === 3 && (
             <WelcomeForm step={3}>
               <div className="flex flex-col gap-1.5">
-                <h1 className="text-[28px] leading-tight font-black md:text-[34px]">Add something you&apos;re working on</h1>
-                <p className="text-muted-foreground">A project groups related notes, tasks and manuscripts. A title is all it needs.</p>
+                <h1 className="text-[28px] leading-tight font-black md:text-[34px]">What&apos;s your PhD about?</h1>
+                <p className="text-muted-foreground">Your whole PhD is the one project here. A provisional title is fine — you can change it in Settings any time.</p>
               </div>
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="title" className="text-sm font-medium">Project title</label>
-                  <Input id="title" name="title" maxLength={300} placeholder="e.g. Literature review on …" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="type" className="text-sm font-medium">Type <span className="font-normal text-muted-foreground">(optional)</span></label>
-                  <AppSelect id="type" name="type" defaultValue="" options={toOptions(projectTypes, "Not sure")} />
-                </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="phdTitle" className="text-sm font-medium">PhD title</label>
+                <Input id="phdTitle" name="phdTitle" maxLength={300} defaultValue={profile?.phdTitle ?? ""} placeholder="Electrochemical biosensors for starch detection in foods" />
               </div>
               {/* The main button comes first so pressing Enter continues rather than skips. */}
               <div className="flex flex-row-reverse items-center justify-between">

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
+import { toOptions } from "@/lib/options";
 import { Badge } from "@/components/ui/badge";
 import { SaveStatus, useAutosave } from "@/components/app/autosave";
 import { ActionForm, SaveError } from "@/components/app/action-form";
@@ -21,7 +21,6 @@ import { addBlocker, archiveExperiment, resolveBlocker, trashExperiment, updateE
 import { setEntryDate } from "@/server/actions/entries";
 import { Evidence } from "@/components/app/evidence";
 import type { EvidenceItem } from "@/server/evidence";
-import type { ProjectOption } from "@/server/profile";
 import { blockerCategories, experimentStatuses } from "@/lib/labels";
 import { formatFullDay, formatPartialDate, type PartialDate, type Precision } from "@/lib/dates";
 
@@ -54,8 +53,6 @@ function touchSession(s: { id: string | null; last: number }) {
 export function ExperimentEditor({
   entry,
   experiment,
-  project,
-  projects,
   revisions,
   blockers,
   evidence,
@@ -63,10 +60,8 @@ export function ExperimentEditor({
   openDate = false,
   trials,
 }: {
-  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; projectId: string | null; version: number; archivedAt: Date | null };
+  entry: { id: string; title: string; entryDate: string | null; entryPrecision: Precision; version: number; archivedAt: Date | null };
   experiment: Partial<Record<keyof Fields, string | null>> & { status: string | null; version: number };
-  project: { id: string; title: string } | null;
-  projects: ProjectOption[];
   revisions: Revision[];
   blockers: { id: string; category: string; description: string; openedOn: string; resolvedOn: string | null }[];
   evidence: EvidenceItem[];
@@ -101,7 +96,6 @@ export function ExperimentEditor({
   const [draftDate, setDraftDate] = useState<PartialDate>(date.precision === "none" ? { date: today, precision: "day" } : date);
   const [entryVersion, setEntryVersion] = useState(entry.version);
   const [title, setTitle] = useState(entry.title);
-  const [projectId, setProjectId] = useState(entry.projectId ?? "");
   const [editingDetails, setEditingDetails] = useState(false);
   const [detailsError, setDetailsError] = useState<string | null>(null);
 
@@ -124,7 +118,7 @@ export function ExperimentEditor({
 
   const saveDetails = (form: HTMLFormElement) => {
     const data = new FormData(form);
-    const next = { title: String(data.get("title") ?? ""), projectId: String(data.get("projectId") ?? "") || null };
+    const next = { title: String(data.get("title") ?? "") };
     setDetailsError(null);
     start(async () => {
       const r = await callAction(() => updateExperimentDetails(entry.id, entryVersion, next));
@@ -132,7 +126,6 @@ export function ExperimentEditor({
       if (!r.ok) return void setDetailsError(r.error.message);
       setEntryVersion(r.data.version);
       setTitle(next.title.trim());
-      setProjectId(next.projectId ?? "");
       setEditingDetails(false);
       toast.success("Saved");
     });
@@ -149,13 +142,13 @@ export function ExperimentEditor({
   return (
     <div className="mx-auto flex max-w-[1000px] flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Breadcrumb items={[...(project ? [{ href: `/research/projects/${project.id}`, label: project.title.split(":")[0] }] : [{ href: "/research", label: "Research" }]), { label: "Experiment" }]} />
+        <Breadcrumb items={[{ href: "/research?view=benchwork", label: "Benchwork" }, { label: "Experiment" }]} />
         <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
       </div>
 
       {entry.archivedAt && (
         <p className="rounded-xl bg-attention px-4 py-2.5 text-[13px] text-attention-foreground">
-          This experiment is archived — hidden from its project and the Journal, but kept. <Link href="/settings#archive" className="font-medium underline underline-offset-2">Restore it from Settings</Link>.
+          This experiment is archived — hidden from Benchwork and the Journal, but kept. <Link href="/settings#archive" className="font-medium underline underline-offset-2">Restore it from Settings</Link>.
         </p>
       )}
 
@@ -171,10 +164,6 @@ export function ExperimentEditor({
             <div className="flex flex-col gap-1.5">
               <label htmlFor="x-title" className="text-sm font-medium">Experiment title</label>
               <Input id="x-title" name="title" required maxLength={300} defaultValue={title} autoFocus />
-            </div>
-            <div className="flex max-w-96 flex-col gap-1.5">
-              <label htmlFor="x-project" className="text-sm font-medium">Project</label>
-              <AppSelect id="x-project" name="projectId" defaultValue={projectId} options={rowOptions(projects, (p) => p.title, "No project")} />
             </div>
             {detailsError && <SaveError message={detailsError} />}
             <div className="flex gap-2">

@@ -3,7 +3,7 @@ import type { SessionUser } from "@/server/db";
 import { getJournal, getEntry } from "@/server/journal";
 import { getHome, getHomeCalendar, getReminders } from "@/server/home";
 import { getNote, listNotes } from "@/server/notes";
-import { getProjectBundle, getManuscriptBundle, getTrials } from "@/server/research";
+import { getManuscriptBundle, getTrials } from "@/server/research";
 import { listTasks } from "@/server/planner";
 import { getAcademics } from "@/server/academics";
 import { admin, dropUser, makeUser, refused, withUser } from "./helpers";
@@ -57,7 +57,8 @@ beforeAll(async () => {
     await tx`insert into public.credit_recognitions (course_id, amount) values (${c.id}, 2)`;
     await tx`insert into public.milestones (title) values ('Alice milestone')`;
     await tx`insert into public.attachments (parent_type, parent_id, kind, url) values ('entry', ${e.id}, 'link', 'https://example.com/alice')`;
-    await tx`insert into public.review_steps (project_id, sort, title, count_kind, count) values (${p.id}, 1, 'Alice screening', 'identified', 412)`;
+    await tx`insert into public.review_steps (manuscript_id, sort, title, count_kind, count) values (${m.id}, 1, 'Alice screening', 'identified', 412)`;
+    await tx`update public.entries set manuscript_id = ${m.id} where id = ${e.id}`;
     await tx`insert into public.course_items (course_id, kind, title, due_date) values (${c.id}, 'assignment', 'Alice assignment', '2026-11-01')`;
     const [n] = await tx`insert into public.notes (kind, title, body) values ('scratch', 'Alice note', 'starch idea') returning id`;
     ids.note = n.id;
@@ -86,13 +87,12 @@ describe("another account sees none of Alice's records", () => {
     }
   });
 
-  it("search, Home, project, manuscript, planner and academics views show Bob nothing of Alice's", async () => {
+  it("search, Home, publication, planner and academics views show Bob nothing of Alice's", async () => {
     await withUser(bob, async (tx) => {
       const j = await getJournal(tx, { q: "starch" });
       expect(j.dated.length + j.undated.length + j.otherMatches.length).toBe(0);
       expect((await getJournal(tx, {})).undated.length).toBe(0);
       expect(await getEntry(tx, ids.entry)).toBeNull();
-      expect(await getProjectBundle(tx, ids.project)).toBeNull();
       expect(await getManuscriptBundle(tx, ids.manuscript)).toBeNull();
       expect(await listTasks(tx, "open")).toHaveLength(0);
       const home = await getHome(tx, "2026-11-14");
@@ -127,8 +127,11 @@ describe("another account can't change or borrow Alice's records", () => {
     expect(msg).toMatch(/row-level security/);
   });
 
-  it("Bob can't link his own records to Alice's project, manuscript or course", async () => {
+  it("Bob can't link his own records to Alice's publication, course or old project", async () => {
     expect(await refused(bob, (tx) => tx`insert into public.entries (title, project_id) values ('mine', ${ids.project})`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.entries (title, manuscript_id) values ('mine', ${ids.manuscript})`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.notes (title, manuscript_id) values ('mine', ${ids.manuscript})`)).toMatch(/foreign key/);
+    expect(await refused(bob, (tx) => tx`insert into public.review_steps (manuscript_id, sort, title) values (${ids.manuscript}, 1, 'mine')`)).toMatch(/foreign key/);
     expect(await refused(bob, (tx) => tx`insert into public.tasks (title, manuscript_id) values ('mine', ${ids.manuscript})`)).toMatch(/foreign key/);
     expect(await refused(bob, (tx) => tx`insert into public.credit_recognitions (course_id, amount) values (${ids.course}, 1)`)).toMatch(/foreign key/);
     expect(await refused(bob, (tx) => tx`insert into public.review_steps (project_id, sort, title) values (${ids.project}, 1, 'mine')`)).toMatch(/foreign key/);

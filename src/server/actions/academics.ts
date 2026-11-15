@@ -74,9 +74,8 @@ export async function addMilestone(form: FormData) {
   return run(async (tx) => {
     const target = readPartialDate(form, "target");
     const [{ next }] = await tx<{ next: number }[]>`select coalesce(max(sort), 0) + 1 as next from public.milestones`;
-    await tx`insert into public.milestones (title, target_date, target_precision, project_id, sort)
-             values (${required(form.get("title"), "Milestone")}, ${target.date}, ${target.precision},
-                     ${uuidOrNull(form.get("projectId"))}, ${next})`;
+    await tx`insert into public.milestones (title, target_date, target_precision, sort)
+             values (${required(form.get("title"), "Milestone")}, ${target.date}, ${target.precision}, ${next})`;
     refresh();
   });
 }

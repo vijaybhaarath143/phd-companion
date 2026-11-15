@@ -6,6 +6,8 @@ import type { Precision } from "@/lib/dates";
 export type Profile = {
   userId: string;
   displayName: string | null;
+  /** The PhD is the one project: its (often provisional) title. */
+  phdTitle: string | null;
   university: string | null;
   department: string | null;
   guideName: string | null;
@@ -31,11 +33,12 @@ export async function ensureProfile(tx: Tx): Promise<Profile> {
   return (await getProfile(tx))!;
 }
 
-export type ProjectOption = { id: string; title: string };
+export type PublicationOption = { id: string; title: string };
 
-export async function projectOptions(tx: Tx): Promise<ProjectOption[]> {
-  return tx<ProjectOption[]>`
-    select id, title from public.projects
+/** Publications (manuscripts) to tag an entry, task or note with. The PhD itself is the only project. */
+export async function publicationOptions(tx: Tx): Promise<PublicationOption[]> {
+  return tx<PublicationOption[]>`
+    select id, title from public.manuscripts
     where deleted_at is null and archived_at is null
     order by created_at`;
 }

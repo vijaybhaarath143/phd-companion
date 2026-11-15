@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "More" };
 export default function MorePage() {
   const items = [
     { href: "/journal", label: "Journal", hint: "Your entries, search and dates to fill in", icon: BookOpen },
-    { href: "/research", label: "Research", hint: "Projects, publications, benchwork", icon: FlaskConical },
+    { href: "/research", label: "Research", hint: "Publications and benchwork", icon: FlaskConical },
     { href: "/academics", label: "Academics", hint: "Credits, courses, deadlines, admin info", icon: GraduationCap },
     { href: "/events", label: "Events", hint: "Conferences, workshops, training — upcoming and attended", icon: Users },
     { href: "/notes", label: "Notes", hint: "Scribbles and checklists", icon: NotebookPen },

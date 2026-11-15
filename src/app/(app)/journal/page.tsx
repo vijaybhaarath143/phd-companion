@@ -4,13 +4,13 @@ import { CalendarDays, Search } from "lucide-react";
 import { asUser } from "@/server/auth";
 import { cleanJournalFilters, getJournal, type JournalRow } from "@/server/journal";
 import { MonthFilter } from "@/components/app/month-filter";
-import { projectOptions, requireProfile } from "@/server/profile";
+import { publicationOptions, requireProfile } from "@/server/profile";
 import { formatDay, monthKey, monthLabel, todayIn } from "@/lib/dates";
 import { categories, entryStatuses, participation, registration, experimentStatuses } from "@/lib/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AppSelect } from "@/components/app/app-select";
-import { toOptions, rowOptions } from "@/lib/options";
+import { toOptions } from "@/lib/options";
 import { PageHeader } from "@/components/app/ui";
 
 export const metadata: Metadata = { title: "Journal" };
@@ -27,7 +27,7 @@ function badgeFor(e: JournalRow) {
 }
 
 function meta(e: JournalRow) {
-  return [e.category ? categories[e.category as keyof typeof categories] : null, e.projectTitle ? e.projectTitle.split(":")[0] : null, e.award].filter(Boolean).join(" · ");
+  return [e.category ? categories[e.category as keyof typeof categories] : null, e.manuscriptTitle ? e.manuscriptTitle.split(":")[0] : null, e.award].filter(Boolean).join(" · ");
 }
 
 function EntryRow({ e, partial }: { e: JournalRow; partial: boolean }) {
@@ -53,13 +53,13 @@ function EntryRow({ e, partial }: { e: JournalRow; partial: boolean }) {
 export default async function JournalPage({ searchParams }: PageProps<"/journal">) {
   const sp = await searchParams;
   const pick = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
-  // anything invalid in the address (a bad project id, month 13…) is simply ignored
-  const filters = cleanJournalFilters({ q: pick("q"), category: pick("category"), status: pick("status"), project: pick("project"), from: pick("from"), to: pick("to"), limit: Number(pick("limit")) || undefined });
-  const filtering = [filters.q, filters.category, filters.status, filters.project, filters.from, filters.to].some(Boolean);
+  // anything invalid in the address (a bad publication id, month 13…) is simply ignored
+  const filters = cleanJournalFilters({ q: pick("q"), category: pick("category"), status: pick("status"), publication: pick("publication"), from: pick("from"), to: pick("to"), limit: Number(pick("limit")) || undefined });
+  const filtering = [filters.q, filters.category, filters.status, filters.publication, filters.from, filters.to].some(Boolean);
 
-  const { journal, projects, today } = await asUser(async (tx) => {
+  const { journal, publications, today } = await asUser(async (tx) => {
     const profile = await requireProfile(tx);
-    return { journal: await getJournal(tx, filters), projects: await projectOptions(tx), today: todayIn(profile.timezone) };
+    return { journal: await getJournal(tx, filters), publications: await publicationOptions(tx), today: todayIn(profile.timezone) };
   });
 
   // group by month; within a month exact days first, then "Day not known"
@@ -91,12 +91,18 @@ export default async function JournalPage({ searchParams }: PageProps<"/journal"
         <div className="flex flex-wrap items-end gap-2">
           <AppSelect name="category" defaultValue={filters.category ?? ""} aria-label="Category" size="sm" className="w-auto" options={toOptions(categories, "Any category")} />
           <AppSelect name="status" defaultValue={filters.status ?? ""} aria-label="Status" size="sm" className="w-auto" options={toOptions(entryStatuses, "Any status")} />
-          <AppSelect name="project" defaultValue={filters.project ?? ""} aria-label="Project" size="sm" className="w-auto max-w-56" options={rowOptions(projects, (p) => p.title.split(":")[0], "All projects")} />
+          {filters.publication && <input type="hidden" name="publication" value={filters.publication} />}
           <MonthFilter key={`from-${filters.from ?? ""}`} name="from" label="From" edge="start" defaultValue={filters.from} today={today} />
           <MonthFilter key={`to-${filters.to ?? ""}`} name="to" label="to" edge="end" defaultValue={filters.to} today={today} />
           <Button type="submit" size="sm">Apply</Button>
           {filtering && <Button asChild size="sm" variant="ghost"><Link href="/journal">Clear</Link></Button>}
         </div>
+        {filters.publication && (
+          <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+            <Badge variant="success">About: {publications.find((p) => p.id === filters.publication)?.title ?? "a publication"}</Badge>
+            <Link href="/journal" className="font-display font-extrabold text-sky hover:underline">Show everything</Link>
+          </p>
+        )}
       </form>
 
       {journal.otherMatches.length > 0 && (

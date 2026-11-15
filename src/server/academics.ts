@@ -13,9 +13,9 @@ export async function getAcademics(tx: Tx) {
     select c.id, c.name, c.provider, c.credits, c.status, c.completed_on, c.version,
       coalesce((select sum(amount) from public.credit_recognitions r where r.course_id = c.id), 0)::float8 as recognised
     from public.courses c where c.deleted_at is null order by c.created_at`;
-  const milestones = await tx<{ id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; projectTitle: string | null; version: number }[]>`
-    select m.id, m.title, m.status, m.target_date, m.target_precision, m.done_on, m.done_precision, p.title as project_title, m.version
-    from public.milestones m left join public.projects p on p.id = m.project_id
+  const milestones = await tx<{ id: string; title: string; status: string; targetDate: string | null; targetPrecision: Precision; doneOn: string | null; donePrecision: Precision; version: number }[]>`
+    select m.id, m.title, m.status, m.target_date, m.target_precision, m.done_on, m.done_precision, m.version
+    from public.milestones m
     order by m.sort, m.created_at`;
   // entryVersion: Academics saves an enquiry against its journal entry's version (as the Entry page does)
   const enquiries = await tx<{ entryId: string; title: string; office: string | null; contact: string | null; response: string | null; followUpDate: string | null; status: string; entryVersion: number }[]>`

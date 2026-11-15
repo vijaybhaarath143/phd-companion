@@ -19,7 +19,7 @@ import { formatFullDay } from "@/lib/dates";
 import { goalHorizons, goalOutcomes, taskPriorities, taskStatuses, viaLabel } from "@/lib/labels";
 import { PriorityMark } from "@/components/app/priority";
 import type { GoalRow, TaskRow } from "@/server/planner";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 /** Opens Quick Add on Task, like Add on the Timeline; the list refreshes once it's saved. */
 export function AddTaskButton() {
@@ -33,13 +33,13 @@ export function AddTaskButton() {
 
 function context(t: TaskRow) {
   const bits: string[] = [];
-  if (t.projectTitle) bits.push(t.projectTitle.split(":")[0]);
+  if (t.manuscriptTitle) bits.push(t.manuscriptTitle.split(":")[0]);
   else if (t.courseName) bits.push(t.courseName);
   if (t.originTitle) bits.push(`from “${t.originTitle}”`);
   return bits;
 }
 
-export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks: TaskRow[]; projects: ProjectOption[]; taskOptions: { id: string; title: string }[]; today: string; empty: string }) {
+export function TaskList({ tasks, publications, taskOptions, today, empty }: { tasks: TaskRow[]; publications: PublicationOption[]; taskOptions: { id: string; title: string }[]; today: string; empty: string }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [pending, start] = useTransition();
   if (!tasks.length) return <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">{empty}</p>;
@@ -87,8 +87,8 @@ export function TaskList({ tasks, projects, taskOptions, today, empty }: { tasks
                     <AppSelect id={`t-pri-${t.id}`} name="priority" defaultValue={t.priority} options={toOptions(taskPriorities)} />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium" htmlFor={`t-proj-${t.id}`}>Project</label>
-                    <AppSelect id={`t-proj-${t.id}`} name="projectId" defaultValue={t.projectId ?? ""} options={rowOptions(projects, (p) => p.title.split(":")[0], "No project")} />
+                    <label className="text-sm font-medium" htmlFor={`t-pub-${t.id}`}>Publication</label>
+                    <AppSelect id={`t-pub-${t.id}`} name="manuscriptId" defaultValue={t.manuscriptId ?? ""} options={rowOptions(publications, (p) => p.title.split(":")[0], "Not about a publication")} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium" htmlFor={`t-wr-${t.id}`}>If waiting: why?</label>

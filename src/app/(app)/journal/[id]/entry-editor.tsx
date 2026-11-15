@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import { categories, entryStatuses, participation, registration, enquiryStatuses, viaLabel } from "@/lib/labels";
 import { formatPartialDate, type PartialDate } from "@/lib/dates";
 import type { EntryDetail } from "@/server/journal";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 type Patch = {
   entry?: Record<string, string | null>;
@@ -47,7 +47,7 @@ function Row({ label, htmlFor, children, top }: { label: string; htmlFor?: strin
   );
 }
 
-export function EntryEditor({ entry, projects, today, openDate = false }: { entry: EntryDetail; projects: ProjectOption[]; today: string; openDate?: boolean }) {
+export function EntryEditor({ entry, publications, today, openDate = false }: { entry: EntryDetail; publications: PublicationOption[]; today: string; openDate?: boolean }) {
   const [v, setV] = useState({
     title: entry.title,
     category: entry.category ?? "",
@@ -56,7 +56,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
     people: entry.people ?? "",
     outcome: entry.outcome ?? "",
     skillsLearned: entry.skillsLearned ?? "",
-    projectId: entry.projectId ?? "",
+    manuscriptId: entry.manuscriptId ?? "",
     registration: entry.event?.registration ?? "",
     participation: entry.event?.participation ?? "unknown",
     award: entry.event?.award ?? "",
@@ -243,8 +243,8 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
             </Row>
           )}
 
-          <Row label="Project" htmlFor="project">
-            <AppSelect id="project" value={v.projectId} onValueChange={(x) => set("projectId", "entry", "projectId", x, 0)} className="max-w-96" options={rowOptions(projects, (p) => p.title, "Not linked")} />
+          <Row label="Publication" htmlFor="publication">
+            <AppSelect id="publication" value={v.manuscriptId} onValueChange={(x) => set("manuscriptId", "entry", "manuscriptId", x, 0)} className="max-w-96" options={rowOptions(publications, (p) => p.title, "Not about a publication")} />
           </Row>
 
           <Row label="People" htmlFor="people">
@@ -283,7 +283,7 @@ export function EntryEditor({ entry, projects, today, openDate = false }: { entr
         )}
         <ActionForm action={quickTask} success="Task added" className="mt-3 flex gap-2">
           <input type="hidden" name="originEntryId" value={entry.id} />
-          <input type="hidden" name="projectId" value={v.projectId} />
+          <input type="hidden" name="manuscriptId" value={v.manuscriptId} />
           <Input name="title" required placeholder="Add a task from this entry…" aria-label="New task" />
           <Button type="submit" variant="outline">Add</Button>
         </ActionForm>

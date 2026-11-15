@@ -12,7 +12,7 @@ import { rowOptions } from "@/lib/options";
 import { createNote, saveNote, trashNote, type NotePatch } from "@/server/actions/notes";
 import { undoTrash } from "@/server/actions/settings";
 import type { Note, NoteItem } from "@/server/notes";
-import type { ProjectOption } from "@/server/profile";
+import type { PublicationOption } from "@/server/profile";
 
 export function NewNoteButtons() {
   const [pending, start] = useTransition();
@@ -30,11 +30,11 @@ export function NewNoteButtons() {
 
 const newId = () => crypto.randomUUID().slice(0, 8);
 
-export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOption[] }) {
+export function NoteEditor({ note, publications }: { note: Note; publications: PublicationOption[] }) {
   const [title, setTitle] = useState(note.title);
   const [body, setBody] = useState(note.body ?? "");
   const [items, setItems] = useState<NoteItem[]>(note.items);
-  const [projectId, setProjectId] = useState(note.projectId ?? "");
+  const [manuscriptId, setManuscriptId] = useState(note.manuscriptId ?? "");
   const [pinned, setPinned] = useState(note.pinned);
   const [draft, setDraft] = useState("");
   const [pending, start] = useTransition();
@@ -59,8 +59,8 @@ export function NoteEditor({ note, projects }: { note: Note; projects: ProjectOp
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SaveStatus state={auto.state} message={auto.message} onRetry={() => void auto.retry()} copyText={copyText} />
         <div className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="note-project">Project</label>
-          <AppSelect id="note-project" size="sm" className="w-44" value={projectId} onValueChange={(v) => { setProjectId(v); auto.schedule({ projectId: v || null }, 0); }} options={rowOptions(projects, (p) => p.title.split(":")[0], "No project")} />
+          <label className="sr-only" htmlFor="note-publication">Publication</label>
+          <AppSelect id="note-publication" size="sm" className="w-44" value={manuscriptId} onValueChange={(v) => { setManuscriptId(v); auto.schedule({ manuscriptId: v || null }, 0); }} options={rowOptions(publications, (p) => p.title.split(":")[0], "No publication")} />
           <Button type="button" size="sm" variant="outline" aria-pressed={pinned} onClick={() => { setPinned(!pinned); auto.schedule({ pinned: !pinned }, 0); }}>
             {pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />} {pinned ? "Unpin" : "Pin"}
           </Button>

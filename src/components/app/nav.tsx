@@ -19,7 +19,7 @@ const items = [
   { tone: "neutral" as AreaTone, href: "/notes", label: "Notes", icon: NotebookPen, match: (p: string) => p.startsWith("/notes") },
 ];
 
-export function Sidebar({ name, department }: { name: string; department: string | null }) {
+export function Sidebar({ name, department, phdTitle }: { name: string; department: string | null; phdTitle: string | null }) {
   const path = usePathname();
   const { open } = useQuickAdd();
   return (
@@ -62,7 +62,11 @@ export function Sidebar({ name, department }: { name: string; department: string
           );
         })}
       </ul>
-      <div className="mt-auto flex flex-col gap-1 border-t-2 pt-3">
+      <Link href="/settings#profile" className="mt-auto flex flex-col gap-1 rounded-2xl border-2 bg-background px-3.5 py-3 transition-colors hover:bg-zinc-50">
+        <span className="font-display text-[11px] font-extrabold tracking-[0.08em] text-muted-foreground uppercase">Your PhD</span>
+        <span className={cn("line-clamp-3 font-display text-[13px] leading-snug font-bold", !phdTitle && "text-sky")}>{phdTitle ?? "Add your PhD title"}</span>
+      </Link>
+      <div className="flex flex-col gap-1 border-t-2 pt-3">
         <GuideMeButton className="flex h-10 items-center gap-2.5 rounded-xl px-2.5 font-display font-bold text-zinc-700 transition-colors hover:bg-zinc-100" />
         <Link
           href="/settings"

@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 import { run, ValidationError, oneOf, uuidOrNull, dateOrNull, text, versionOf, expectRow } from "@/server/actions/run";
-import { insertTask, type NewTaskInput } from "@/server/writes";
+import { insertTask, publicationOrNull, type NewTaskInput } from "@/server/writes";
 
 export type NewTask = NewTaskInput;
 
@@ -20,7 +20,6 @@ export async function quickTask(form: FormData) {
     title: String(form.get("title") ?? ""),
     dueDate: null,
     priority: "normal",
-    projectId: uuidOrNull(form.get("projectId")),
     notes: null,
     originEntryId: uuidOrNull(form.get("originEntryId")),
     manuscriptId: uuidOrNull(form.get("manuscriptId")),
@@ -58,7 +57,7 @@ export async function updateTask(id: string, form: FormData) {
         remind_until_done = ${form.get("remindUntilDone") === "on"},
         due_date = ${dateOrNull(form.get("dueDate"))},
         notes = ${text(form.get("notes"), 5000)},
-        project_id = ${uuidOrNull(form.get("projectId"))},
+        manuscript_id = ${await publicationOrNull(tx, form.get("manuscriptId"))},
         waiting_reason = ${status === "waiting" ? text(form.get("waitingReason"), 300) : null},
         waiting_on_task_id = ${waitingOn},
         completed_at = case when ${status} in ('done', 'cancelled') then coalesce(completed_at, now()) else null end,

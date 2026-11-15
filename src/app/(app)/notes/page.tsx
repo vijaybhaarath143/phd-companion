@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ListChecks, Pin, StickyNote } from "lucide-react";
 import { cn } from "cn";
 import { asUser } from "@/server/auth";
-import { requireProfile, projectOptions } from "@/server/profile";
+import { requireProfile, publicationOptions } from "@/server/profile";
 import { getNote, listNotes } from "@/server/notes";
 import { formatTimestamp } from "@/lib/dates";
 import { PageHeader } from "@/components/app/ui";
@@ -17,7 +17,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
     const profile = await requireProfile(tx);
     const notes = await listNotes(tx);
     const id = typeof sp.id === "string" ? sp.id : notes[0]?.id;
-    return { tz: profile.timezone, notes, note: id ? await getNote(tx, id) : null, projects: await projectOptions(tx) };
+    return { tz: profile.timezone, notes, note: id ? await getNote(tx, id) : null, publications: await publicationOptions(tx) };
   });
 
   return (
@@ -45,7 +45,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
                         {n.pinned && <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned" />}
                       </span>
                       <span className="ml-5.5 text-[12px] text-muted-foreground">
-                        {[n.kind === "checklist" ? `${n.itemsDone} of ${n.itemsTotal} ticked` : "Note", n.projectTitle?.split(":")[0], formatTimestamp(n.updatedAt, data.tz)].filter(Boolean).join(" · ")}
+                        {[n.kind === "checklist" ? `${n.itemsDone} of ${n.itemsTotal} ticked` : "Note", n.manuscriptTitle?.split(":")[0], formatTimestamp(n.updatedAt, data.tz)].filter(Boolean).join(" · ")}
                       </span>
                     </Link>
                   </li>
@@ -55,7 +55,7 @@ export default async function NotesPage({ searchParams }: PageProps<"/notes">) {
           </nav>
           <div className="min-w-0 flex-[3_1_480px]">
             {data.note ? (
-              <NoteEditor key={data.note.id} note={data.note} projects={data.projects} />
+              <NoteEditor key={data.note.id} note={data.note} publications={data.publications} />
             ) : (
               <p className="rounded-2xl border-2 bg-card shadow-edge px-5 py-8 text-center text-muted-foreground">That note wasn&apos;t found — it may be in Trash.</p>
             )}
