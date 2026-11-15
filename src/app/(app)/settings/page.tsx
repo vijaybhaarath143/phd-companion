@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import type { RestorableTable } from "@/server/actions/settings";
 import { ConnectedApps, ProfileForm, RemindersToggle, TrashList } from "./settings-client";
+import { ChangePasswordForm } from "@/components/app/change-password-form";
+import { isPlaceholderEmail } from "@/lib/passwords";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -116,11 +118,28 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
 
       <Block title="Account">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-medium">Sign-in email</p>
-            <p className="text-[13px] text-muted-foreground">{data.email} · {signInMode() === "code" ? "you sign in with a code" : "you sign in with a link sent to this address"}, no password</p>
+          <div className="flex flex-col gap-2">
+            {data.profile.username && (
+              <div>
+                <p className="font-medium">Username</p>
+                <p className="text-[13px] text-muted-foreground">{data.profile.username} · sign in with this and your password</p>
+              </div>
+            )}
+            {!isPlaceholderEmail(data.email) && (
+              <div>
+                <p className="font-medium">Sign-in email</p>
+                <p className="text-[13px] text-muted-foreground">{data.email} · {signInMode() === "code" ? "you can sign in with a code" : "you can sign in with a link"} sent to this address</p>
+              </div>
+            )}
           </div>
           <form action={signOut}><Button type="submit" variant="outline">Sign out</Button></form>
+        </div>
+        <div id="password" className="scroll-mt-6 border-t border-zinc-100 pt-4">
+          <p className="font-medium">Password</p>
+          <p className="mb-3 text-[13px] text-muted-foreground">
+            {data.profile.username ? "Change the password you sign in with." : "Set a password if you'd like to sign in without an email. Ask the admin for a username to go with it."}
+          </p>
+          <ChangePasswordForm />
         </div>
       </Block>
     </div>

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "cn";
-import { BookOpen, CalendarDays, Sprout, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, SlidersHorizontal, Users } from "lucide-react";
+import { BookOpen, CalendarDays, Sprout, FlaskConical, GraduationCap, History, Home, Menu, NotebookPen, Plus, Search, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { useQuickAdd } from "@/components/app/quick-add";
 import { GuideMeButton } from "@/components/app/guide";
 import { IconTile, type AreaTone } from "@/components/app/ui";
@@ -19,7 +19,7 @@ const items = [
   { tone: "neutral" as AreaTone, href: "/notes", label: "Notes", icon: NotebookPen, match: (p: string) => p.startsWith("/notes") },
 ];
 
-export function Sidebar({ name, department, phdTitle }: { name: string; department: string | null; phdTitle: string | null }) {
+export function Sidebar({ name, department, phdTitle, admin = false }: { name: string; department: string | null; phdTitle: string | null; admin?: boolean }) {
   const path = usePathname();
   const { open } = useQuickAdd();
   return (
@@ -68,6 +68,18 @@ export function Sidebar({ name, department, phdTitle }: { name: string; departme
       </Link>
       <div className="flex flex-col gap-1 border-t-2 pt-3">
         <GuideMeButton className="flex h-10 items-center gap-2.5 rounded-xl px-2.5 font-display font-bold text-zinc-700 transition-colors hover:bg-zinc-100" />
+        {admin && (
+          <Link
+            href="/admin"
+            aria-current={path.startsWith("/admin") ? "page" : undefined}
+            className={cn(
+              "flex h-10 items-center gap-2.5 rounded-xl px-2.5 font-display font-bold transition-colors",
+              path.startsWith("/admin") ? "bg-sky-soft text-sky-strong" : "text-zinc-700 hover:bg-zinc-100",
+            )}
+          >
+            <ShieldCheck className="size-4" aria-hidden /> People &amp; access
+          </Link>
+        )}
         <Link
           href="/settings"
           aria-current={path.startsWith("/settings") ? "page" : undefined}
@@ -105,7 +117,7 @@ export function MobileNav() {
       {label}
     </Link>
   );
-  const moreActive = ["/journal", "/research", "/academics", "/events", "/notes", "/settings", "/more"].some((p) => path.startsWith(p));
+  const moreActive = ["/journal", "/research", "/academics", "/events", "/notes", "/settings", "/admin", "/more"].some((p) => path.startsWith(p));
   return (
     <nav aria-label="Main" data-guide="nav" className="fixed inset-x-0 bottom-0 z-40 flex items-center border-t-2 bg-card px-2 pb-[max(env(safe-area-inset-bottom),8px)] md:hidden">
       {tab("/", "Home", Home, path === "/")}

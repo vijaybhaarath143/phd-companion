@@ -6,7 +6,7 @@ import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookies";
 import { isBrowserSession } from "@/lib/session-claims";
 import { captchaSiteKey, TURNSTILE_ORIGIN } from "@/lib/captcha";
 
-const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
+const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/auth/suspended", "/api/health"];
 
 /**
  * Runs before every request:

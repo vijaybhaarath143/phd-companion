@@ -13,7 +13,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/sign-in">
   return (
     <>
       {siteKey && <script src={`${TURNSTILE_ORIGIN}/turnstile/v0/api.js`} nonce={nonce} async defer />}
-      <SignInForm mode={signInMode()} linkFailed={sp.error === "link"} captchaSiteKey={siteKey} />
+      <SignInForm mode={signInMode()} notice={sp.error === "link" ? "link" : sp.error === "suspended" ? "suspended" : null} captchaSiteKey={siteKey} />
     </>
   );
 }

@@ -28,6 +28,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   const sp = await searchParams;
   const step = Math.min(3, Math.max(1, Number(sp.step) || 1)) as 1 | 2 | 3;
   const profile = await asUser((tx) => getProfile(tx));
+  if (profile?.mustChangePassword) redirect("/change-password");
   if (profile?.onboardedAt) redirect("/");
   const today = todayIn(profile?.timezone ?? "Asia/Kolkata");
   const thisYear = Number(today.slice(0, 4));

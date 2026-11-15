@@ -57,9 +57,45 @@ export async function withUser<T>(user: SessionUser, fn: (tx: Tx) => Promise<T>)
   return sql.begin(async (tx) => {
     await tx`select set_config('request.jwt.claims', ${claims}, true)`;
     await tx`set local role authenticated`;
+    // A suspended account is refused everywhere at once — website and connected
+    // assistants — even while a token it was given earlier hasn't expired yet.
+    const [{ active }] = await tx<{ active: boolean }[]>`select app.account_active() as active`;
+    if (!active) throw new AccountSuspendedError();
     return fn(tx);
   }) as Promise<T>;
 }
+
+export class AccountSuspendedError extends Error {
+  constructor() {
+    super("This account is suspended.");
+  }
+}
+
+/**
+ * The email to sign in with for a username, or null. Runs before anyone is signed in,
+ * with the server's own database role (the function can't be called with a user token).
+ */
+export async function loginEmailFor(username: string): Promise<string | null> {
+  const [row] = await sql<{ email: string | null }[]>`select app.login_email(${username}) as email`;
+  return row?.email ?? null;
+}
+
+/**
+ * Failed password sign-ins, counted by the app: Supabase sees only the server's address for
+ * sign-ins made here, so its own per-address limit can't tell people apart. Keys are hashes.
+ */
+export const signInLimits = {
+  async blocked(account: string, ip: string | null): Promise<boolean> {
+    const [row] = await sql<{ blocked: boolean }[]>`select app.sign_in_blocked(${account}, ${ip}) as blocked`;
+    return row?.blocked ?? false;
+  },
+  async failed(account: string, ip: string | null): Promise<void> {
+    await sql`select app.record_sign_in_failure(${account}, ${ip})`;
+  },
+  async succeeded(account: string): Promise<void> {
+    await sql`select app.clear_sign_in_failures(${account})`;
+  },
+};
 
 export class ConflictError extends Error {
   constructor() {
