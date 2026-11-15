@@ -469,3 +469,55 @@ export function describe(r: Pick<Raw, "type" | "event" | "status" | "info" | "pr
       return { label: r.event === "link" ? "Link added" : "File added", detail: r.info ? `On ${r.info}` : "" };
   }
 }
+
+/**
+ * The "big moments" the Timeline's Highlights view keeps: a milestone reached, a paper
+ * submitted or decided, a course completed or recognised, a project started or a review
+ * step done. Everything else is everyday work.
+ */
+const HIGHLIGHTS: Partial<Record<TimelineType, readonly string[]>> = {
+  milestone: ["reached"],
+  manuscript: ["submitted", "decision"],
+  course: ["completed", "recognised"],
+  project: ["started", "step"],
+};
+
+export function isHighlight(it: Pick<TimelineItem, "type" | "event">) {
+  return HIGHLIGHTS[it.type]?.includes(it.event) ?? false;
+}
+
+export type TimelineSummary = {
+  /** Dated things up to today (planned ones aren't counted until they happen). */
+  total: number;
+  highlights: number;
+  /** Months that have at least one record. */
+  activeMonths: number;
+  /** Records per month (YYYY-MM → count), up to today. */
+  byMonth: Map<string, number>;
+};
+
+/**
+ * Real totals for the Timeline's summary card, counted in the database (not from the
+ * page that's loaded), with the same type and project filters as the feed.
+ */
+export async function getTimelineSummary(tx: Tx, f: { type?: string | null; project?: string | null; today: string; timezone: string }): Promise<TimelineSummary> {
+  const type = f.type && f.type in TIMELINE_TYPES ? (f.type as TimelineType) : null;
+  const project = f.project && UUID.test(f.project) ? f.project : null;
+  const rows = await tx<{ month: string; type: TimelineType; event: string; n: number }[]>`
+    select to_char(i.date, 'YYYY-MM') as month, i.type, i.event, count(*)::int as n
+    from (${feed(tx, f.timezone)}) i
+    where i.date is not null and i.precision <> 'none'
+      and (case when i.precision = 'month' then to_char(i.date, 'YYYY-MM') <= ${monthKey(f.today)} else i.date <= ${f.today} end)
+      and (${type}::text is null or i.type = ${type})
+      and (${project}::uuid is null or i.project_id = ${project})
+    group by 1, 2, 3`;
+  const byMonth = new Map<string, number>();
+  let total = 0;
+  let highlights = 0;
+  for (const r of rows) {
+    total += r.n;
+    if (isHighlight(r)) highlights += r.n;
+    byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.n);
+  }
+  return { total, highlights, activeMonths: byMonth.size, byMonth };
+}

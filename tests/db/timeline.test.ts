@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SessionUser } from "@/server/db";
-import { getTimeline } from "@/server/timeline";
+import { getTimeline, getTimelineSummary, isHighlight } from "@/server/timeline";
 import { admin, dropUser, makeUser, withUser } from "./helpers";
 
 /** The Timeline feed: everything she recorded, in date order, and nobody else's. */
@@ -151,5 +151,20 @@ describe("timeline", () => {
     // even when they ask for her project by id
     const p = await withUser(other, (tx) => getTimeline(tx, { ...opts, project: projectId }));
     expect(p.dated).toEqual([]);
+  });
+
+  it("summary totals match the feed: past records only, big moments counted, nothing of anyone else's", async () => {
+    const { dated } = await withUser(u, (tx) => getTimeline(tx, { ...opts, limit: 5000 }));
+    const summary = await withUser(u, (tx) => getTimelineSummary(tx, opts));
+    const past = dated.filter((i) => !i.future);
+    expect(summary.total).toBe(past.length);
+    expect(summary.highlights).toBe(past.filter(isHighlight).length);
+    expect(summary.highlights).toBeGreaterThan(0); // the milestone reached and the project started
+    expect(summary.byMonth.get("2027-01")).toBeUndefined(); // planned, not counted yet
+    expect(summary.byMonth.get("2026-10")).toBe(past.filter((i) => i.date!.startsWith("2026-10")).length);
+    expect(summary.activeMonths).toBe(new Set(past.map((i) => i.date!.slice(0, 7))).size);
+
+    const theirs = await withUser(other, (tx) => getTimelineSummary(tx, opts));
+    expect(theirs.total).toBe(0);
   });
 });
