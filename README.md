@@ -5,6 +5,7 @@ manuscripts, experiments, courses and tasks, and find it again later.
 
 - Plan: [docs/technical-plan.md](docs/technical-plan.md)
 - ChatGPT / Codex connector (MCP): [docs/mcp.md](docs/mcp.md)
+- Interactive chat prototype: [walkthrough and UI cases](docs/prototypes/README.md)
 - Stack: Next.js 16 (App Router) · Tailwind 4 · shadcn/ui · Supabase (Postgres, Auth, Storage) · postgres.js
 
 ## Run it locally
