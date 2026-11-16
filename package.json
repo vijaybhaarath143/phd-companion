@@ -17,7 +17,8 @@
     "icons": "node scripts/make-icons.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:chatgpt:db": "node scripts/test-chatgpt-db.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

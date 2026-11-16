@@ -137,3 +137,5 @@ each (`src/instrumentation.ts`).
 `tests/unit` covers dates, credits, CSV safety and file-type checks. `tests/db` runs
 against the local database as two real accounts and checks that one person's records
 never reach another — every table, search, Home, files — plus the history rules above.
+
+Native ChatGPT connection: [setup and deployment](docs/chatgpt-connection.md).

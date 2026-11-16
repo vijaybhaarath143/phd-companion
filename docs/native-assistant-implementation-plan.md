@@ -103,6 +103,9 @@ Do not hold a database transaction open while waiting for model output or user a
 
 ## 4. Model access and authentication
 
+**Implementation update:** The native OAuth connection, Settings controls, refresh/revocation, and explicit subscription-access probe are implemented. See [setup and deployment](chatgpt-connection.md). Hosted client registration and live access verification remain release prerequisites; the chat runner and inbox are still planned.
+
+
 ### 4.1 Three separate permissions
 
 | Boundary | What it authorizes | What it does not authorize |
