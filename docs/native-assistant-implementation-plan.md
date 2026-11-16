@@ -106,6 +106,8 @@ Do not hold a database transaction open while waiting for model output or user a
 **Implementation update:** The native OAuth connection, Settings controls, refresh/revocation, and explicit subscription-access probe are implemented. See [setup and deployment](chatgpt-connection.md). Hosted client registration and live access verification remain release prerequisites; the chat runner and inbox are still planned.
 
 
+**Parked decision:** Hosted access, localhost registration, external ChatGPT/Claude connectors, Gemini/Claude APIs, and self-hosted models are compared in [model access options](model-access-options.md). No alternative provider has been selected or implemented.
+
 ### 4.1 Three separate permissions
 
 | Boundary | What it authorizes | What it does not authorize |

@@ -1,5 +1,7 @@
 # Native ChatGPT connection
 
+**Parked:** No live access or deployment has been enabled. See [model alternatives, local access and the resume checklist](model-access-options.md) before resuming.
+
 Implemented in Settings → **Ask Sprig · ChatGPT**. This connects an already signed-in
 PhD Companion user to their own ChatGPT account. Supabase continues to own app sign-in
 and research authorization. The existing inbound MCP connector is unchanged.
