@@ -6,6 +6,8 @@ it does not execute the prototype.
 
 This is a self-contained design prototype for native chat in PhD Companion. It includes
 a **14-step guided journey**, **42 selectable UI cases**, and a clickable flow map.
+The [full frontend and backend implementation plan](../native-assistant-implementation-plan.md)
+maps the design to APIs, storage, components, delivery packages, and acceptance checks.
 It uses fictional records and simulated responses. The prototype does not connect to
 ChatGPT, upload files, or write research data. All changes remain in memory and reset
 when the page reloads.
