@@ -1,11 +1,17 @@
 # Ask Sprig: full frontend and backend implementation plan
 
-**Status:** Proposed implementation specification; application functionality is not yet implemented.  
-**Prepared:** 16 November 2026.  
-**Product:** PhD Companion, a private research workspace used by one scholar and hosted on Vercel.  
-**Application baseline:** `master` at `cad160beb4981f8fa6f9bcbc561eb1081b6e45f4`.  
-**Design baseline:** [interactive prototype and run instructions](prototypes/README.md), introduced in [PR #18](https://github.com/vijaybhaarath143/phd-companion/pull/18).  
+**Status:** Proposed implementation specification; application functionality is not yet implemented.
+
+**Prepared:** 16 November 2026.
+
+**Product:** PhD Companion, a private research workspace used by one scholar and hosted on Vercel.
+
+**Application baseline:** `master` at `cad160beb4981f8fa6f9bcbc561eb1081b6e45f4`.
+
+**Design baseline:** [interactive prototype and run instructions](prototypes/README.md), introduced in [PR #18](https://github.com/vijaybhaarath143/phd-companion/pull/18).
+
 **Scope:** Backend architecture, production frontend, API contracts, 14-step journey, all 42 designed UI cases, delivery sequence, and acceptance checks.
+
 
 The prototype uses fictional records and simulated operations. Its connected states are design examples, not evidence that this hosted application has subscription access. This document defines the work needed to implement those behaviors.
 
@@ -775,4 +781,3 @@ Provider/hosting references from the architecture research follow. Recheck them 
 - [Capability limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 - [Connection and inference errors](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
 - [Vercel function duration](https://vercel.com/docs/functions/configuring-functions/duration).
-
