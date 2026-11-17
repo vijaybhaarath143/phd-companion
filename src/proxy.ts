@@ -6,7 +6,7 @@ import { SESSION_COOKIE_OPTIONS } from "@/lib/supabase/cookies";
 import { isBrowserSession } from "@/lib/session-claims";
 import { captchaSiteKey, TURNSTILE_ORIGIN } from "@/lib/captcha";
 
-const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health"];
+const PUBLIC_PATHS = ["/sign-in", "/verify", "/auth/confirm", "/api/health", "/api/chatgpt/callback"];
 
 /**
  * Runs before every request:
@@ -52,6 +52,9 @@ export async function proxy(request: NextRequest) {
   };
 
   if (!signedIn && !isPublic) {
+    if (path === "/api/chatgpt" || path.startsWith("/api/chatgpt/")) {
+      return withCookies(NextResponse.json({ error: "sign_in_required" }, { status: 401, headers: { "Cache-Control": "private, no-store" } }));
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     url.search = "";

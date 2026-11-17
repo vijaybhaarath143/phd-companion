@@ -1,0 +1,2100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhD Companion · Ask Sprig: full UI flow (design prototype)</title>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  #pcf {
+    /* Product tokens: src/app/globals.css (light), master cad160b */
+    --bg: #fbfaf6; --fg: #2d2d33; --card: #ffffff; --muted: #f3f1eb; --muted-fg: #5d5d65;
+    --border: #e6e4de; --primary: #268519; --primary-fg: #ffffff; --primary-edge: #1b6411;
+    --ring: #1872b3; --destructive: #b42323;
+    --attention: #fff3c4; --attention-border: #f5de8a; --attention-fg: #6e4600;
+    --leaf-soft: #e4f6dc; --leaf-strong: #1b6411; --leaf-line: #bfe5b0;
+    --sky: #1872b3; --sky-soft: #e3f2fd; --sky-strong: #0f5a8f;
+    --grape: #7a4fd0; --grape-soft: #f1eafe; --grape-strong: #5b35a8;
+    --clay: #b04a12; --clay-soft: #ffeadf; --clay-strong: #8e3a0c; --clay-line: #f4c6ad; --sun-strong: #9a6300;
+    --z50: #f8f7f3; --z100: #f3f1eb; --z300: #d6d3cb; --z400: #a8a6a0; --z700: #4a4a52; --z900: #2d2d33;
+    --font-display: ui-rounded, "SF Pro Rounded", "Nunito", "Varela Round", "Segoe UI", system-ui, sans-serif;
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans); color: var(--fg); font-size: 15px; line-height: 1.45;
+    max-width: 1120px; margin: 0 auto;
+  }
+  #pcf *, #pcf *::before, #pcf *::after { box-sizing: border-box; }
+  :where(#pcf button, #pcf input, #pcf select, #pcf textarea) { font: inherit; color: inherit; }
+  #pcf button { cursor: pointer; }
+  #pcf button:disabled { cursor: not-allowed; }
+  #pcf :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; box-shadow: 0 0 0 5px var(--sky-soft); }
+  #pcf .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  #pcf h2, #pcf h3, #pcf h4 { font-family: var(--font-display); font-weight: 800; margin: 0; }
+  #pcf p { margin: 0; }
+  #pcf svg { flex-shrink: 0; }
+  #pcf [hidden] { display: none !important; }
+
+  /* ================= Reviewer layer (prototype only) ================= */
+  .rv { background: #fffdf7; border: 2px dashed #cfcabd; border-radius: 14px; padding: 8px 10px 10px; margin: 0 0 12px; font-size: 13.5px; color: #2d2d33; }
+  .rv-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .rv-tag { font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #5d5d65; white-space: nowrap; }
+  .rv-tabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1 1 240px; min-width: 0; }
+  .rv-tab, .rv-btn { flex-shrink: 0; white-space: nowrap; }
+  .rv-tab { height: 32px; padding: 0 11px; border-radius: 9px; border: 2px solid #e2ded3; background: #fff; font-size: 13px; font-weight: 700; color: #3c3c44; }
+  .rv-tab[aria-selected="true"] { background: #2d2d33; border-color: #2d2d33; color: #fff; }
+  .rv-btn { height: 32px; padding: 0 11px; border-radius: 9px; border: 2px solid #e2ded3; background: #fff; font-size: 13px; font-weight: 700; color: #3c3c44; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .rv-btn:hover { background: #f6f4ee; }
+  .rv-btn:disabled { opacity: .5; }
+  .rv-btn.dark { background: #2d2d33; border-color: #2d2d33; color: #fff; }
+  .rv-panel { margin-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+  .rv-row { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+  .rv-row label { font-weight: 700; font-size: 12.5px; }
+  .rv select { height: 32px; border-radius: 9px; border: 2px solid #e2ded3; background: #fff; padding: 0 8px; font-size: 13px; max-width: 100%; min-width: 0; flex: 1 1 220px; }
+  .rv-count { font-size: 12px; color: #5d5d65; white-space: nowrap; }
+  .rv-line { font-size: 13px; color: #3c3c44; overflow-wrap: anywhere; }
+  .rv-line b { font-weight: 800; color: #2d2d33; }
+  .rv-groups { display: flex; flex-wrap: wrap; gap: 4px; }
+  .rv-group { height: 30px; padding: 0 9px; border-radius: 999px; border: 2px solid #e2ded3; background: #fff; font-size: 12.5px; font-weight: 700; color: #3c3c44; }
+  .rv-group[aria-pressed="true"] { border-color: #2d2d33; background: #f1efe8; }
+  .rv-cases { display: flex; flex-wrap: wrap; gap: 4px; }
+  .rv-case { min-height: 30px; padding: 3px 9px; border-radius: 9px; border: 2px solid #e8e5dc; background: #fff; font-size: 12.5px; font-weight: 600; color: #2d2d33; text-align: left; }
+  .rv-case:hover { background: #f6f4ee; }
+  .rv-case[aria-current="true"] { border-color: var(--sky); background: var(--sky-soft); color: var(--sky-strong); }
+  .rv-sim { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 5px 8px; border-radius: 9px; background: #f1efe8; font-size: 12.5px; }
+  .rv-map { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px 2px; }
+  .rv-node { width: 84px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 3px 4px; border-radius: 10px; border: 2px solid #e8e5dc; background: #fff; font-size: 11.5px; font-weight: 700; color: #2d2d33; line-height: 1.15; text-align: center; }
+  .rv-node:hover { background: #f6f4ee; }
+  .rv-node[aria-current="true"] { border-color: var(--sky); background: var(--sky-soft); }
+  .rv-node svg { width: 64px; height: 42px; }
+  .rv-arrow { display: flex; align-items: center; color: #a8a6a0; font-size: 14px; width: 10px; justify-content: center; }
+  .rv-branches { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12.5px; }
+
+  /* ================= Product ================= */
+  .pcf-stage { container: pc / inline-size; max-width: 100%; margin: 0 auto; }
+  .pcf-stage.phone { max-width: 380px; }
+  .pcf-device-note { text-align: center; font-size: 12px; color: #5d5d65; margin: 0 0 6px; }
+  .tile svg { width: 17px; height: 17px; }
+  .badge svg { width: 13px; height: 13px; }
+
+  .pc-app { position: relative; background: var(--bg); border: 2px solid var(--border); border-radius: 20px; box-shadow: 0 4px 0 var(--border); overflow: hidden; display: flex; flex-direction: column; height: 720px; }
+  .pc-preview-bar { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 14px; background: var(--attention); border-bottom: 2px solid var(--attention-border); color: var(--attention-fg); font-size: 12.5px; flex-shrink: 0; }
+  .pc-preview-bar strong { font-family: var(--font-display); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: 11px; white-space: nowrap; }
+  .pc-preview-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sun-strong); flex-shrink: 0; }
+  .pc-body { flex: 1; min-height: 0; display: flex; position: relative; }
+
+  .pc-rail { display: none; width: 68px; flex-shrink: 0; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0; background: var(--card); border-right: 2px solid var(--border); overflow: hidden; }
+  .pc-rail .brand { width: 38px; margin: 0 0 10px; display: block; }
+  .pc-rail-item { width: 48px; height: 44px; border-radius: 12px; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; opacity: .55; }
+  .pc-rail-item.cur { background: var(--sky-soft); border-color: var(--sky-soft); opacity: 1; }
+  .pc-rail .sep { width: 32px; height: 2px; background: var(--z100); margin: 6px 0; }
+  .tile { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .t-leaf { background: var(--leaf-soft); color: var(--primary); }
+  .t-sky { background: var(--sky-soft); color: var(--sky); }
+  .t-sun { background: var(--attention); color: var(--sun-strong); }
+  .t-grape { background: var(--grape-soft); color: var(--grape); }
+  .t-clay { background: var(--clay-soft); color: var(--clay); }
+  .t-neutral { background: var(--muted); color: var(--z700); }
+
+  /* Inbox */
+  .pc-inbox { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--card); }
+  .pc-inbox-head { padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 2px solid var(--z100); }
+  .pc-inbox-title { display: flex; align-items: center; gap: 10px; }
+  .pc-inbox-title .mark { width: 30px; flex-shrink: 0; }
+  .pc-inbox-title h2 { font-size: 20px; line-height: 1.1; flex: 1; min-width: 0; white-space: nowrap; }
+  .eyebrow { display: block; font-family: var(--font-display); font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+  .pc-search { position: relative; }
+  .pc-search > svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--muted-fg); pointer-events: none; }
+  .pc-search input { width: 100%; height: 40px; border-radius: 12px; border: 2px solid var(--border); background: var(--card); padding: 0 12px 0 34px; font-size: 14.5px; }
+  .pc-search input::placeholder { color: var(--muted-fg); }
+  .pc-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 8px 10px; }
+  .pc-group { font-family: var(--font-display); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-fg); padding: 10px 8px 4px; }
+  .pc-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .pc-rowline { display: flex; align-items: flex-start; gap: 2px; border-radius: 12px; }
+  .pc-rowline.cur { background: var(--sky-soft); }
+  .pc-conv { flex: 1; min-width: 0; text-align: left; display: flex; gap: 10px; align-items: flex-start; padding: 9px 4px 9px 9px; border-radius: 12px; border: 2px solid transparent; background: transparent; }
+  .pc-rowline:not(.cur) .pc-conv:hover { background: var(--z50); }
+  .pc-conv .tile { width: 30px; height: 30px; margin-top: 1px; }
+  .pc-conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .pc-conv-top { display: flex; gap: 6px; align-items: baseline; }
+  .pc-conv-title { font-family: var(--font-display); font-weight: 800; font-size: 14.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-rowline.cur .pc-conv-title { color: var(--sky-strong); }
+  .pc-conv-time { font-size: 12px; color: var(--muted-fg); flex-shrink: 0; }
+  .pc-conv-snip { font-size: 13px; color: var(--muted-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-conv-badges { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+  .pc-more { width: 34px; height: 34px; margin: 8px 6px 0 0; border-radius: 9px; border: 2px solid transparent; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; color: var(--z700); flex-shrink: 0; }
+  .pc-more:hover, .pc-more[aria-expanded="true"] { background: var(--card); border-color: var(--border); }
+  .row-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 8px 48px; }
+  .rename-form { display: flex; flex-direction: column; gap: 6px; padding: 8px 8px 10px; border: 2px solid var(--border); border-radius: 12px; background: var(--z50); margin: 2px 0; }
+  .rename-form .rf-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .inbox-msg { padding: 14px 10px; font-size: 13.5px; color: var(--muted-fg); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .inbox-card { margin: 8px 4px; padding: 14px; border-radius: 14px; border: 2px solid var(--border); background: var(--z50); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; font-size: 13.5px; }
+  .inbox-card.err { border-color: var(--clay-line); background: var(--clay-soft); }
+  .inbox-card h3 { font-size: 15.5px; }
+  .inbox-card p { color: var(--z700); }
+  .inbox-empty { margin: 18px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted-fg); }
+  .inbox-empty .big { width: 56px; }
+  .inbox-empty h3 { font-size: 17px; color: var(--fg); }
+  .skel { display: flex; gap: 10px; padding: 10px 9px; }
+  .skel i { display: block; border-radius: 8px; background: var(--z100); }
+  .skel .s-tile { width: 30px; height: 30px; flex-shrink: 0; }
+  .skel .s-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .skel .s-l1 { height: 12px; width: 70%; } .skel .s-l2 { height: 10px; width: 90%; }
+  .skel i { animation: pc-pulse 1.4s ease-in-out infinite; }
+  @keyframes pc-pulse { 50% { opacity: .45; } }
+  .inbox-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 4px 2px; padding: 7px 9px; border-radius: 10px; background: var(--z50); border: 2px solid var(--border); font-size: 13px; }
+  .inbox-status span { flex: 1; min-width: 120px; }
+  .archived-head { display: flex; align-items: center; gap: 8px; padding: 6px 4px 4px; }
+  .archived-head h3 { font-size: 14px; flex: 1; }
+  .pc-inbox-foot { border-top: 2px solid var(--z100); padding: 10px 12px; position: relative; }
+  .pc-conn { width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 4px 9px; padding: 7px 9px; border-radius: 12px; border: 2px solid var(--border); background: var(--z50); text-align: left; }
+  .pc-conn > .tile { grid-column: 1; grid-row: 1 / span 2; }
+  .pc-conn > .conn-main { grid-column: 2; }
+  .pc-conn > .badge { grid-column: 2; justify-self: start; max-width: 100%; white-space: normal; }
+  .pc-conn:hover { background: var(--z100); }
+  .pc-conn .conn-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .pc-conn .conn-main b { font-family: var(--font-display); font-weight: 800; font-size: 13px; }
+  .pc-conn .conn-main span { font-size: 12px; color: var(--muted-fg); }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-family: var(--font-display); font-weight: 800; white-space: nowrap; border: 1.5px solid transparent; }
+  .b-sun { background: var(--attention); color: var(--attention-fg); border-color: var(--attention-border); }
+  .b-leaf { background: var(--leaf-soft); color: var(--leaf-strong); }
+  .b-sky { background: var(--sky-soft); color: var(--sky-strong); }
+  .b-neutral { background: var(--muted); color: var(--z700); }
+  .b-grape { background: var(--grape-soft); color: var(--grape-strong); }
+  .b-clay { background: var(--clay-soft); color: var(--clay-strong); border-color: var(--clay-line); }
+  .b-outline { background: var(--card); color: var(--z700); border-color: var(--border); }
+
+  /* Thread */
+  .pc-thread { flex: 1; min-width: 0; display: none; flex-direction: column; position: relative; background: var(--bg); }
+  .pc-thread-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--card); border-bottom: 2px solid var(--border); min-height: 62px; flex-shrink: 0; }
+  .pc-back { width: 40px; height: 40px; border-radius: 10px; border: 2px solid var(--border); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 0 var(--border); flex-shrink: 0; padding: 0; }
+  .pc-thread-titles { flex: 1; min-width: 0; }
+  .pc-thread-titles h2 { font-size: 17px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-thread-sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 3px; font-size: 12.5px; color: var(--muted-fg); }
+  .pc-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { display: flex; gap: 10px; max-width: 760px; width: 100%; }
+  .msg.user { justify-content: flex-end; margin-left: auto; flex-direction: column; align-items: flex-end; gap: 0; }
+  .msg .avatar { width: 30px; flex-shrink: 0; margin-top: 2px; }
+  .bubble-user { background: var(--sky-soft); color: #12324d; border-radius: 16px 16px 4px 16px; padding: 10px 13px; max-width: min(520px, 88%); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bubble-user .meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; white-space: normal; }
+  .msg-time { font-size: 11.5px; color: var(--muted-fg); margin-top: 3px; text-align: right; }
+  .sprig-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .sprig-name { font-family: var(--font-display); font-weight: 800; font-size: 13px; color: var(--leaf-strong); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .sprig-name .when { font-family: var(--font-sans); font-weight: 400; color: var(--muted-fg); font-size: 11.5px; }
+  .sprig-p { overflow-wrap: anywhere; }
+  .caret { display: inline-block; width: 8px; height: 1.05em; vertical-align: text-bottom; background: var(--primary); margin-left: 2px; border-radius: 2px; animation: pc-blink 1s steps(2) infinite; }
+  @keyframes pc-blink { 50% { opacity: 0; } }
+  .tools { list-style: none; margin: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; background: var(--card); border: 2px solid var(--border); border-radius: 12px; font-size: 13px; }
+  .tools li { display: flex; gap: 7px; align-items: center; color: var(--z700); }
+  .tools li svg { width: 15px; height: 15px; }
+  .tools li.done svg { color: var(--primary); }
+  .tools li.run { color: var(--sky-strong); font-weight: 600; }
+  .tools li.skip { color: var(--muted-fg); }
+  .spin { animation: pc-spin 1s linear infinite; }
+  @keyframes pc-spin { to { transform: rotate(360deg); } }
+  .sprig-ol { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; counter-reset: pri; }
+  .sprig-ol li { counter-increment: pri; display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; background: var(--card); border: 2px solid var(--border); border-radius: 14px; padding: 10px 12px; }
+  .sprig-ol li::before { content: counter(pri); width: 24px; height: 24px; border-radius: 8px; background: var(--leaf-soft); color: var(--leaf-strong); font-family: var(--font-display); font-weight: 900; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .li-title { font-family: var(--font-display); font-weight: 800; overflow-wrap: anywhere; }
+  .li-detail { font-size: 13.5px; color: var(--muted-fg); margin-top: 2px; }
+  .li-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .src { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; height: 26px; padding: 0 9px 0 4px; margin: 1px 0; border-radius: 999px; border: 2px solid var(--sky-soft); background: var(--card); color: var(--sky-strong); font-size: 12.5px; font-weight: 600; vertical-align: middle; }
+  .src:hover { background: var(--sky-soft); }
+  .src .n { width: 18px; height: 18px; border-radius: 50%; background: var(--sky-soft); color: var(--sky-strong); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .src .n svg { width: 11px; height: 11px; }
+  .src .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .src.gone { border-style: dashed; border-color: var(--z300); color: var(--z700); }
+  .src.gone .n { background: var(--z100); color: var(--z700); }
+  .note-line { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--z700); background: var(--z50); border: 2px dashed var(--border); border-radius: 12px; padding: 8px 10px; }
+  .note-line svg { width: 16px; height: 16px; margin-top: 1px; }
+  .note-line.sun { background: var(--attention); border: 2px solid var(--attention-border); color: var(--attention-fg); }
+  .note-line.clay { background: var(--clay-soft); border: 2px solid var(--clay-line); color: var(--clay-strong); }
+  .note-line.leaf { background: var(--leaf-soft); border: 2px solid var(--leaf-line); color: var(--leaf-strong); }
+  .act-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .peek-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .err-box { border: 2px solid var(--clay-line); background: var(--clay-soft); color: var(--clay-strong); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+  .err-box b { font-family: var(--font-display); }
+
+  /* Proposal */
+  .proposal { background: var(--card); border: 2px solid var(--border); border-radius: 18px; box-shadow: 0 4px 0 var(--border); overflow: hidden; }
+  .proposal.pending { border-color: var(--attention-border); box-shadow: 0 4px 0 var(--attention-border); }
+  .proposal.approved { border-color: var(--leaf-line); box-shadow: 0 4px 0 var(--leaf-line); }
+  .proposal.problem { border-color: var(--clay-line); box-shadow: 0 4px 0 var(--clay-line); }
+  .prop-head { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px 10px; flex-wrap: wrap; }
+  .prop-head .tile { width: 34px; height: 34px; }
+  .prop-head-text { flex: 1; min-width: 170px; }
+  .prop-head h3 { font-size: 16px; line-height: 1.25; }
+  .prop-head h3:focus { outline: none; }
+  .prop-head .sub { font-size: 12.5px; color: var(--muted-fg); margin-top: 2px; }
+  .prop-band { padding: 9px 14px; font-size: 13px; border-top: 2px solid var(--z100); display: flex; gap: 8px; align-items: flex-start; }
+  .prop-band svg { width: 16px; height: 16px; margin-top: 1px; }
+  .prop-band.sun { background: var(--attention); color: var(--attention-fg); }
+  .prop-band.clay { background: var(--clay-soft); color: var(--clay-strong); }
+  .prop-band.leaf { background: var(--leaf-soft); color: var(--leaf-strong); }
+  .prop-band.sky { background: var(--sky-soft); color: var(--sky-strong); }
+  .prop-rows { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--z100); }
+  .prop-rows > li { display: flex; gap: 10px; padding: 10px 14px; border-bottom: 2px solid var(--z100); align-items: flex-start; }
+  .prop-rows > li:last-child { border-bottom: 0; }
+  .rnum { width: 22px; height: 22px; border-radius: 7px; background: var(--muted); color: var(--z700); font-family: var(--font-display); font-weight: 900; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .rnum svg { width: 14px; height: 14px; }
+  .rnum.ok { background: var(--leaf-soft); color: var(--leaf-strong); }
+  .rnum.bad { background: var(--clay-soft); color: var(--clay-strong); }
+  .rmain { flex: 1; min-width: 0; }
+  .rtitle { font-family: var(--font-display); font-weight: 800; font-size: 14.5px; overflow-wrap: anywhere; }
+  .rmeta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; align-items: center; }
+  .rnote { margin-top: 6px; font-size: 12.5px; color: var(--z700); display: flex; gap: 6px; align-items: flex-start; }
+  .rnote svg { width: 14px; height: 14px; margin-top: 2px; color: var(--sun-strong); }
+  .new-tag { font-size: 11px; font-family: var(--font-display); font-weight: 800; color: var(--leaf-strong); letter-spacing: .04em; text-transform: uppercase; }
+  .prop-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px 14px; background: var(--z50); border-top: 2px solid var(--z100); }
+  .prop-foot .spacer { flex: 1; }
+  .fine { font-size: 12px; color: var(--muted-fg); flex-basis: 100%; overflow-wrap: anywhere; }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cmp th, .cmp td { text-align: left; padding: 7px 14px; border-top: 2px solid var(--z100); vertical-align: top; overflow-wrap: anywhere; }
+  .cmp th { font-family: var(--font-display); font-weight: 800; font-size: 12px; color: var(--muted-fg); width: 34%; }
+  .edit-list > li { display: block; }
+  .edit-row { display: grid; gap: 8px; width: 100%; }
+  .edit-row .inc { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--z700); }
+  .edit-row .inc input { width: 18px; height: 18px; accent-color: var(--primary); }
+  .pc-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .pc-field > label, .due-set legend { font-family: var(--font-display); font-size: 12px; font-weight: 800; color: var(--z700); }
+  .pc-input { height: 40px; border-radius: 10px; border: 2px solid var(--border); background: var(--card); padding: 0 10px; font-size: 14.5px; min-width: 0; width: 100%; }
+  .pc-input[aria-invalid="true"] { border-color: var(--destructive); }
+  .pc-input:disabled { background: var(--z50); color: var(--muted-fg); }
+  .due-set { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; min-width: 0; }
+  .due-set legend { padding: 0; margin-bottom: 4px; }
+  .due-set .opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; }
+  .due-set .opt input[type=radio] { width: 17px; height: 17px; accent-color: var(--primary); }
+  .due-set input[type=date] { width: 170px; max-width: 100%; }
+  .field-err { color: var(--destructive); font-size: 12.5px; font-weight: 600; display: flex; gap: 5px; align-items: center; }
+  .field-err svg { width: 14px; height: 14px; }
+  .form-err { margin: 0 14px 10px; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--clay-line); background: var(--clay-soft); color: var(--clay-strong); font-size: 13px; font-weight: 600; }
+  .edit-row.off .pc-field, .edit-row.off .due-set { opacity: .55; }
+  .saved-link { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; padding: 0; color: var(--sky-strong); font-family: var(--font-display); font-weight: 800; font-size: 14.5px; }
+  .saved-link span { overflow-wrap: anywhere; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  .saved-link svg { width: 16px; height: 16px; }
+  .receipt { display: flex; gap: 6px 8px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--z700); padding: 10px 14px 12px; background: var(--leaf-soft); border-top: 2px solid #cfeac4; }
+  .receipt b { color: var(--leaf-strong); font-family: var(--font-display); }
+  .receipt code, .fine code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: rgba(255,255,255,.7); padding: 0 4px; border-radius: 5px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 44px; padding: 0 16px; border-radius: 12px; font-family: var(--font-display); font-weight: 800; font-size: 14.5px; border: 2px solid transparent; transition: transform 75ms; white-space: nowrap; }
+  .btn svg { width: 17px; height: 17px; }
+  .btn-primary { background: var(--primary); color: var(--primary-fg); box-shadow: 0 4px 0 var(--primary-edge); }
+  .btn-primary:active:not(:disabled) { transform: translateY(4px); box-shadow: none; }
+  .btn-primary:disabled { background: var(--z300); box-shadow: 0 4px 0 var(--z400); color: var(--z700); }
+  .btn-secondary { background: var(--card); border-color: var(--border); color: var(--fg); box-shadow: 0 3px 0 var(--border); }
+  .btn-secondary:hover:not(:disabled) { background: var(--z50); }
+  .btn-secondary:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+  .btn-secondary:disabled { color: var(--muted-fg); }
+  .btn-ghost { background: transparent; color: var(--z700); padding: 0 10px; }
+  .btn-ghost:hover { background: var(--z100); }
+  .btn-danger { background: var(--card); border-color: var(--clay-line); color: var(--clay-strong); box-shadow: 0 3px 0 var(--clay-line); }
+  .btn-sm { height: 36px; padding: 0 12px; font-size: 13.5px; border-radius: 10px; }
+  .btn-xs { height: 30px; padding: 0 9px; font-size: 12.5px; border-radius: 9px; box-shadow: none !important; }
+
+  /* Empty / new chat */
+  .pc-emptystate { margin: auto; max-width: 520px; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 12px 4px; }
+  .pc-emptystate .big { width: 68px; }
+  .pc-emptystate h3 { font-size: 21px; line-height: 1.2; }
+  .pc-emptystate p { color: var(--muted-fg); font-size: 14.5px; max-width: 420px; }
+  .suggest { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 6px; }
+  .suggest button { display: flex; gap: 10px; align-items: center; text-align: left; width: 100%; min-height: 46px; padding: 7px 12px; border-radius: 14px; border: 2px solid var(--border); background: var(--card); box-shadow: 0 3px 0 var(--border); font-size: 14px; font-weight: 600; }
+  .suggest button:hover { background: var(--z50); }
+  .suggest .tile { width: 30px; height: 30px; }
+
+  /* Composer */
+  .pc-composer { padding: 8px 14px 12px; flex-shrink: 0; position: relative; background: var(--bg); border-top: 2px solid var(--z100); }
+  .notice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--border); background: var(--card); margin-bottom: 8px; font-size: 13.5px; }
+  .notice .tile { width: 30px; height: 30px; }
+  .notice .n-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .notice b.n-title { font-family: var(--font-display); font-weight: 800; font-size: 14.5px; }
+  .notice p { color: var(--z700); }
+  .notice.sun { background: var(--attention); border-color: var(--attention-border); }
+  .notice.sun p { color: var(--attention-fg); }
+  .notice.clay { background: var(--clay-soft); border-color: var(--clay-line); }
+  .notice.clay p { color: var(--clay-strong); }
+  .notice.leaf { background: var(--leaf-soft); border-color: var(--leaf-line); }
+  .notice.sky { background: var(--sky-soft); border-color: #c4e0f5; }
+  .notice .act-row { gap: 6px; }
+  .subpanel { border: 2px solid var(--attention-border); background: var(--card); border-radius: 12px; padding: 8px 10px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+  .pc-compose-box { background: var(--card); border: 2px solid var(--border); border-radius: 18px; box-shadow: 0 4px 0 var(--border); padding: 8px; }
+  .pc-compose-box:focus-within { border-color: #9fcaea; }
+  .pc-attach-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 6px; max-height: 172px; overflow-y: auto; }
+  .att { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 30px; padding: 2px 4px 2px 9px; border-radius: 10px; background: var(--z50); border: 2px solid var(--border); font-size: 12.5px; }
+  .att > svg { width: 14px; height: 14px; color: var(--muted-fg); }
+  .att .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-weight: 700; }
+  .att .st { color: var(--muted-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .att .x { width: 26px; height: 26px; border-radius: 7px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; padding: 0; color: var(--z700); flex-shrink: 0; }
+  .att .x:hover { background: var(--z100); }
+  .att-bad { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 7px 9px; border-radius: 10px; border: 2px solid var(--clay-line); background: var(--clay-soft); font-size: 12.5px; color: var(--clay-strong); }
+  .att-bad .top { display: flex; gap: 6px; align-items: center; min-width: 0; }
+  .att-bad .top .nm { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .att-bad .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pc-textarea { width: 100%; border: 0; resize: none; background: transparent; padding: 6px 6px; font-size: 15px; line-height: 1.45; min-height: 44px; max-height: 120px; outline: none; display: block; }
+  .pc-textarea::placeholder { color: var(--muted-fg); }
+  .pc-textarea:disabled { color: var(--muted-fg); }
+  .pc-compose-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .pc-compose-actions .spacer { flex: 1; }
+  .pc-chipbtn { display: inline-flex; align-items: center; gap: 6px; height: 34px; max-width: 100%; min-width: 0; padding: 0 10px; border-radius: 10px; border: 2px solid var(--border); background: var(--card); font-size: 13px; font-weight: 600; color: var(--z700); }
+  .pc-chipbtn:hover { background: var(--z50); }
+  .pc-chipbtn[data-fk="pop-attach"] { flex-shrink: 0; }
+  .pc-chipbtn svg { width: 15px; height: 15px; }
+  .pc-chipbtn .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pc-chipbtn.ctx-on { background: var(--grape-soft); border-color: var(--grape-soft); color: var(--grape-strong); }
+  .ctx-x { width: 30px; height: 30px; padding: 0; border-radius: 8px; border: 0; background: transparent; color: var(--grape-strong); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: -4px; }
+  .ctx-x:hover { background: var(--grape-soft); }
+  .pc-send { width: 44px; height: 40px; padding: 0; border-radius: 12px; flex-shrink: 0; }
+  .pc-stop { height: 40px; flex-shrink: 0; }
+  .pc-hint { font-size: 12px; color: var(--muted-fg); padding: 8px 4px 0; display: flex; gap: 6px; flex-wrap: wrap; justify-content: space-between; }
+  .pc-hint .why { color: var(--attention-fg); font-weight: 600; }
+
+  .pop { position: absolute; z-index: 20; background: var(--card); border: 2px solid var(--border); border-radius: 16px; box-shadow: 0 4px 0 var(--border), 0 12px 28px rgba(45,45,51,.14); padding: 8px; width: min(330px, calc(100% - 20px)); max-height: 360px; overflow-y: auto; }
+  .pop h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-fg); padding: 6px 8px 4px; }
+  .pop-opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; min-height: 44px; padding: 6px 8px; border-radius: 10px; border: 0; background: transparent; }
+  .pop-opt:hover { background: var(--z50); }
+  .pop-opt[aria-pressed="true"] { background: var(--grape-soft); }
+  .pop-opt .tile { width: 28px; height: 28px; }
+  .pop-opt .o-main { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+  .pop-opt .o-main b { font-weight: 700; font-size: 13.5px; overflow-wrap: anywhere; }
+  .pop-opt .o-main span { font-size: 12px; color: var(--muted-fg); }
+  .pop-opt .check { color: var(--grape-strong); }
+  .pop hr { border: 0; border-top: 2px solid var(--z100); margin: 6px 0; }
+  .pop-text { padding: 6px 8px 8px; font-size: 13.5px; display: flex; flex-direction: column; gap: 8px; }
+  .pop-text .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .pop-text ul { margin: 0; padding-left: 18px; color: var(--z700); display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+
+  .peek { position: absolute; z-index: 30; inset: 0 0 0 auto; width: min(370px, 100%); background: var(--card); border-left: 2px solid var(--border); box-shadow: -8px 0 24px rgba(45,45,51,.10); display: flex; flex-direction: column; }
+  .peek-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 2px solid var(--z100); }
+  .peek-head .grow { flex: 1; }
+  .peek-body { padding: 14px 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .peek-body h3 { font-size: 18px; line-height: 1.25; overflow-wrap: anywhere; }
+  .peek-body h3:focus { outline: none; }
+  .peek-dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13.5px; }
+  .peek-dl dt { color: var(--muted-fg); }
+  .peek-dl dd { margin: 0; overflow-wrap: anywhere; }
+  .peek blockquote { margin: 0; padding: 10px 12px; border-left: 4px solid var(--sky-soft); background: var(--z50); border-radius: 0 12px 12px 0; font-size: 14px; overflow-wrap: anywhere; }
+  .gone-box { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 14px; border: 2px dashed var(--z300); background: var(--z50); font-size: 13.5px; color: var(--z700); }
+
+  .overlay { position: absolute; inset: 0; z-index: 60; background: rgba(45,45,51,.38); display: flex; align-items: flex-start; justify-content: center; padding: 16px 12px; overflow-y: auto; }
+  .ov-card { width: min(460px, 100%); background: var(--card); border: 2px solid var(--border); border-radius: 18px; box-shadow: 0 4px 0 var(--border), 0 20px 40px rgba(0,0,0,.18); overflow: hidden; margin: auto 0; }
+  .ov-sim { background: var(--attention); color: var(--attention-fg); border-bottom: 2px solid var(--attention-border); padding: 8px 14px; font-size: 12.5px; display: flex; gap: 8px; align-items: flex-start; }
+  .ov-sim svg { width: 15px; height: 15px; margin-top: 2px; }
+  .ov-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+  .ov-body h2 { font-size: 19px; line-height: 1.25; }
+  .ov-body h2:focus { outline: none; }
+  .ov-body h4 { font-size: 13px; color: var(--z700); }
+  .ov-body ul { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+  .ov-apps { display: flex; align-items: center; gap: 10px; }
+  .ov-apps .mk { width: 36px; }
+  .ov-apps .prov { width: 36px; height: 36px; border-radius: 10px; background: var(--z900); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; font-size: 11px; }
+  .ov-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; padding: 12px 16px 16px; background: var(--z50); border-top: 2px solid var(--z100); }
+
+  /* Layout by product width */
+  .pc-app[data-view="thread"] .pc-inbox { display: none; }
+  .pc-app[data-view="thread"] .pc-thread { display: flex; }
+  @container pc (min-width: 680px) {
+    .pc-rail { display: flex; }
+    .pc-inbox { flex: 0 0 262px; border-right: 2px solid var(--border); }
+    .pc-inbox-title .mark { display: none; }
+    .pc-app[data-view] .pc-inbox { display: flex; }
+    .pc-app[data-view] .pc-thread { display: flex; }
+    .pc-back { display: none; }
+  }
+  @container pc (min-width: 900px) {
+    .pc-inbox { flex-basis: 290px; }
+    .pc-log { padding: 20px 24px 8px; }
+    .pc-composer { padding: 8px 24px 14px; }
+  }
+  @container pc (max-width: 420px) {
+    .pc-app { height: 680px; border-radius: 16px; }
+    .pc-log { padding: 12px 10px 6px; }
+    .pc-composer { padding: 6px 8px 10px; }
+    .msg .avatar { width: 26px; }
+    .prop-foot .btn { flex: 1 1 auto; }
+    .pc-thread-head { padding: 8px 10px; }
+    .pc-preview-bar { font-size: 11.5px; padding: 4px 10px; }
+    .peek { width: 100%; }
+    .ctx-wide { display: none; }
+    .pc-attach-row { max-height: 118px; }
+    .notice { padding: 8px 10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #pcf *, #pcf *::before, #pcf *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="pcf">
+  <section class="rv" id="pcf-rv" aria-label="Prototype reviewer controls (not part of the app)"></section>
+  <div id="pcf-stage-wrap"></div>
+  <p class="sr-only" id="pcf-rv-live" aria-live="polite"></p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var root = document.getElementById("pcf");
+  var rvEl = document.getElementById("pcf-rv");
+  var stageWrap = document.getElementById("pcf-stage-wrap");
+
+  /* ---------------- Icons + Sprig (static, trusted markup) ---------------- */
+  var ICONS = {
+    home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>',
+    history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+    book: '<path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2z"/><path d="M6 21h14"/>',
+    flask: '<path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.6A1.6 1.6 0 0 0 6 21h12a1.6 1.6 0 0 0 1.4-2.4L14 9.5V3"/><path d="M7.5 15h9"/>',
+    calendar: '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+    cap: '<path d="m2 9 10-5 10 5-10 5z"/><path d="M6 11v5c3.5 2.5 8.5 2.5 12 0v-5"/><path d="M22 9v5"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
+    notebook: '<rect x="4" y="3" width="15" height="18" rx="2.5"/><path d="M8 3v18M11.5 8H15M11.5 12H15"/>',
+    chat: '<path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3.5 20.5l1.4-4.6A8.5 8.5 0 1 1 21 11.5z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4.5-4.5"/>',
+    plug: '<path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v5"/>',
+    arrowLeft: '<path d="M19 12H5"/><path d="m11 6-6 6 6 6"/>',
+    arrowRight: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+    paperclip: '<path d="m20.5 11.5-8.3 8.3a5 5 0 0 1-7.1-7.1l8.6-8.6a3.4 3.4 0 0 1 4.8 4.8l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+    send: '<path d="M5 12h13"/><path d="m12 5 7 7-7 7"/>',
+    upload: '<path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/>',
+    file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    checkCircle: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 3 3 5-6"/>',
+    listTodo: '<rect x="3" y="4" width="6" height="6" rx="1.5"/><path d="m4.5 17 1.5 1.5 3-3"/><path d="M13 7h8M13 17h8"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.4"/>',
+    eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+    pencil: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    image: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+    stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>',
+    alert: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.4"/>',
+    refresh: '<path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/>',
+    more: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>',
+    archive: '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/>',
+    wifiOff: '<path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.5a10 10 0 0 1 4-2.3M19 12.5a10 10 0 0 0-2.6-1.8"/><path d="M12 20h.01"/>',
+    lock: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    loader: '<path d="M12 3a9 9 0 1 1-9 9"/>',
+    phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/>',
+    gauge: '<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-5"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'
+  };
+  function icon(name, cls) {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "18"); s.setAttribute("height", "18");
+    s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2.3");
+    s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    if (cls) s.setAttribute("class", cls);
+    s.innerHTML = ICONS[name] || "";
+    return s;
+  }
+  /* Sprig, from src/components/app/sprig-mark-art.mjs (MARK_PARTS + ICON_PALETTE) */
+  var SPRIG = '<rect x="2" y="19" width="44" height="40" rx="13" fill="#268519"/><rect x="2" y="16" width="44" height="40" rx="13" fill="#5cc73f"/>' +
+    '<ellipse cx="12" cy="24" rx="5" ry="2.6" transform="rotate(-25 12 24)" fill="#fff" opacity=".35"/>' +
+    '<path d="M24 17V9" stroke="#268519" stroke-width="2.8" stroke-linecap="round" fill="none"/>' +
+    '<ellipse cx="17" cy="8" rx="7" ry="3.8" transform="rotate(-28 17 8)" fill="#1b6411"/><ellipse cx="31" cy="6" rx="8" ry="4.2" transform="rotate(24 31 6)" fill="#268519"/>' +
+    '<ellipse cx="17" cy="33" rx="5" ry="5.8" fill="#fff"/><ellipse cx="31" cy="33" rx="5" ry="5.8" fill="#fff"/>' +
+    '<circle cx="17.8" cy="34.2" r="3" fill="#2d2d33"/><circle cx="31.8" cy="34.2" r="3" fill="#2d2d33"/><circle cx="18.9" cy="32.9" r="1" fill="#fff"/><circle cx="32.9" cy="32.9" r="1" fill="#fff"/>' +
+    '<ellipse cx="10.5" cy="41" rx="3.2" ry="2.3" fill="#f5a08c"/><ellipse cx="37.5" cy="41" rx="3.2" ry="2.3" fill="#f5a08c"/>' +
+    '<path d="M20 41Q24 45 28 41" stroke="#1b6411" stroke-width="2.2" stroke-linecap="round" fill="none"/>';
+  function sprig() {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 48 60"); s.setAttribute("aria-hidden", "true");
+    s.style.width = "100%"; s.style.height = "auto"; s.style.display = "block";
+    s.innerHTML = SPRIG;
+    return s;
+  }
+
+  /* Safe element builder: dynamic text only via textContent / text nodes. */
+  function h(tag, attrs) {
+    var el = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === "class") el.className = v;
+      else if (k === "text") el.textContent = v;
+      else if (k === "value") el.value = v;
+      else if (k === "checked") el.checked = !!v;
+      else if (k === "disabled") el.disabled = !!v;
+      else el.setAttribute(k, v === true ? "" : v);
+    });
+    for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
+    return el;
+  }
+  function add(el, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(el, x); }); return; }
+    el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  function btn(cls, act, label, opts) {
+    opts = opts || {};
+    var a = { type: "button", class: "btn " + cls, "data-act": act, "data-arg": opts.arg, "data-fk": opts.fk || (act + (opts.arg ? ":" + opts.arg : "")),
+      disabled: opts.disabled, "aria-label": opts.aria, "aria-describedby": opts.describedby, "aria-busy": opts.busy ? "true" : null };
+    return h("button", a, opts.icon ? icon(opts.icon, opts.spin ? "spin" : null) : null, label);
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  /* ---------------- Dates (deterministic, precision-aware) ---------------- */
+  var DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function fmtDay(v) {
+    var p = v.split("-").map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return DOW[d.getUTCDay()] + " " + p[2] + " " + MON[p[1] - 1] + " " + p[0];
+  }
+  function validDay(v) { return /^\d{4}-\d{2}-\d{2}$/.test(v || ""); }
+
+  /* ---------------- Demo data (fictional) ---------------- */
+  var MS = "Systematic literature review";
+  var SOURCES = {
+    S1: { kind: "Journal entry", icon: "book", chip: "Guide meeting · 12 Nov", title: "Guide meeting: SLR draft feedback", date: "Thu 12 Nov 2026", precision: "Exact day", linked: "Manuscript · " + MS,
+      excerpt: "Guide asked for a PRISMA 2020 flow diagram, ideally by Friday 20 Nov. Also wants the full database search strings included as an appendix. No date given for that." },
+    S2: { kind: "Manuscript feedback", icon: "file", chip: "SLR draft v3 comments", title: "SLR draft v3: comments from guide", date: "November 2026", precision: "Month only (day not recorded)", linked: "Manuscript · " + MS,
+      excerpt: "Inclusion and exclusion criteria read ambiguously in the Methods section. Please reword them before this month is out." },
+    S3: { kind: "Task", icon: "listTodo", chip: "Screening log task", title: "Finish the SLR screening log", date: "Due Wed 18 Nov 2026", precision: "Exact day", linked: "Manuscript · " + MS, excerpt: "Status: in progress. Reminder on until done." },
+    S4: { kind: "Experiment entry", icon: "flask", chip: "Extraction protocol · 13 Nov", title: "Extraction protocol: trial run notes", date: "Fri 13 Nov 2026", precision: "Exact day", linked: "Experiment · Extraction protocol",
+      excerpt: "Trial run of the extraction protocol. Notes on timing and reagent prep, with two follow-up questions for the next lab meeting. One photo attached." },
+    S5: { kind: "Academics", icon: "cap", chip: "Progress report · Dec", title: "Doctoral committee progress report", date: "December 2026", precision: "Month only (no day set yet)", linked: "Academics", excerpt: "Annual progress report for the doctoral committee. Submission window opens in December." },
+    S6: { kind: "Journal entry", icon: "book", chip: "Met guide · Nov 2026", title: "Meeting with guide", date: "November 2026", precision: "Month only (day not known)", linked: "Whole PhD", excerpt: "Recorded from chat on 4 Nov. The day wasn't known, so only the month is stored." },
+    S7: { kind: "Journal entry", icon: "book", chip: "Lab meeting notes · 9 Nov", title: "Lab meeting notes", unavailable: true },
+    F1: { kind: "Evidence file", icon: "file", chip: "SLR_draft_v3.docx", title: "SLR_draft_v3.docx", date: "Uploaded Tue 10 Nov 2026", precision: "Read in full · 12 pages", linked: "Manuscript · " + MS,
+      excerpt: "Methods 2.2: “Studies were included if they reported outcomes relevant to…” This is the wording your guide flagged as ambiguous." },
+    F2: { kind: "Evidence file", icon: "file", chip: "PRISMA_2020_checklist.pdf", title: "PRISMA_2020_checklist.pdf", date: "Uploaded Mon 9 Nov 2026", precision: "Read in full · 2 pages", linked: "Manuscript · " + MS, excerpt: "Item 16a: describe the results of the search and selection process, ideally using a flow diagram." },
+    F3: { kind: "Evidence file", icon: "image", chip: "gel_photo_scan.pdf", title: "gel_photo_scan.pdf", date: "Uploaded Fri 13 Nov 2026", precision: "Not read · scanned images, no text layer", linked: "Experiment · Extraction protocol", excerpt: null },
+    F4: { kind: "Evidence file", icon: "file", chip: "thesis_full_draft.pdf", title: "thesis_full_draft.pdf", date: "Uploaded Sun 15 Nov 2026", precision: "Partly read · pages 1–38 of 186", linked: "Whole PhD",
+      excerpt: "Chapter 3 (Methods) ends on page 38: “…the screening protocol was piloted on 40 abstracts before full screening.”" }
+  };
+  var EVIDENCE = [
+    { id: "F1", note: "Manuscript file · 12 pages" },
+    { id: "F2", note: "Evidence file · 2 pages" },
+    { id: "F3", note: "Scanned images · no text layer" },
+    { id: "F4", note: "Evidence file · 186 pages" }
+  ];
+  var CONTEXTS = {
+    slr: { tone: "grape", icon: "file", label: MS, sub: "Manuscript · demo" },
+    bench: { tone: "leaf", icon: "flask", label: "Extraction protocol", sub: "Experiment · demo" },
+    journal: { tone: "sky", icon: "book", label: "Guide meeting, 12 Nov", sub: "Journal entry · demo" },
+    labnotes: { tone: "neutral", icon: "book", label: "Lab meeting notes, 9 Nov", sub: "Journal entry · unavailable", gone: true }
+  };
+  var CTX_ORDER = ["slr", "bench", "journal"];
+  var SUGGESTIONS = [
+    { icon: "calendar", tone: "sun", text: "What needs my attention this week?" },
+    { icon: "file", tone: "grape", text: "Summarize the unresolved feedback for this manuscript." },
+    { icon: "flask", tone: "leaf", text: "What happened in the last three trials of this experiment?" },
+    { icon: "listTodo", tone: "sky", text: "Turn these requested changes into tasks." },
+    { icon: "book", tone: "neutral", text: "Record that I met my guide in November; I do not remember the day." }
+  ];
+  var EXEC_KEY = "exec_demo_slr_7c1";
+
+  function freshProposal() {
+    return { status: "pending", edited: false, refreshed: null, execKey: EXEC_KEY, receipt: null, recovered: null, edit: null, errors: {}, formError: "",
+      tasks: [
+        { id: "t1", title: "Add a PRISMA 2020 flow diagram to the SLR draft", include: true, due: { kind: "day", value: "2026-11-20" }, note: "", sourceDate: "", src: ["S1"] },
+        { id: "t2", title: "Reword the inclusion and exclusion criteria in Methods", include: true, due: { kind: "none", value: "" }, note: "Target November; exact day not recorded", sourceDate: "November 2026 (month only)", src: ["S2"] },
+        { id: "t3", title: "Add the full database search strings as an appendix", include: true, due: { kind: "none", value: "" }, note: "", sourceDate: "No date in feedback", src: ["S1"] }
+      ] };
+  }
+
+  /* Reply scripts. Tools finish first (4 ticks each), then text streams word by word. */
+  var SCRIPTS = {
+    answer: {
+      text: "Your guide left three requests on the SLR draft that are still open. One has an exact date and two don't. Here they are, with the record each one comes from.",
+      tools: function (m) {
+        var t = ["Opened manuscript · " + MS, "Read 2 feedback records"];
+        (m.atts || []).forEach(function (a) { if (a.origin === "stored" && SOURCES[a.id] && a.id !== "F3" && a.id !== "F4") t.push("Read " + a.name + " · " + SOURCES[a.id].precision.replace("Read in full · ", "")); });
+        return t;
+      },
+      stage: "reply-complete",
+      final: function (c, m) {
+        var hasF1 = has(m.atts, "F1"), hasF2 = has(m.atts, "F2");
+        var parts = [
+          { t: "p", c: ["Your guide left three requests on the SLR draft that are still open. One has an exact date and two don't."] },
+          { t: "ol", items: [
+            { title: "Add a PRISMA 2020 flow diagram", detail: "Requested by Fri 20 Nov 2026.", src: hasF2 ? ["S1", "F2"] : ["S1"] },
+            { title: "Reword the inclusion and exclusion criteria in Methods", detail: "Asked for “before this month is out”. The record has November 2026 only, no day.", src: hasF1 ? ["S2", "F1"] : ["S2"] },
+            { title: "Add the full database search strings as an appendix", detail: "No date given.", src: ["S1"] }
+          ] },
+          { t: "note", icon: "info", text: "Based on 2 feedback records" + (hasF1 || hasF2 ? " and " + m.atts.filter(function (a) { return a.origin === "stored"; }).length + " attached file(s)" : "") + ". I've only listed what these sources say. Nothing has been changed." }
+        ];
+        deviceNotes(m).forEach(function (n) { parts.push(n); });
+        parts.push({ t: "actions", items: [
+          { label: "Turn these into tasks", act: "ask-tasks", icon: "listTodo", primary: true },
+          { label: "Draft a reply to my guide", act: "fill-draft", arg: "Draft a short reply to my guide about the SLR feedback." }
+        ] });
+        return parts;
+      }
+    },
+    priorities: {
+      text: "Here's what your records point to for Mon 16 – Sun 22 Nov. One task has a date this week; the rest are follow-ups.",
+      tools: function () { return ["Checked tasks due Mon 16 – Sun 22 Nov", "Checked recent journal and experiment entries"]; },
+      stage: "reply-complete",
+      final: function (c, m) { var p = weekParts(); deviceNotes(m).forEach(function (n) { p.push(n); }); return p; }
+    },
+    tasks: {
+      text: "Here are three tasks for the manuscript. Nothing is saved until you approve them.",
+      tools: function () { return ["Checked open tasks on " + MS + " (4 open)", "Prepared 3 new tasks"]; },
+      stage: "proposal-pending",
+      final: function (c) {
+        if (c.proposal && c.proposal.status === "saved") {
+          return [{ t: "p", c: ["Those three tasks are already saved. Their receipt is above, so I won't add them again."] }];
+        }
+        c.proposal = freshProposal();
+        return [{ t: "p", c: ["Here are three tasks for the manuscript, from ", { src: "S1" }, " and ", { src: "S2" }, ". Nothing is saved until you approve them."] }, { t: "proposal" }];
+      }
+    },
+    unreadable: {
+      text: "I couldn't read gel_photo_scan.pdf. It's scanned images with no text layer, and I haven't guessed what it shows.",
+      tools: function () { return ["Opened gel_photo_scan.pdf", "Looked for a text layer"]; },
+      stage: "file-unreadable",
+      final: function (c, m) {
+        var q = (msgById(c, m.replyTo) || {}).text || "";
+        return [
+          { t: "p", c: ["I couldn't read ", { src: "F3" }, ". It's scanned images with no text layer, and PhD Companion doesn't run OCR, so I haven't guessed what it shows."] },
+          { t: "note", tone: "sun", icon: "image", text: "Not read: gel_photo_scan.pdf (image-only). Nothing from it was used in this answer." },
+          { t: "actions", items: [
+            { label: "Choose another source", act: "open-attach", icon: "paperclip", primary: true },
+            { label: "Ask without this file", act: "fill-draft", arg: q }
+          ] }
+        ];
+      }
+    },
+    partial: {
+      text: "I read the first part of thesis_full_draft.pdf: pages 1 to 38, chapters 1 to 3. Chapters 4 to 6 weren't read, so this summary doesn't cover them.",
+      tools: function () { return ["Opened thesis_full_draft.pdf · 186 pages", "Read pages 1–38 (reading limit reached)"]; },
+      stage: "file-partial",
+      final: function () {
+        return [
+          { t: "partialStatus" },
+          { t: "p", c: ["I read the first part of ", { src: "F4" }, ": pages 1–38 (chapters 1–3, about 40,000 characters). Chapters 4–6 weren't read, so this summary doesn't cover them."] },
+          { t: "ol", items: [
+            { title: "Chapter 1 · Introduction", detail: "Frames the review question and scope.", src: ["F4"] },
+            { title: "Chapter 2 · Background", detail: "Surveys prior extraction methods; cites 41 studies.", src: ["F4"] },
+            { title: "Chapter 3 · Methods", detail: "Screening protocol piloted on 40 abstracts (p. 38).", src: ["F4"] }
+          ] },
+          { t: "partialMore" }
+        ];
+      }
+    }
+  };
+  function has(atts, id) { return (atts || []).some(function (a) { return a.id === id; }); }
+  function deviceNotes(m) {
+    return (m.atts || []).filter(function (a) { return a.origin === "device"; }).map(function (a) {
+      return { t: "note", icon: "upload", text: "Not read: " + a.name + ". Files from this device aren't uploaded in this preview, so Sprig only saw its name." };
+    });
+  }
+  function weekParts() {
+    return [
+      { t: "badges", items: [["b-outline", "eye", "Read-only summary"], ["b-neutral", null, "Nothing will change"]] },
+      { t: "p", c: ["Here's what your records point to for Mon 16 – Sun 22 Nov:"] },
+      { t: "ol", items: [
+        { title: "Finish the SLR screening log", detail: "Due Wed 18 Nov. It's the only dated task this week.", src: ["S3"] },
+        { title: "Respond to your guide's SLR comments", detail: "One request has a date (Fri 20 Nov); the rest don't.", src: ["S1", "S2"] },
+        { title: "Write up the extraction protocol trial", detail: "Your last experiment entry was Fri 13 Nov.", src: ["S4"] }
+      ] },
+      { t: "p", c: ["Coming up: the committee progress report is due in December 2026. No day is set yet ", { src: "S5" }, "."] }
+    ];
+  }
+
+  /* ---------------- Cases, groups, journey ---------------- */
+  var GROUPS = [["setup", "Setup"], ["inbox", "Inbox"], ["chat", "Chat"], ["sources", "Sources & files"], ["approval", "Approvals"], ["resume", "Resume/mobile"]];
+  var CASES = [
+    ["setup-required", "setup", "Setup required", "Open Ask Sprig before a model is connected", "Existing inbox remains readable; setup CTA explains model connection and no API key."],
+    ["setup-unavailable", "setup", "Hosted access unavailable", "Hosted plan access for this app isn't confirmed", "Truthful hosted-access prerequisite, retain manual app and history access; no false promise that OAuth grants are available."],
+    ["setup-consent", "setup", "Connection permission review", "Choose Set up connection", "Simulated provider permission view, approve or decline; clearly demo flow."],
+    ["setup-declined", "setup", "Permission declined", "Choose Decline on the permission page", "Return to app without losing draft, reconnect can restart."],
+    ["setup-failed", "setup", "Connection failed", "Approval callback doesn't complete", "Retry/back and preserved draft; no credentials shown."],
+    ["setup-ready", "setup", "Demo connection ready", "Approve demo access", "Explicit simulated connected status and enter new chat."],
+    ["reauth", "setup", "Connection expired", "Model connection expires while a proposal waits", "Reconnect; existing conversation and pending proposal preserved."],
+    ["disconnected", "setup", "Connection disconnected", "Choose Disconnect in the connection menu", "Stop new inference; history remains available and reconnect works."],
+    ["inbox-loading", "inbox", "Loading conversations", "Open the inbox on a slow network", "Bounded skeleton then retry/load action."],
+    ["inbox-empty", "inbox", "First conversation", "First visit with no conversations", "Empty inbox, supportive suggestions, New chat."],
+    ["inbox-populated", "inbox", "Conversation inbox", "Return with existing conversations", "Existing styled list, switching, selected context, pending approval badge."],
+    ["search-empty", "inbox", "No search results", "Search for a term with no matches", "Clear search restores list without deleting data."],
+    ["conversation-actions", "inbox", "Rename and archive", "Open a conversation's More actions", "Real local rename, archive, archived list and restore; no misleading permanent deletion."],
+    ["history-unavailable", "inbox", "History unavailable", "Conversation history request fails", "Retry and preserved local draft; distinguish failure from empty inbox."],
+    ["new-chat", "chat", "New chat and context", "Choose New", "Choose whole PhD/manuscript/experiment/journal context; suggestion chips."],
+    ["draft-context", "chat", "Draft and context change", "Type, then change context or switch conversation", "Draft preserved across picker changes and inbox navigation; remove context."],
+    ["reply-streaming", "chat", "Reply in progress", "Send a question", "Show tool activity/streamed text, Stop works, no premature completed claim."],
+    ["reply-complete", "chat", "Answer with sources", "Reply finishes", "Read-only priorities with record links and honest evidence grounding."],
+    ["reply-stopped", "chat", "Stopped reply", "Press Stop while Sprig writes", "Partial text retained as incomplete; continue/retry creates no duplicate sent message."],
+    ["reply-failed", "chat", "Reply interrupted", "Model stream drops mid-reply", "Partial response/error, recover; no successful completion label."],
+    ["offline", "chat", "Offline", "Device loses network before sending", "Preserve unsent draft, retry explicitly; don't imply server queued it."],
+    ["limit-reached", "chat", "Usage limit reached", "Plan usage limit is hit", "Pause model requests, preserve history; manage usage simulated; no paid fallback."],
+    ["session-expired", "chat", "App sign-in expired", "PhD Companion sign-in expires", "Return to simulated sign-in then same thread/draft; not same as model reconnect."],
+    ["source-peek", "sources", "Inspect source record", "Select a source chip", "Title/date/precision/excerpt/linked manuscript; close/Esc focus return."],
+    ["source-unavailable", "sources", "Source removed or unavailable", "Open a source that was moved to Trash", "Do not reveal cached text; return to chat, can remove inaccessible context."],
+    ["attach-evidence", "sources", "Attach evidence", "Choose Attach", "Choose demo stored file or local filename-only picker; removable chips."],
+    ["attachment-invalid", "sources", "Invalid or oversized file", "Pick an unsupported or over-20 MB file", "Helpful inline errors and pick/remove action; 20MB browser upload limit, format checks."],
+    ["file-unreadable", "sources", "Unreadable or image-only source", "Ask about an image-only scan", "No fabricated extraction or OCR; choose another source."],
+    ["file-partial", "sources", "Document partly read", "Ask about a 186-page PDF", "Show limitation and specific available portion; request more as simulated action."],
+    ["proposal-pending", "approval", "Proposed record changes", "Ask Sprig to turn feedback into tasks", "Exact three proposed tasks, source links, no writes before approval."],
+    ["proposal-edit", "approval", "Edit proposal", "Choose Edit on the proposal", "Change title/select tasks/exact due day or no due day; source month only retained as note, not fake task due date."],
+    ["proposal-invalid", "approval", "Proposal validation error", "Save edits with a blank title or nothing selected", "Blank title or no selection; errors preserve other edits and are actionable."],
+    ["proposal-rejected", "approval", "Decline proposal", "Choose Decline", "Nothing saved, review again/change request."],
+    ["proposal-saving", "approval", "Saving approved changes", "Choose Approve", "Disable duplicate approval while saving; deterministic settlement."],
+    ["proposal-saved", "approval", "Saved changes and receipt", "Save finishes", "Three saved tasks with links, assistant provenance, single receipt."],
+    ["proposal-conflict", "approval", "Record changed elsewhere", "Manuscript tasks change on another device", "Compare relevant old/current values; review refreshed proposal and approve again."],
+    ["proposal-save-failed", "approval", "Save failed before commit", "Server error before anything is written", "Clear nothing saved and safe retry with same logical IDs."],
+    ["proposal-unknown", "approval", "Save outcome unknown", "Connection drops after approving", "Checking receipt recovery; never blindly duplicate effects."],
+    ["proposal-partial", "approval", "Partly saved workflow", "Three independent changes; one fails", "Only for separate independent writes: show saved vs failed with retry failed only; avoid claiming atomic feedback task bundle partially committed."],
+    ["resume-pending", "resume", "Return to pending approval", "Open the thread on another device", "Same proposal restored in another demo session/device; no automatic approval."],
+    ["resume-complete", "resume", "Resume saved conversation", "Come back to a saved conversation", "Existing sources/receipt retained; no replay of prior writes."],
+    ["mobile-navigation", "resume", "Mobile inbox and thread", "Use Ask Sprig on a phone", "Back restores list, selecting opens full thread with reachable composer/actions."]
+  ].map(function (r) { return { id: r[0], group: r[1], label: r[2], trigger: r[3], expectation: r[4] }; });
+  var CASE_BY = {}; CASES.forEach(function (c) { CASE_BY[c.id] = c; });
+
+  var JOURNEY = [
+    { id: "setup-required", goal: "Land in Ask Sprig before any model is connected. History stays readable.", next: "Choose “Set up connection” in the notice above the message box." },
+    { id: "setup-consent", goal: "Review exactly what the (simulated) connection allows.", next: "Choose “Approve demo access”." },
+    { id: "setup-ready", goal: "See an explicit, simulated connected status.", next: "Choose “Start a new chat”." },
+    { id: "new-chat", goal: "Start the first conversation from suggestions.", next: "Open the context picker (Whole PhD) and pick the manuscript." },
+    { id: "draft-context", goal: "Focus Sprig on the SLR manuscript and write the question.", next: "Use the suggestion “Summarize the unresolved feedback…”, then choose Attach." },
+    { id: "attach-evidence", goal: "Add stored evidence (SLR_draft_v3.docx) to the question.", next: "Choose Send." },
+    { id: "reply-streaming", goal: "Watch tool activity and streamed text. Nothing is marked complete yet.", next: "Let it finish (or Stop to see the stopped case)." },
+    { id: "reply-complete", goal: "Read the answer, where each claim links to a record.", next: "Choose a blue source chip." },
+    { id: "source-peek", goal: "Inspect a source: date precision, excerpt, linked manuscript.", next: "Close (Esc), then choose “Turn these into tasks”." },
+    { id: "proposal-pending", goal: "Three exact proposed tasks. Nothing is written yet.", next: "Choose Edit." },
+    { id: "proposal-edit", goal: "Change a title or due day. The month-only source stays a note.", next: "Choose “Save changes”, then Approve." },
+    { id: "proposal-saving", goal: "Approval runs once. Buttons are locked while saving.", next: "Wait for the save to finish." },
+    { id: "proposal-saved", goal: "Saved tasks, record links, one receipt and assistant provenance.", next: "Open a saved task, then switch to another chat and come back." },
+    { id: "resume-complete", goal: "Come back later. Sources and the receipt are kept and nothing runs again.", next: "End of journey. Try “All UI cases” for recovery paths." }
+  ];
+  var JIDX = {}; JOURNEY.forEach(function (j, i) { JIDX[j.id] = i; });
+
+  var FLOW = [
+    { id: "setup-required", label: "Setup", art: "setup" },
+    { id: "setup-consent", label: "Permission", art: "consent" },
+    { id: "new-chat", label: "New chat", art: "newchat" },
+    { id: "attach-evidence", label: "Attach", art: "attach" },
+    { id: "reply-streaming", label: "Streaming", art: "stream" },
+    { id: "source-peek", label: "Sources", art: "source" },
+    { id: "proposal-pending", label: "Proposal", art: "proposal" },
+    { id: "proposal-edit", label: "Edit", art: "edit" },
+    { id: "proposal-saved", label: "Receipt", art: "saved" },
+    { id: "resume-complete", label: "Resume", art: "resume" }
+  ];
+  var BRANCHES = [["setup", "Connection recovery"], ["chat", "Reply problems"], ["sources", "File limits"], ["approval", "Save outcomes"], ["inbox", "Inbox states"], ["resume", "Phone / resume"]];
+
+  /* ---------------- State factories ---------------- */
+  function convWeek() {
+    return { id: "week", group: "today", time: "08:15", tone: "sun", icon: "calendar", title: "This week's priorities", ctx: null, draft: { text: "", atts: [] },
+      messages: [{ role: "user", id: "wk-u", time: "08:14", text: "What needs my attention this week?", atts: [] },
+        { role: "sprig", id: "wk-a", time: "08:15", status: "complete", parts: weekParts() }] };
+  }
+  function convBench() {
+    return { id: "bench", group: "earlier", time: "Fri", tone: "leaf", icon: "flask", title: "Extraction protocol notes", ctx: "bench", draft: { text: "", atts: [] },
+      messages: [{ role: "user", id: "bn-u", time: "Fri 16:02", text: "What did I note about the extraction protocol trial run?", atts: [] },
+        { role: "sprig", id: "bn-a", time: "Fri 16:02", status: "complete", parts: [
+          { t: "p", c: ["Your experiment entry from Fri 13 Nov ", { src: "S4" }, " covers timing and reagent prep, and lists two follow-up questions for the next lab meeting."] },
+          { t: "note", icon: "image", text: "I read the entry text only. The attached photo wasn't read." }] }] };
+  }
+  function convJournal() {
+    return { id: "journal", group: "earlier", time: "4 Nov", tone: "sky", icon: "book", title: "Record a guide meeting", ctx: null, draft: { text: "", atts: [] },
+      messages: [{ role: "user", id: "jn-u", time: "4 Nov 09:30", text: "Record that I met my guide in November. I don't remember the day.", atts: [] },
+        { role: "sprig", id: "jn-a", time: "4 Nov 09:30", status: "complete", parts: [{ t: "p", c: ["I saved it with the month only, so no day is made up."] }, { t: "savedOne", src: "S6", when: "Approved 4 Nov, 09:31 · via PhD Companion assistant" }] }] };
+  }
+  /* The journey's conversation, at a given level of progress. */
+  function convSlr(level) {
+    var c = { id: "slr", group: "today", time: "10:41", tone: "grape", icon: "listTodo", title: "Unresolved SLR feedback", ctx: "slr", draft: { text: "", atts: [] }, messages: [], proposal: null };
+    var atts = [{ id: "F1", name: "SLR_draft_v3.docx", origin: "stored" }];
+    c.messages.push({ role: "user", id: "u1", time: "10:40", text: "Summarize the unresolved feedback for this manuscript.", atts: atts, ctx: "slr" });
+    if (level === "asked") return c;
+    var a = { role: "sprig", id: "a1", time: "10:41", status: "complete", replyTo: "u1", atts: atts, tools: SCRIPTS.answer.tools({ atts: atts }) };
+    a.parts = SCRIPTS.answer.final(c, a);
+    c.messages.push(a);
+    if (level === "answered") return c;
+    c.messages.push({ role: "user", id: "u2", time: "10:45", text: "Turn these into tasks.", atts: [] });
+    var b = { role: "sprig", id: "a2", time: "10:46", status: "complete", replyTo: "u2" };
+    b.parts = SCRIPTS.tasks.final(c, b);
+    c.messages.push(b);
+    c.time = "10:46";
+    return c;
+  }
+  function streamingMsg(script, replyTo, atts, status, words) {
+    var m = { role: "sprig", id: "a1", time: "10:41", status: status, script: script, replyTo: replyTo, atts: atts, pos: 0 };
+    m.tools = SCRIPTS[script].tools(m);
+    m.pos = m.tools.length * 4 + words;
+    return m;
+  }
+  function newConv(s, id) {
+    return { id: id || ("c" + (++s.seq)), isNew: true, group: "today", time: "Now", tone: "leaf", icon: "chat", title: "New conversation", ctx: null, draft: { text: "", atts: [] }, messages: [] };
+  }
+  function base(convs) {
+    return { caseId: null, stage: null, conn: "ready", connPrev: null, connChecked: null, connBusy: false, network: "online", netNotice: null,
+      usage: "ok", usagePanel: false, usageNotice: null, appSession: "ok", screen: null, readyCard: false, resume: null,
+      inbox: { status: "ready", search: "", archivedView: false, notice: null, menu: null, rename: null },
+      convs: convs || [convWeek(), convBench(), convJournal()], active: "week", view: "thread", phone: false,
+      peek: null, pop: null, pending: null, reveal: null, main: null, focus: null, clock: 47, seq: 100 };
+  }
+  function conv(s, id) { for (var i = 0; i < s.convs.length; i++) if (s.convs[i].id === id) return s.convs[i]; return null; }
+
+  function caseState(id) {
+    var s, c, p;
+    var withSlr = function (level) { var x = base(); x.convs.unshift(convSlr(level)); x.active = "slr"; return x; };
+    switch (id) {
+      case "setup-required": s = base(); s.conn = "required"; s.main = "open-consent"; break;
+      case "setup-unavailable": s = base(); s.conn = "unavailable"; s.main = "open-consent"; break;
+      case "setup-consent": s = base(); s.conn = "required"; s.screen = "consent"; conv(s, "week").draft.text = "Which of these can I finish before Friday?"; s.main = "consent-approve"; break;
+      case "setup-declined": s = base(); s.conn = "declined"; s.connPrev = "required"; conv(s, "week").draft.text = "Which of these can I finish before Friday?"; s.main = "open-consent"; break;
+      case "setup-failed": s = base(); s.conn = "failed"; s.connPrev = "required"; conv(s, "week").draft.text = "Which of these can I finish before Friday?"; s.main = "open-consent"; break;
+      case "setup-ready": s = base(); s.readyCard = true; s.main = "start-new"; break;
+      case "reauth": s = withSlr("proposal"); s.conn = "expired"; s.main = "open-consent"; break;
+      case "disconnected": s = base(); s.conn = "disconnected"; s.main = "open-consent"; break;
+      case "inbox-loading": s = base(); s.inbox.status = "loading"; s.active = null; s.view = "inbox"; s.pending = { kind: "load", auto: false, label: "Conversation list is loading" }; s.main = "inbox-retry"; break;
+      case "inbox-empty": s = base([]); s.active = null; s.view = "inbox"; s.main = "new"; break;
+      case "inbox-populated": s = withSlr("proposal"); s.view = "inbox"; s.main = "conv:slr"; break;
+      case "search-empty": s = withSlr("proposal"); s.inbox.search = "ethics approval"; s.view = "inbox"; s.main = "clear-search"; break;
+      case "conversation-actions": s = withSlr("answered"); conv(s, "journal").archived = true; s.inbox.menu = "week"; s.view = "inbox"; s.main = "rename:week"; break;
+      case "history-unavailable": s = base(); s.inbox.status = "error"; c = newConv(s, "local"); c.draft.text = "What should I prioritise before my committee meeting?"; c.localOnly = true; s.convs.unshift(c); s.active = "local"; s.view = "inbox"; s.main = "inbox-retry"; break;
+      case "new-chat": s = base(); c = newConv(s, "c1"); s.convs.unshift(c); s.active = "c1"; s.main = "pop-ctx"; break;
+      case "draft-context": s = base(); c = newConv(s, "c1"); c.ctx = "slr"; c.draft.text = "Summarize the unresolved feedback for this manuscript."; s.convs.unshift(c); s.active = "c1"; s.pop = "ctx"; s.main = "set-ctx:slr"; break;
+      case "attach-evidence": s = base(); c = newConv(s, "c1"); c.ctx = "slr"; c.draft.text = "Summarize the unresolved feedback for this manuscript."; c.draft.atts = [{ id: "F1", name: "SLR_draft_v3.docx", origin: "stored", status: "ok" }]; s.convs.unshift(c); s.active = "c1"; s.pop = "attach"; s.main = "pick-device"; break;
+      case "attachment-invalid": s = base(); c = newConv(s, "c1"); c.ctx = "slr"; c.draft.text = "Compare my lab video with the thesis scans.";
+        c.draft.atts = [{ id: "F1", name: "SLR_draft_v3.docx", origin: "stored", status: "ok" }, devAtt("d1", "lab_video.mov", 48234496), devAtt("d2", "full_thesis_scans.pdf", 35861299)];
+        s.convs.unshift(c); s.active = "c1"; s.main = "att-replace:d1"; break;
+      case "reply-streaming": s = withSlr("asked"); c = conv(s, "slr"); c.messages.push(streamingMsg("answer", "u1", c.messages[0].atts, "streaming", 9)); s.pending = { kind: "stream", conv: "slr", msg: "a1", auto: false, label: "Sprig is writing (paused for review)" }; s.main = "stop"; break;
+      case "reply-complete": s = withSlr("answered"); s.main = "ask-tasks"; break;
+      case "reply-stopped": s = withSlr("asked"); c = conv(s, "slr"); c.messages.push(streamingMsg("answer", "u1", c.messages[0].atts, "stopped", 14)); s.main = "continue:a1"; break;
+      case "reply-failed": s = withSlr("asked"); c = conv(s, "slr"); c.messages.push(streamingMsg("answer", "u1", c.messages[0].atts, "failed", 19)); s.main = "retry-reply:a1"; break;
+      case "offline": s = withSlr("answered"); s.network = "offline"; conv(s, "slr").draft.text = "Which of these should I do first?"; s.main = "check-net"; break;
+      case "limit-reached": s = withSlr("answered"); s.usage = "limit"; conv(s, "slr").draft.text = "Which of these should I do first?"; s.main = "usage-manage"; break;
+      case "session-expired": s = withSlr("answered"); s.appSession = "expired"; s.screen = "signin"; conv(s, "slr").draft.text = "Which of these should I do first?"; s.main = "signin"; break;
+      case "source-peek": s = withSlr("answered"); s.peek = { type: "src", id: "S1", ret: "src:a1:1:S1" }; s.main = "close-peek"; break;
+      case "source-unavailable": s = base(); c = { id: "labq", group: "today", time: "09:12", tone: "neutral", icon: "book", title: "Lab meeting follow-ups", ctx: "labnotes", draft: { text: "", atts: [] },
+          messages: [{ role: "user", id: "lq-u", time: "09:10", text: "What did we decide at the 9 Nov lab meeting?", atts: [] },
+            { role: "sprig", id: "lq-a", time: "09:11", status: "complete", parts: [
+              { t: "p", c: ["I can't open the record you picked as context: ", { src: "S7" }, ". It may have been moved to Trash or its access changed, so I haven't used any earlier copy of it."] },
+              { t: "actions", items: [{ label: "Remove it from context", act: "clear-ctx", icon: "x" }, { label: "Ask about the whole PhD instead", act: "fill-draft", arg: "What did we decide at recent lab meetings?" }] }] }] };
+        s.convs.unshift(c); s.active = "labq"; s.peek = { type: "src", id: "S7", ret: "src:lq-a:0:S7" }; s.main = "peek-remove-ctx"; break;
+      case "file-unreadable": s = base(); c = { id: "gel", group: "today", time: "09:58", tone: "leaf", icon: "image", title: "Gel scan check", ctx: "bench", draft: { text: "", atts: [] }, messages: [] };
+        c.messages.push({ role: "user", id: "g-u", time: "09:57", text: "What does the gel scan show for the second run?", atts: [{ id: "F3", name: "gel_photo_scan.pdf", origin: "stored" }] });
+        p = { role: "sprig", id: "g-a", time: "09:58", status: "complete", replyTo: "g-u", tools: SCRIPTS.unreadable.tools() }; p.parts = SCRIPTS.unreadable.final(c, p); c.messages.push(p);
+        s.convs.unshift(c); s.active = "gel"; s.main = "open-attach:g-a"; break;
+      case "file-partial": s = base(); c = { id: "thesis", group: "today", time: "10:05", tone: "sky", icon: "file", title: "Thesis draft summary", ctx: null, draft: { text: "", atts: [] }, messages: [] };
+        c.messages.push({ role: "user", id: "t-u", time: "10:03", text: "Summarize my full thesis draft.", atts: [{ id: "F4", name: "thesis_full_draft.pdf", origin: "stored" }] });
+        p = { role: "sprig", id: "t-a", time: "10:05", status: "complete", replyTo: "t-u", tools: SCRIPTS.partial.tools() }; p.parts = SCRIPTS.partial.final(c, p); c.messages.push(p);
+        s.convs.unshift(c); s.active = "thesis"; s.main = "read-more:t-a"; break;
+      case "proposal-pending": s = withSlr("proposal"); s.main = "prop-approve"; break;
+      case "proposal-edit": s = withSlr("proposal"); p = conv(s, "slr").proposal; p.status = "editing"; p.edit = clone(p.tasks); s.main = "edit-title:t1"; break;
+      case "proposal-invalid": s = withSlr("proposal"); p = conv(s, "slr").proposal; p.status = "editing"; p.edit = clone(p.tasks);
+        p.edit[0].title = ""; p.edit[2].due = { kind: "day", value: "2026-11-27" }; p.edit[1].title = "Reword inclusion/exclusion criteria (Methods 2.2)";
+        p.errors = { t1: { title: "Add a title, or untick this task." } }; p.formError = "Fix 1 problem to save. Your other edits are kept."; s.main = "edit-title:t1"; break;
+      case "proposal-rejected": s = withSlr("proposal"); conv(s, "slr").proposal.status = "rejected"; s.main = "prop-review"; break;
+      case "proposal-saving": s = withSlr("proposal"); conv(s, "slr").proposal.status = "saving"; s.pending = { kind: "save", conv: "slr", auto: false, label: "Saving 3 approved tasks (held for review)" }; s.main = "prop-approve"; break;
+      case "proposal-saved": s = withSlr("proposal"); markSaved(s, conv(s, "slr").proposal, "10:52"); s.main = "task:t1"; break;
+      case "proposal-conflict": s = withSlr("proposal"); conv(s, "slr").proposal.status = "conflict"; s.main = "prop-refresh"; break;
+      case "proposal-save-failed": s = withSlr("proposal"); conv(s, "slr").proposal.status = "failed"; s.main = "prop-retry"; break;
+      case "proposal-unknown": s = withSlr("proposal"); conv(s, "slr").proposal.status = "unknown"; s.main = "prop-check"; break;
+      case "proposal-partial": s = base(); c = { id: "wrap", group: "today", time: "11:05", tone: "clay", icon: "users", title: "Wrap up today's lab meeting", ctx: null, draft: { text: "", atts: [] },
+          messages: [{ role: "user", id: "w-u", time: "11:02", text: "Log today's lab meeting, add a note to the extraction protocol and mark the screening log task done.", atts: [] },
+            { role: "sprig", id: "w-a", time: "11:04", status: "complete", parts: [{ t: "p", c: ["You approved three separate changes. Here's what happened to each one."] }, { t: "workflow" }] }],
+          workflow: { items: [
+            { id: "w1", label: "Add journal entry “Lab meeting · Mon 16 Nov 2026”", status: "saved", receipt: "rcpt_demo_311" },
+            { id: "w2", label: "Add a note to Experiment · Extraction protocol", status: "saved", receipt: "rcpt_demo_312" },
+            { id: "w3", label: "Mark “Finish the SLR screening log” as done", status: "failed", receipt: null }] } };
+        s.convs.unshift(c); s.active = "wrap"; s.main = "wf-retry"; break;
+      case "resume-pending": s = withSlr("proposal"); s.phone = true; s.view = "thread"; s.resume = "pending"; s.main = "prop-approve"; break;
+      case "resume-complete": s = withSlr("proposal"); markSaved(s, conv(s, "slr").proposal, "10:52"); s.resume = "complete"; s.main = "task:t1"; break;
+      case "mobile-navigation": s = withSlr("proposal"); s.phone = true; s.view = "inbox"; s.main = "conv:slr"; break;
+      default: return caseState("setup-required");
+    }
+    s.caseId = id; s.stage = id;
+    return s;
+  }
+  function devAtt(id, name, size) {
+    var a = { id: id, name: name, size: size, origin: "device", status: "ok", error: "" };
+    var v = validateFile(name, size); if (v) { a.status = "invalid"; a.error = v; }
+    return a;
+  }
+  function markSaved(s, p, at) {
+    p.status = "saved";
+    p.receipt = { id: "rcpt_demo_8f2", at: at || now(s) };
+    p.saved = p.tasks.filter(function (t) { return t.include; }).map(function (t, i) { var x = clone(t); x.record = "task_demo_" + (101 + i); return x; });
+  }
+  function now(s) { var m = s.clock++; return (10 + Math.floor(m / 60)) + ":" + String(m % 60).padStart(2, "0"); }
+  function msgById(c, id) { for (var i = 0; i < c.messages.length; i++) if (c.messages[i].id === id) return c.messages[i]; return null; }
+
+  /* ---------------- File validation (name and size only; nothing is read) ---------------- */
+  var OK_EXT = ["pdf", "docx", "txt", "md", "csv", "xlsx", "png", "jpg", "jpeg"];
+  var MAX = 20 * 1024 * 1024;
+  function validateFile(name, size) {
+    var m = /\.([a-z0-9]+)$/i.exec(name || ""); var ext = m ? m[1].toLowerCase() : "";
+    if (OK_EXT.indexOf(ext) === -1) return (ext ? "“." + ext + "” files aren't supported." : "This file has no type.") + " Use PDF, Word (.docx), text, Markdown, CSV, Excel (.xlsx) or an image.";
+    if (size > MAX) return (size / 1048576).toFixed(1) + " MB is over the 20 MB upload limit. Split it or choose a smaller file.";
+    return "";
+  }
+
+  /* ---------------- Runtime ---------------- */
+  var S = null;
+  var UI = { tab: "journey", group: "setup", jStep: 0 };
+  var timer = null;
+  function clearTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+  function schedule(ms, fn) { clearTimer(); timer = setTimeout(function () { timer = null; fn(); }, ms); }
+  var liveMsg = "";
+  function say(t) { liveMsg = t; }
+  function A() { return S.active ? conv(S, S.active) : null; }
+  function setStage(id) {
+    S.stage = id;
+    if (UI.tab === "journey" && JIDX[id] != null && JIDX[id] > UI.jStep) UI.jStep = JIDX[id];
+  }
+  function activeProposalBlocks(c) { return c && c.proposal && ["pending", "editing", "saving", "conflict", "failed", "unknown"].indexOf(c.proposal.status) !== -1; }
+  function streamingIn(c) { return c && c.messages.some(function (m) { return m.role === "sprig" && m.status === "streaming"; }); }
+
+  function canSend(c) {
+    if (!c) return { ok: false, why: "" };
+    if (S.appSession !== "ok") return { ok: false, why: "Sign in again to send." };
+    if (S.conn !== "ready") return { ok: false, why: S.conn === "connecting" ? "Connecting…" : "Connect a model to send. Your draft is kept." };
+    if (S.network !== "online") return { ok: false, why: "Offline: not sent. Draft kept on this device." };
+    if (S.usage !== "ok") return { ok: false, why: "Paused: usage limit reached." };
+    if (streamingIn(c)) return { ok: false, why: "" };
+    if (activeProposalBlocks(c)) return { ok: false, why: "Approve, edit or decline the proposal above to continue." };
+    if (c.draft.atts.some(function (a) { return a.status === "invalid"; })) return { ok: false, why: "Remove or replace the files with problems." };
+    if (!c.draft.text.trim()) return { ok: false, why: "" };
+    return { ok: true, why: "" };
+  }
+
+  /* ---------------- Actions ---------------- */
+  var ACT = {};
+  ACT["new"] = function () {
+    var c = S.convs.filter(function (x) { return x.isNew && !x.messages.length && !x.archived; })[0];
+    if (!c) { c = newConv(S); S.convs.unshift(c); }
+    S.inbox.search = ""; S.inbox.archivedView = false; S.inbox.menu = null; S.inbox.rename = null;
+    S.active = c.id; S.view = "thread"; S.pop = null; S.peek = null; S.readyCard = false; S.resume = null;
+    setStage("new-chat"); S.focus = "composer";
+    say("New conversation. Pick a focus or a suggestion.");
+  };
+  ACT["start-new"] = ACT["new"];
+  ACT["open-conv"] = function (id) {
+    var prev = A();
+    if (prev && prev.id !== id && prev.proposal && prev.proposal.status === "saved") prev.leftAfterSave = true;
+    S.active = id; S.view = "thread"; S.pop = null; S.peek = null; S.inbox.menu = null; S.resume = null;
+    var c = A();
+    if (c.leftAfterSave) { c.leftAfterSave = false; S.resume = "complete"; setStage("resume-complete"); S.main = "resume"; S.reveal = "resume"; }
+    else S.reveal = "bottom";
+    S.focus = isNarrow() ? "back" : "conv:" + id;
+    say("Opened “" + c.title + "”.");
+  };
+  ACT["back"] = function () {
+    var c = A();
+    if (c && c.proposal && c.proposal.status === "saved") c.leftAfterSave = true;
+    S.view = "inbox"; S.peek = null; S.pop = null;
+    S.focus = c ? "conv:" + c.id : "new";
+    say("Conversations list.");
+  };
+  ACT["clear-search"] = function () { S.inbox.search = ""; S.focus = "search"; say("Search cleared. All conversations shown."); };
+  ACT["more"] = function (id) { S.inbox.menu = S.inbox.menu === id ? null : id; S.inbox.rename = null; S.focus = S.inbox.menu ? "rename:" + id : "more:" + id; };
+  ACT["rename"] = function (id) { S.inbox.menu = null; S.inbox.rename = { id: id, value: conv(S, id).title, error: "" }; S.focus = "rename-input"; };
+  ACT["rename-save"] = function () {
+    var r = S.inbox.rename; if (!r) return;
+    var v = r.value.trim();
+    if (!v) { r.error = "Name can't be empty."; S.focus = "rename-input"; say("Name can't be empty."); return; }
+    conv(S, r.id).title = v.slice(0, 80); S.inbox.rename = null; S.focus = "conv:" + r.id; say("Renamed to “" + v + "”.");
+  };
+  ACT["rename-cancel"] = function () { var r = S.inbox.rename; S.inbox.rename = null; if (r) S.focus = "more:" + r.id; };
+  ACT["archive"] = function (id) {
+    var c = conv(S, id); c.archived = true; S.inbox.menu = null;
+    S.inbox.notice = { text: "Archived “" + c.title + "”.", undo: id };
+    if (S.active === id) { var nx = S.convs.filter(function (x) { return !x.archived; })[0]; S.active = nx ? nx.id : null; }
+    S.focus = "undo-archive"; say("Archived “" + c.title + "”. Undo is available.");
+  };
+  ACT["undo-archive"] = function () { var n = S.inbox.notice; if (!n) return; conv(S, n.undo).archived = false; S.inbox.notice = null; S.focus = "conv:" + n.undo; say("Archive undone."); };
+  ACT["dismiss-inbox-notice"] = function () { S.inbox.notice = null; S.focus = "search"; };
+  ACT["show-archived"] = function () { S.inbox.archivedView = true; S.inbox.menu = null; S.inbox.notice = null; S.focus = "hide-archived"; say("Archived conversations."); };
+  ACT["hide-archived"] = function () { S.inbox.archivedView = false; S.focus = "show-archived"; say("Back to conversations."); };
+  ACT["restore"] = function (id) {
+    var c = conv(S, id); c.archived = false;
+    var left = S.convs.filter(function (x) { return x.archived; }).length;
+    S.inbox.notice = { text: "Restored “" + c.title + "”." };
+    if (!left) { S.inbox.archivedView = false; S.focus = "conv:" + id; } else S.focus = "hide-archived";
+    say("Restored “" + c.title + "” to your inbox.");
+  };
+  ACT["inbox-retry"] = function () {
+    S.inbox.status = "loading"; S.pending = { kind: "load", auto: true, label: "Loading conversations" };
+    schedule(700, settle); S.focus = "search"; say("Loading conversations.");
+  };
+
+  ACT["conn"] = function () { S.pop = S.pop === "conn" ? null : "conn"; S.focus = S.pop ? "conn-pop" : "conn"; };
+  ACT["open-consent"] = function () {
+    S.connPrev = (S.conn === "declined" || S.conn === "failed") ? (S.connPrev || "required") : S.conn;
+    S.pop = null; S.screen = "consent"; setStage("setup-consent"); S.focus = "consent-title";
+    say("Simulated permission page opened.");
+  };
+  ACT["consent-approve"] = function () {
+    S.connBusy = true; S.pending = { kind: "connect", auto: true, label: "Completing the demo connection" };
+    schedule(800, settle); S.focus = "consent-approve"; say("Connecting (demo).");
+  };
+  ACT["consent-decline"] = function () {
+    clearTimer(); S.pending = null; S.connBusy = false; S.screen = null;
+    S.conn = "declined"; setStage("setup-declined"); S.focus = "open-consent"; say("Permission declined. Nothing was connected. Your draft is kept.");
+  };
+  ACT["dismiss-conn"] = function () { S.conn = S.connPrev || "required"; S.connPrev = null; S.focus = "composer"; say("Notice dismissed."); };
+  ACT["check-access"] = function () { S.connChecked = now(S); S.focus = "check-access"; say("Checked at " + S.connChecked + ". Hosted access is still not confirmed."); };
+  ACT["disconnect"] = function () { S.conn = "disconnected"; S.pop = null; S.readyCard = false; setStage("disconnected"); S.focus = "conn"; say("Disconnected. New questions are paused. History stays available."); };
+  ACT["dismiss-ready"] = function () { S.readyCard = false; S.focus = "composer"; };
+  ACT["check-net"] = function () { S.network = "online"; S.netNotice = "Back online. Your draft hasn't been sent yet. Send it when you're ready."; S.focus = "send"; say("Back online. Draft not sent yet."); };
+  ACT["dismiss-net"] = function () { S.netNotice = null; S.focus = "composer"; };
+  ACT["usage-manage"] = function () { S.usagePanel = !S.usagePanel; S.focus = "usage-manage"; };
+  ACT["usage-check"] = function () { S.usage = "ok"; S.usagePanel = false; S.usageNotice = "Requests are available again (demo reset). Nothing was sent while paused."; S.focus = "composer"; say("Usage available again. Nothing was sent while paused."); };
+  ACT["dismiss-usage"] = function () { S.usageNotice = null; S.focus = "composer"; };
+  ACT["signin"] = function () { S.pending = { kind: "signin", auto: true, label: "Signing in to PhD Companion (simulated)" }; schedule(700, settle); say("Signing in (simulated)."); };
+
+  ACT["pop-attach"] = function () { S.pop = S.pop === "attach" ? null : "attach"; S.focus = S.pop ? "attach-first" : "pop-attach"; };
+  ACT["open-attach"] = function () { S.pop = "attach"; S.focus = "attach-first"; S.reveal = null; };
+  ACT["pop-ctx"] = function () { S.pop = S.pop === "ctx" ? null : "ctx"; S.focus = S.pop ? "ctx-first" : "pop-ctx"; };
+  ACT["set-ctx"] = function (id) {
+    var c = A(); c.ctx = id === "none" ? null : id; S.pop = null; S.focus = "pop-ctx";
+    if (c.ctx && !c.messages.length) setStage("draft-context");
+    say(c.ctx ? "Sprig will focus on " + CONTEXTS[c.ctx].label + "." : "Sprig will use your whole PhD.");
+  };
+  ACT["clear-ctx"] = function () {
+    var c = A(); var was = c.ctx; c.ctx = null; S.pop = null;
+    if (S.peek) { S.peek = null; }
+    S.focus = "pop-ctx"; say((was && CONTEXTS[was] ? CONTEXTS[was].label + " removed from context. " : "Context removed. ") + "Sprig will use your whole PhD.");
+  };
+  ACT["peek-remove-ctx"] = ACT["clear-ctx"];
+  ACT["attach-stored"] = function (id) {
+    var c = A(); var i = c.draft.atts.map(function (a) { return a.id; }).indexOf(id);
+    if (i === -1) { c.draft.atts.push({ id: id, name: SOURCES[id].title, origin: "stored", status: "ok" }); say("Attached " + SOURCES[id].title + "."); setStage(S.stage === "attachment-invalid" ? S.stage : "attach-evidence"); }
+    else { c.draft.atts.splice(i, 1); say("Removed " + SOURCES[id].title + "."); }
+    S.focus = "attach-stored:" + id;
+  };
+  ACT["pick-device"] = function () { var f = document.getElementById("pcf-file"); if (f) { f.value = ""; f.click(); } };
+  ACT["att-remove"] = function (id) {
+    var c = A(); var a = c.draft.atts.filter(function (x) { return x.id === id; })[0];
+    c.draft.atts = c.draft.atts.filter(function (x) { return x.id !== id; });
+    S.focus = "pop-attach"; say("Removed " + (a ? a.name : "file") + ".");
+  };
+  ACT["att-replace"] = function (id) { var c = A(); c.draft.atts = c.draft.atts.filter(function (x) { return x.id !== id; }); S.pop = "attach"; S.focus = "pick-device"; say("Removed. Choose another file."); };
+  function onFiles(files) {
+    var c = A(); if (!c) return;
+    var bad = 0;
+    Array.prototype.forEach.call(files, function (f) { var a = devAtt("d" + (++S.seq), f.name, f.size); if (a.status === "invalid") bad++; c.draft.atts.push(a); });
+    S.pop = null;
+    setStage(bad ? "attachment-invalid" : "attach-evidence");
+    S.focus = bad ? "att-replace:" + c.draft.atts[c.draft.atts.length - 1].id : "composer";
+    say(bad ? bad + " file(s) can't be attached. See the message box." : "Added by name only. Nothing uploads in this preview.");
+    render();
+  }
+
+  ACT["suggest"] = function (i) { var c = A(); c.draft.text = SUGGESTIONS[+i].text; S.focus = "composer"; say("Suggestion added to your message. Edit or send it."); };
+  ACT["fill-draft"] = function (text) { var c = A(); c.draft.text = text; S.pop = null; S.focus = "composer"; say("Added to your message box. Nothing is sent yet."); };
+  ACT["send"] = function () {
+    var c = A(); var r = canSend(c); if (!r.ok) return;
+    var text = c.draft.text.trim();
+    var atts = c.draft.atts.map(function (a) { return { id: a.id, name: a.name, origin: a.origin }; });
+    var um = { role: "user", id: "u" + (++S.seq), time: now(S), text: text, atts: atts, ctx: c.ctx };
+    c.messages.push(um);
+    if (c.isNew) { c.isNew = false; c.title = text.length > 42 ? text.slice(0, 40) + "…" : text; c.tone = c.ctx ? CONTEXTS[c.ctx].tone : "leaf"; }
+    c.localOnly = false; c.time = um.time;
+    var script = pickScript(c, text, atts);
+    var m = { role: "sprig", id: "a" + (++S.seq), time: um.time, status: "streaming", script: script, replyTo: um.id, atts: atts, pos: 0 };
+    m.tools = SCRIPTS[script].tools(m);
+    c.messages.push(m);
+    c.draft = { text: "", atts: [] }; S.pop = null; S.readyCard = false;
+    setStage("reply-streaming"); S.reveal = "bottom"; S.focus = "stop";
+    say("Sent. Sprig is replying.");
+    startStream(c, m, true);
+  };
+  function pickScript(c, text, atts) {
+    if (has(atts, "F3")) return "unreadable";
+    if (has(atts, "F4")) return "partial";
+    var answered = c.messages.some(function (m) { return m.role === "sprig" && m.script === "answer" || (m.parts && m.parts.some(function (p) { return p.t === "ol"; })); });
+    if (/task/i.test(text) && (c.ctx === "slr" || answered)) return "tasks";
+    if (/feedback|manuscript|slr|guide/i.test(text) || c.ctx === "slr" || has(atts, "F1")) return "answer";
+    return "priorities";
+  }
+  function totalPos(m) { return m.tools.length * 4 + SCRIPTS[m.script].text.split(" ").length; }
+  function startStream(c, m, auto) {
+    S.pending = { kind: "stream", conv: c.id, msg: m.id, auto: auto, label: "Sprig is writing a reply" };
+    if (auto) schedule(240, tick);
+  }
+  function tick() {
+    if (!S.pending || S.pending.kind !== "stream") return;
+    var c = conv(S, S.pending.conv), m = msgById(c, S.pending.msg);
+    m.pos += 3;
+    if (m.pos >= totalPos(m)) { completeStream(c, m); render(); return; }
+    render(); schedule(240, tick);
+  }
+  function completeStream(c, m) {
+    clearTimer();
+    m.status = "complete"; m.pos = totalPos(m);
+    m.parts = SCRIPTS[m.script].final(c, m);
+    S.pending = null;
+    var st = SCRIPTS[m.script].stage;
+    setStage(st);
+    if (st === "proposal-pending" && c.proposal && c.proposal.status === "pending") { S.reveal = "prop-approve"; say("Sprig proposed 3 tasks. Nothing is saved until you approve."); }
+    else { S.reveal = "msgend:" + m.id; say("Sprig finished replying."); }
+    if (document.activeElement && document.activeElement.getAttribute("data-fk") === "stop") S.focus = "composer";
+  }
+  ACT["stop"] = function () {
+    var c = A(); var m = c.messages.filter(function (x) { return x.status === "streaming"; })[0]; if (!m) return;
+    clearTimer(); S.pending = null; m.status = "stopped"; m.note = null;
+    setStage("reply-stopped"); S.focus = "continue:" + m.id; say("Stopped. The partial reply is kept and marked incomplete.");
+  };
+  ACT["continue"] = function (id) {
+    var c = A(); var m = msgById(c, id); if (!m || !canInfer()) return;
+    m.status = "streaming"; m.note = "Continuing the same reply. Your message wasn't sent again.";
+    setStage("reply-streaming"); S.focus = "stop"; say("Continuing the reply."); startStream(c, m, true);
+  };
+  ACT["retry-reply"] = function (id) {
+    var c = A(); var m = msgById(c, id); if (!m || !canInfer()) return;
+    var u = msgById(c, m.replyTo);
+    m.status = "streaming"; m.pos = 0; m.note = "Retrying your message from " + (u ? u.time : "earlier") + ". It isn't sent again.";
+    setStage("reply-streaming"); S.focus = "stop"; say("Retrying the reply."); startStream(c, m, true);
+  };
+  function canInfer() { if (S.conn !== "ready" || S.network !== "online" || S.usage !== "ok" || S.appSession !== "ok") { say("Can't reply right now. See the notice above the message box."); return false; } return true; }
+  ACT["ask-tasks"] = function () { var c = A(); if (!canInfer()) return; c.draft.text = "Turn these into tasks."; ACT.send(); };
+  ACT["read-more"] = function (id) { S.pending = { kind: "readmore", conv: S.active, msg: id, auto: true, label: "Reading pages 39–76 (demo)" }; schedule(900, settle); S.focus = "read-more:" + id; say("Reading the next part (demo)."); };
+
+  ACT["src"] = function (arg, el) { S.peek = { type: "src", id: arg.split("|")[0], ret: el.getAttribute("data-fk") }; S.pop = null; S.focus = "peek-title"; if (!SOURCES[S.peek.id].unavailable) setStage("source-peek"); say("Source opened."); };
+  ACT["task"] = function (id, el) { S.peek = { type: "task", id: id, ret: el.getAttribute("data-fk") }; S.focus = "peek-title"; say("Saved task opened."); };
+  ACT["close-peek"] = function () { var r = S.peek && S.peek.ret; S.peek = null; S.focus = r || "composer"; say("Back to chat."); };
+
+  function P() { var c = A(); return c && c.proposal; }
+  ACT["prop-approve"] = function () {
+    var p = P(); if (!p || p.status !== "pending") return;
+    p.status = "saving"; S.pending = { kind: "save", conv: S.active, auto: true, label: "Saving approved tasks" };
+    setStage("proposal-saving"); S.focus = "prop-approve"; say("Saving. Approval can only run once.");
+    schedule(1200, settle);
+  };
+  ACT["prop-edit"] = function () { var p = P(); if (!p) return; p.status = "editing"; p.edit = clone(p.tasks); p.errors = {}; p.formError = ""; setStage("proposal-edit"); S.focus = "edit-title:" + p.edit[0].id; S.reveal = "prop-card"; say("Editing the proposal. Nothing is saved until you approve."); };
+  ACT["edit-cancel"] = function () { var p = P(); p.status = "pending"; p.edit = null; p.errors = {}; p.formError = ""; S.focus = "prop-edit"; say("Edits discarded. Proposal unchanged."); };
+  ACT["edit-save"] = function () {
+    var p = P(); var errs = {}, n = 0, first = null;
+    var inc = p.edit.filter(function (t) { return t.include; });
+    p.edit.forEach(function (t) {
+      if (!t.include) return;
+      var e = {};
+      if (!t.title.trim()) { e.title = "Add a title, or untick this task."; }
+      if (t.due.kind === "day" && !validDay(t.due.value)) { e.due = "Pick a day, or choose No due date."; }
+      if (e.title || e.due) { errs[t.id] = e; n += (e.title ? 1 : 0) + (e.due ? 1 : 0); if (!first) first = e.title ? "edit-title:" + t.id : "edit-day:" + t.id; }
+    });
+    p.errors = errs;
+    if (!inc.length) { p.formError = "Choose at least one task to keep, or decline the proposal instead."; setStage("proposal-invalid"); S.focus = "inc:" + p.edit[0].id; say(p.formError); return; }
+    if (n) { p.formError = "Fix " + n + " problem" + (n > 1 ? "s" : "") + " to save. Your other edits are kept."; setStage("proposal-invalid"); S.focus = first; say(p.formError); return; }
+    p.tasks = p.edit.map(function (t) { t.title = t.title.trim(); return t; }); p.edit = null; p.formError = ""; p.edited = true; p.status = "pending";
+    S.focus = "prop-approve"; S.reveal = "prop-approve"; say("Proposal updated. It still needs your approval.");
+  };
+  ACT["prop-decline"] = function () { var p = P(); if (!p || p.status !== "pending") return; p.status = "rejected"; setStage("proposal-rejected"); S.focus = "prop-review"; say("Declined. Nothing was saved."); };
+  ACT["prop-review"] = function () { var p = P(); p.status = "pending"; setStage("proposal-pending"); S.focus = "prop-approve"; say("Proposal is back for review. Nothing saved yet."); };
+  ACT["prop-ask"] = function () { var c = A(); c.draft.text = "Can you split the PRISMA task into smaller steps?"; S.focus = "composer"; say("Change request added to your message box."); };
+  ACT["prop-refresh"] = function () {
+    var p = P(); p.tasks = p.tasks.filter(function (t) { return t.id !== "t2"; });
+    p.refreshed = "Refreshed: removed “Reword the inclusion and exclusion criteria”. You already added it at 10:47.";
+    p.status = "pending"; setStage("proposal-pending"); S.focus = "prop-approve"; S.reveal = "prop-approve"; say("Refreshed proposal with 2 tasks. Review and approve again.");
+  };
+  ACT["prop-retry"] = function () {
+    var p = P(); if (p.status !== "failed") return; p.status = "saving"; p.retried = true;
+    S.pending = { kind: "save", conv: S.active, auto: true, label: "Retrying the same save" };
+    setStage("proposal-saving"); S.focus = "prop-approve"; say("Retrying the same request. It can't create duplicates."); schedule(1200, settle);
+  };
+  ACT["prop-check"] = function () {
+    var p = P(); if (p.status !== "unknown") return; p.checking = true;
+    S.pending = { kind: "receipt", conv: S.active, auto: true, label: "Looking up the save receipt" }; S.focus = "prop-check"; say("Checking the receipt."); schedule(900, settle);
+  };
+  ACT["wf-retry"] = function () {
+    var c = A(); var it = c.workflow.items.filter(function (x) { return x.status === "failed"; })[0]; if (!it) return;
+    it.status = "saving"; S.pending = { kind: "wf", conv: c.id, auto: true, label: "Retrying the failed change only" }; S.focus = "wf-retry"; say("Retrying only the change that failed."); schedule(1000, settle);
+  };
+  ACT["resume-dismiss"] = function () { S.resume = null; S.focus = "composer"; };
+
+  /* Settle the in-flight simulated step (manual from reviewer, or via a deterministic timer). */
+  function settle() {
+    var pd = S.pending; if (!pd) return;
+    clearTimer();
+    var c = pd.conv ? conv(S, pd.conv) : null;
+    switch (pd.kind) {
+      case "stream": completeStream(c, msgById(c, pd.msg)); break;
+      case "connect":
+        S.pending = null; S.connBusy = false; S.screen = null; S.conn = "ready";
+        var prev = S.connPrev; S.connPrev = null;
+        if (prev === "expired" || prev === "disconnected") { setStage(A() && A().proposal && A().proposal.status === "pending" ? "proposal-pending" : "reply-complete"); S.focus = "composer"; say("Reconnected (demo). Your conversation and any pending proposal are unchanged."); }
+        else { S.readyCard = true; setStage("setup-ready"); S.focus = "start-new"; say("Demo connection ready. No real account was connected."); }
+        break;
+      case "save": var p = c.proposal; markSaved(S, p); S.pending = null; setStage("proposal-saved"); S.focus = "prop-heading"; S.reveal = "prop-card"; say("Saved " + p.saved.length + " tasks. One receipt recorded."); break;
+      case "receipt": var q = c.proposal; markSaved(S, q, "10:52"); q.recovered = "Found the receipt: your approval had already saved at 10:52. Nothing was saved twice."; q.checking = false; S.pending = null; setStage("proposal-saved"); S.focus = "prop-heading"; say(q.recovered); break;
+      case "load": S.inbox.status = "ready"; S.pending = null; if (!S.active) { var f = S.convs.filter(function (x) { return !x.archived; })[0]; S.active = f ? f.id : null; } setStage("inbox-populated"); say("Conversations loaded."); break;
+      case "signin": S.appSession = "ok"; S.screen = null; S.pending = null; S.focus = "composer"; say("Signed in again. You're back in “" + (A() ? A().title : "Ask Sprig") + "” with your draft."); break;
+      case "readmore": var m = msgById(c, pd.msg); m.readMore = true; S.pending = null; S.focus = "msgend:" + m.id; say("Read pages 39 to 76. Chapters 5 and 6 are still unread."); break;
+      case "wf": c.workflow.items.forEach(function (it) { if (it.status === "saving") { it.status = "saved"; it.receipt = "rcpt_demo_313"; it.retried = true; } }); S.pending = null; S.focus = "wf-head"; say("The failed change is now saved. The other two were not repeated."); break;
+    }
+    render();
+  }
+  function playStream() { if (S.pending && S.pending.kind === "stream") { S.pending.auto = true; schedule(240, tick); renderReviewer(); } }
+
+  /* ---------------- Rendering: product ---------------- */
+  function isNarrow() { var b = root.querySelector(".pc-back"); return !!b && getComputedStyle(b).display !== "none"; }
+
+  function buildApp() {
+    var app = h("div", { class: "pc-app", "data-view": S.view });
+    app.appendChild(h("div", { class: "pc-preview-bar", role: "note" }, h("span", { class: "dot", "aria-hidden": "true" }), h("strong", { text: "Design preview" }),
+      h("span", { text: "Demo records and simulated replies. Nothing is read, sent or saved." })));
+    var body = h("div", { class: "pc-body" });
+    body.appendChild(buildRail());
+    body.appendChild(buildInbox());
+    body.appendChild(buildThread());
+    app.appendChild(body);
+    if (S.screen === "consent") app.appendChild(buildConsent());
+    if (S.screen === "signin") app.appendChild(buildSignin());
+    app.appendChild(h("input", { type: "file", id: "pcf-file", class: "sr-only", tabindex: "-1", "aria-hidden": "true", multiple: true }));
+    app.appendChild(h("p", { class: "sr-only", id: "pcf-live", "aria-live": "polite", role: "status" }));
+    return app;
+  }
+  function buildRail() {
+    var r = h("div", { class: "pc-rail", "aria-hidden": "true" }, h("span", { class: "brand" }, sprig()));
+    [["home", "leaf"], ["history", "neutral"], ["book", "sky"], ["flask", "leaf"], ["calendar", "sun"], ["cap", "grape"], ["users", "clay"], ["notebook", "neutral"]].forEach(function (x) {
+      r.appendChild(h("span", { class: "pc-rail-item" }, h("span", { class: "tile t-" + x[1] }, icon(x[0]))));
+    });
+    r.appendChild(h("span", { class: "sep" }));
+    r.appendChild(h("span", { class: "pc-rail-item cur" }, h("span", { class: "tile t-leaf" }, icon("chat"))));
+    return r;
+  }
+
+  /* Inbox */
+  function snippet(c) {
+    if (c.localOnly || !c.messages.length) return c.draft.text ? "Draft: " + c.draft.text : "New conversation";
+    var p = c.proposal;
+    if (p) {
+      if (p.status === "saved") return "Saved " + p.saved.length + " tasks · receipt kept";
+      if (p.status === "rejected") return "Proposal declined. Nothing saved";
+      if (p.status === "saving") return "Saving approved tasks…";
+      return p.tasks.length + " proposed tasks are waiting for you";
+    }
+    if (c.workflow) return c.workflow.items.some(function (x) { return x.status === "failed"; }) ? "2 of 3 changes saved · 1 needs a retry" : "All 3 changes saved";
+    var m = c.messages[c.messages.length - 1];
+    if (m.role === "user") return "You: " + m.text;
+    if (m.status === "streaming") return "Sprig is replying…";
+    if (m.status === "stopped") return "Reply stopped · incomplete";
+    if (m.status === "failed") return "Reply interrupted · incomplete";
+    var t = (m.parts || []).filter(function (x) { return x.t === "p"; })[0];
+    return t ? t.c.map(function (x) { return typeof x === "string" ? x : SOURCES[x.src].chip; }).join("") : "";
+  }
+  function convBadges(c) {
+    var b = [];
+    var p = c.proposal;
+    if (p && ["pending", "editing", "conflict", "failed", "unknown"].indexOf(p.status) !== -1) b.push(h("span", { class: "badge b-sun", text: "Needs your approval" }));
+    if (p && p.status === "saving") b.push(h("span", { class: "badge b-sky", text: "Saving…" }));
+    if (p && p.status === "saved") b.push(h("span", { class: "badge b-leaf" }, icon("check"), "Saved"));
+    if (c.workflow && c.workflow.items.some(function (x) { return x.status === "failed"; })) b.push(h("span", { class: "badge b-clay", text: "1 change not saved" }));
+    if (streamingIn(c)) b.push(h("span", { class: "badge b-sky", text: "Replying…" }));
+    if (c.draft.text.trim() && c.id !== S.active && !c.localOnly) b.push(h("span", { class: "badge b-neutral" }, icon("pencil"), "Draft"));
+    if (c.localOnly) b.push(h("span", { class: "badge b-outline", text: "On this device only" }));
+    if (c.ctx && CONTEXTS[c.ctx]) b.push(h("span", { class: "badge b-grape ctx-wide", text: CONTEXTS[c.ctx].label }));
+    return b;
+  }
+  function row(c, archivedView) {
+    var cur = c.id === S.active && !archivedView;
+    var li = h("li");
+    if (S.inbox.rename && S.inbox.rename.id === c.id) {
+      var r = S.inbox.rename;
+      li.appendChild(h("div", { class: "rename-form" },
+        h("div", { class: "pc-field" }, h("label", { for: "pcf-rename", text: "Conversation name" }),
+          h("input", { id: "pcf-rename", class: "pc-input", type: "text", value: r.value, maxlength: "80", "data-bind": "rename", "data-fk": "rename-input", "aria-invalid": r.error ? "true" : null, "aria-describedby": r.error ? "pcf-rename-err" : null })),
+        r.error ? h("p", { class: "field-err", id: "pcf-rename-err" }, icon("alert"), r.error) : null,
+        h("div", { class: "rf-actions" }, btn("btn-primary btn-sm", "rename-save", "Save name"), btn("btn-secondary btn-sm", "rename-cancel", "Cancel"))));
+      return li;
+    }
+    var line = h("div", { class: "pc-rowline" + (cur ? " cur" : "") });
+    if (archivedView) {
+      line.appendChild(h("div", { class: "pc-conv", style: "cursor:default" }, h("span", { class: "tile t-" + c.tone }, icon(c.icon)),
+        h("span", { class: "pc-conv-main" }, h("span", { class: "pc-conv-top" }, h("span", { class: "pc-conv-title", text: c.title }), h("span", { class: "pc-conv-time", text: c.time })),
+          h("span", { class: "pc-conv-snip", text: snippet(c) }))));
+      var rb = btn("btn-secondary btn-xs", "restore", "Restore", { arg: c.id, icon: "undo", aria: "Restore " + c.title });
+      rb.style.margin = "10px 8px 0 0";
+      line.appendChild(rb);
+      li.appendChild(line); return li;
+    }
+    var badges = convBadges(c);
+    line.appendChild(h("button", { type: "button", class: "pc-conv", "data-act": "open-conv", "data-arg": c.id, "data-fk": "conv:" + c.id, "aria-current": cur ? "true" : null },
+      h("span", { class: "tile t-" + c.tone }, icon(c.icon)),
+      h("span", { class: "pc-conv-main" },
+        h("span", { class: "pc-conv-top" }, h("span", { class: "pc-conv-title", text: c.title }), h("span", { class: "pc-conv-time", text: c.time })),
+        h("span", { class: "pc-conv-snip", text: snippet(c) }),
+        badges.length ? h("span", { class: "pc-conv-badges" }, badges) : null)));
+    if (!c.localOnly) line.appendChild(h("button", { type: "button", class: "pc-more", "data-act": "more", "data-arg": c.id, "data-fk": "more:" + c.id, "aria-expanded": S.inbox.menu === c.id ? "true" : "false", "aria-label": "More actions for " + c.title }, icon("more")));
+    li.appendChild(line);
+    if (S.inbox.menu === c.id) {
+      li.appendChild(h("div", { class: "row-actions", role: "group", "aria-label": "Actions for " + c.title },
+        btn("btn-secondary btn-xs", "rename", "Rename", { arg: c.id, icon: "pencil" }),
+        btn("btn-secondary btn-xs", "archive", "Archive", { arg: c.id, icon: "archive" })));
+    }
+    return li;
+  }
+  function buildInbox() {
+    var sec = h("section", { class: "pc-inbox", "aria-label": "Conversations" });
+    var head = h("div", { class: "pc-inbox-head" },
+      h("div", { class: "pc-inbox-title" }, h("span", { class: "mark" }, sprig()), h("h2", null, h("span", { class: "eyebrow", text: "PhD Companion" }), "Ask Sprig"),
+        btn("btn-primary btn-sm", "new", "New", { icon: "plus", aria: "New chat" })),
+      h("div", { class: "pc-search" }, icon("search"), h("label", { class: "sr-only", for: "pcf-search", text: "Search conversations" }),
+        h("input", { id: "pcf-search", type: "search", placeholder: "Search conversations", autocomplete: "off", value: S.inbox.search, "data-bind": "search", "data-fk": "search", disabled: S.inbox.status !== "ready" })));
+    sec.appendChild(head);
+    var list = h("div", { class: "pc-list", "data-scroll": "list" });
+    var st = S.inbox.status;
+    if (st === "loading") {
+      list.setAttribute("aria-busy", "true");
+      for (var i = 0; i < 4; i++) list.appendChild(h("div", { class: "skel", "aria-hidden": "true" }, h("i", { class: "s-tile" }), h("span", { class: "s-lines" }, h("i", { class: "s-l1" }), h("i", { class: "s-l2" }))));
+      list.appendChild(h("div", { class: "inbox-status", role: "status" }, h("span", { text: "Loading conversations… If this takes more than a few seconds, load again." }),
+        btn("btn-secondary btn-xs", "inbox-retry", "Load again", { icon: "refresh", fk: "inbox-retry" })));
+    } else if (st === "error") {
+      list.appendChild(h("div", { class: "inbox-card err", role: "alert" }, h("h3", { text: "Couldn't load your conversations" }),
+        h("p", { text: "This isn't an empty inbox. Your history is saved; it just didn't load. Anything you're typing stays on this device." }),
+        btn("btn-secondary btn-sm", "inbox-retry", "Try again", { icon: "refresh" })));
+      var local = S.convs.filter(function (c) { return c.localOnly; });
+      if (local.length) { var ul0 = h("ul", { "aria-label": "On this device" }); local.forEach(function (c) { ul0.appendChild(row(c)); }); list.appendChild(h("div", { class: "pc-group", text: "On this device" })); list.appendChild(ul0); }
+    } else if (S.inbox.archivedView) {
+      list.appendChild(h("div", { class: "archived-head" }, btn("btn-ghost btn-xs", "hide-archived", "Inbox", { icon: "arrowLeft", aria: "Back to inbox" }), h("h3", { text: "Archived" })));
+      if (S.inbox.notice) list.appendChild(h("div", { class: "inbox-status", role: "status" }, h("span", { text: S.inbox.notice.text })));
+      var arch = S.convs.filter(function (c) { return c.archived; });
+      var ula = h("ul", { "aria-label": "Archived conversations" }); arch.forEach(function (c) { ula.appendChild(row(c, true)); }); list.appendChild(ula);
+      list.appendChild(h("p", { class: "inbox-msg", text: "Archived chats keep their sources and receipts. This preview has no permanent delete." }));
+    } else {
+      if (S.inbox.notice) list.appendChild(h("div", { class: "inbox-status", role: "status" }, h("span", { text: S.inbox.notice.text }),
+        S.inbox.notice.undo ? btn("btn-secondary btn-xs", "undo-archive", "Undo", { icon: "undo" }) : null,
+        btn("btn-ghost btn-xs", "dismiss-inbox-notice", "Dismiss")));
+      var visible = S.convs.filter(function (c) { return !c.archived; });
+      var q = S.inbox.search.trim().toLowerCase();
+      var any = false;
+      if (!visible.length) {
+        list.appendChild(h("div", { class: "inbox-empty" }, h("span", { class: "big" }, sprig()), h("h3", { text: "No conversations yet" }),
+          h("p", { text: "Ask about your records, or turn feedback into tasks you approve first." }), btn("btn-primary btn-sm", "new", "Start your first chat", { icon: "plus", fk: "new-empty" })));
+      } else {
+        [["today", "Today"], ["earlier", "Earlier"]].forEach(function (g) {
+          var items = visible.filter(function (c) { return c.group === g[0] && (!q || (c.title + " " + snippet(c)).toLowerCase().indexOf(q) !== -1); });
+          if (!items.length) return; any = true;
+          list.appendChild(h("div", { class: "pc-group", id: "pcf-g-" + g[0], text: g[1] }));
+          var ul = h("ul", { "aria-labelledby": "pcf-g-" + g[0] }); items.forEach(function (c) { ul.appendChild(row(c)); }); list.appendChild(ul);
+        });
+        if (!any) list.appendChild(h("div", { class: "inbox-msg", role: "status" }, h("span", { text: "No conversations match “" + S.inbox.search.trim() + "”. Nothing was removed." }),
+          btn("btn-secondary btn-sm", "clear-search", "Clear search", { icon: "x" })));
+      }
+      var nArch = S.convs.filter(function (c) { return c.archived; }).length;
+      if (nArch) list.appendChild(h("div", { style: "padding:8px 4px" }, btn("btn-ghost btn-xs", "show-archived", "Archived (" + nArch + ")", { icon: "archive" })));
+    }
+    sec.appendChild(list);
+    sec.appendChild(buildConnFoot());
+    return sec;
+  }
+  var CONN_LABEL = {
+    required: ["Setup required", "b-sun", "Not connected"], unavailable: ["Not available yet", "b-sun", "Hosted access not confirmed"],
+    declined: ["Not connected", "b-outline", "Permission declined"], failed: ["Didn't connect", "b-clay", "Last attempt failed"],
+    ready: ["Demo", "b-leaf", "Connected · simulated"], expired: ["Expired", "b-sun", "Reconnect to keep chatting"], disconnected: ["Off", "b-outline", "Disconnected"]
+  };
+  function buildConnFoot() {
+    var L = CONN_LABEL[S.conn] || CONN_LABEL.required;
+    var foot = h("div", { class: "pc-inbox-foot" },
+      h("button", { type: "button", class: "pc-conn", "data-act": "conn", "data-fk": "conn", "aria-expanded": S.pop === "conn" ? "true" : "false", "aria-controls": "pcf-conn-pop" },
+        h("span", { class: "tile t-" + (S.conn === "ready" ? "leaf" : "neutral") }, icon("plug")),
+        h("span", { class: "conn-main" }, h("b", { text: "ChatGPT connection" }), h("span", { text: L[2] })),
+        h("span", { class: "badge " + L[1], text: L[0] })));
+    if (S.pop === "conn") {
+      var t = h("div", { class: "pop-text" });
+      if (S.conn === "ready") {
+        t.appendChild(h("div", { class: "row" }, h("span", { class: "badge b-leaf" }, icon("check"), "Demo connection"), h("span", { class: "badge b-sun", text: "Simulated" })));
+        t.appendChild(h("p", { text: "No real ChatGPT account is connected. Replies are scripted. Disconnecting stops new questions; history stays." }));
+        t.appendChild(h("div", { class: "row" }, btn("btn-secondary btn-sm", "disconnect", "Disconnect", { icon: "plug" }), btn("btn-ghost btn-sm", "conn", "Close", { fk: "conn-close" })));
+      } else {
+        t.appendChild(h("div", { class: "row" }, h("span", { class: "badge " + L[1], text: L[0] }), h("span", { class: "badge b-outline", text: "Preview mode" })));
+        t.appendChild(h("p", { text: "Sprig would answer using your own ChatGPT plan through a sign-in, not an API key. In the real app this needs OpenAI to confirm hosted access first." }));
+        t.appendChild(h("ul", null, h("li", { text: "No account is connected in this preview." }), h("li", { text: "History, sources and saved records stay available." }), h("li", { text: "The existing ChatGPT/Codex connector is unchanged." })));
+        t.appendChild(h("div", { class: "row" }, btn("btn-primary btn-sm", "open-consent", S.conn === "expired" || S.conn === "disconnected" ? "Reconnect (demo)" : "Review demo connection", { fk: "conn-consent" }), btn("btn-ghost btn-sm", "conn", "Close", { fk: "conn-close" })));
+      }
+      foot.appendChild(h("div", { class: "pop", id: "pcf-conn-pop", role: "dialog", "aria-label": "ChatGPT connection", "data-fk": "conn-pop", tabindex: "-1", style: "left:10px; bottom:64px;" }, t));
+    }
+    return foot;
+  }
+
+  /* Thread */
+  function buildThread() {
+    var sec = h("section", { class: "pc-thread", "aria-label": "Conversation" });
+    var c = A();
+    var head = h("header", { class: "pc-thread-head" }, h("button", { type: "button", class: "pc-back", "data-act": "back", "data-fk": "back", "aria-label": "Back to conversations" }, icon("arrowLeft")));
+    var titles = h("div", { class: "pc-thread-titles" });
+    titles.appendChild(h("h2", { id: "pcf-thread-title", text: c ? c.title : (S.inbox.status === "ready" ? "Ask Sprig" : "Conversations") }));
+    var sub = h("div", { class: "pc-thread-sub" });
+    if (c) {
+      if (c.ctx && CONTEXTS[c.ctx]) sub.appendChild(h("span", { class: "badge " + (CONTEXTS[c.ctx].gone ? "b-outline" : "b-grape") }, icon("layers"), CONTEXTS[c.ctx].label + (CONTEXTS[c.ctx].gone ? " · unavailable" : "")));
+      else sub.appendChild(h("span", { class: "badge b-outline" }, icon("layers"), "Whole PhD"));
+      if (c.localOnly) sub.appendChild(h("span", { text: "Not saved yet · on this device" }));
+    } else sub.appendChild(h("span", { text: "Private to you" }));
+    titles.appendChild(sub); head.appendChild(titles);
+    sec.appendChild(head);
+
+    var log = h("div", { class: "pc-log", "data-scroll": "log", role: "log", "aria-labelledby": "pcf-thread-title", tabindex: "-1" });
+    if (!c) {
+      if (S.inbox.status === "ready") log.appendChild(firstChatEmpty());
+      else log.appendChild(h("div", { class: "pc-emptystate" }, h("p", { text: S.inbox.status === "loading" ? "Your conversations will appear here once they load." : "Choose Try again to reload your conversations." })));
+    } else {
+      if (S.resume) log.appendChild(resumeBanner(c));
+      if (!c.messages.length) log.appendChild(newChatEmpty(c));
+      c.messages.forEach(function (m) { log.appendChild(m.role === "user" ? userMsg(m) : sprigMsg(c, m)); });
+    }
+    sec.appendChild(log);
+    if (c || S.inbox.status === "ready") sec.appendChild(buildComposer(c));
+    if (S.peek) sec.appendChild(buildPeek(c));
+    return sec;
+  }
+  function firstChatEmpty() {
+    return h("div", { class: "pc-emptystate" }, h("span", { class: "big" }, sprig()), h("h3", { text: "Your first conversation" }),
+      h("p", { text: "Sprig answers from your PhD records and links every claim to its source. Changes are only proposed. You approve them first." }),
+      btn("btn-primary", "new", "Start a new chat", { icon: "plus", fk: "new-first" }));
+  }
+  function newChatEmpty(c) {
+    var ctx = c.ctx ? CONTEXTS[c.ctx].label : "Whole PhD";
+    var wrap = h("div", { class: "pc-emptystate" }, h("span", { class: "big" }, sprig()), h("h3", { text: "What should we look at?" }),
+      h("p", null, "Focus: ", h("b", { text: ctx }), ". Change it with the focus button below the message box."));
+    var sg = h("div", { class: "suggest", role: "group", "aria-label": "Suggested questions" });
+    SUGGESTIONS.forEach(function (s, i) { sg.appendChild(h("button", { type: "button", "data-act": "suggest", "data-arg": String(i), "data-fk": "suggest:" + i }, h("span", { class: "tile t-" + s.tone }, icon(s.icon)), h("span", { text: s.text }))); });
+    wrap.appendChild(sg);
+    return wrap;
+  }
+  function resumeBanner(c) {
+    var pend = S.resume === "pending";
+    return h("div", { class: "notice " + (pend ? "sun" : "sky"), "data-fk": "resume", tabindex: "-1" }, h("span", { class: "tile t-" + (pend ? "sun" : "sky") }, icon(pend ? "phone" : "history")),
+      h("div", { class: "n-main" }, h("b", { class: "n-title", text: pend ? "Picked up on your phone (demo session)" : "Welcome back" }),
+        h("p", { text: pend ? "This proposal has been waiting since 10:46 on your laptop. Nothing was approved automatically. It needs you here." : "Saved at " + (c.proposal && c.proposal.receipt ? c.proposal.receipt.at : "10:52") + ". The sources and receipt below are from then. Nothing ran again when you came back." }),
+        h("div", { class: "act-row" }, btn("btn-ghost btn-xs", "resume-dismiss", "Got it"))));
+  }
+  function userMsg(m) {
+    var meta = [];
+    (m.atts || []).forEach(function (a) { meta.push(h("span", { class: "badge b-outline" }, icon(a.origin === "device" ? "upload" : "paperclip"), a.name + (a.origin === "device" ? " · name only" : ""))); });
+    if (m.ctx && CONTEXTS[m.ctx]) meta.push(h("span", { class: "badge b-grape" }, icon("layers"), CONTEXTS[m.ctx].label));
+    return h("div", { class: "msg user" }, h("div", { class: "bubble-user" }, h("span", { text: m.text }), meta.length ? h("span", { class: "meta" }, meta) : null), h("div", { class: "msg-time", text: "You · " + m.time }));
+  }
+  var chipIdx = 0;
+  function srcChip(id, mid) {
+    var s = SOURCES[id]; var fk = "src:" + mid + ":" + (chipIdx++) + ":" + id;
+    return h("button", { type: "button", class: "src" + (s.unavailable ? " gone" : ""), "data-act": "src", "data-arg": id, "data-fk": fk,
+      "aria-label": "Source: " + s.title + (s.unavailable ? ", unavailable" : ", " + s.date) },
+      h("span", { class: "n" }, icon(s.unavailable ? "trash" : s.icon)), h("span", { class: "lbl", text: s.chip + (s.unavailable ? " · unavailable" : "") }));
+  }
+  function sprigMsg(c, m) {
+    chipIdx = 0;
+    var body = h("div", { class: "sprig-body" });
+    var nm = h("div", { class: "sprig-name" }, "Sprig", h("span", { class: "when", text: m.time }));
+    if (m.status === "streaming") nm.appendChild(h("span", { class: "badge b-sky" }, icon("loader", "spin"), "Writing… not finished"));
+    if (m.status === "stopped") nm.appendChild(h("span", { class: "badge b-sun", text: "Stopped · incomplete" }));
+    if (m.status === "failed") nm.appendChild(h("span", { class: "badge b-clay", text: "Interrupted · incomplete" }));
+    body.appendChild(nm);
+    if (m.tools && m.tools.length && m.status !== "complete") body.appendChild(toolList(m));
+    if (m.tools && m.tools.length && m.status === "complete") body.appendChild(h("div", { class: "peek-meta" }, h("span", { class: "badge b-outline" }, icon("check"), m.tools.length + " lookups"), m.tools.length ? h("span", { class: "badge b-outline", text: m.tools[m.tools.length - 1] }) : null));
+    if (m.note && m.status !== "complete") body.appendChild(h("div", { class: "note-line" }, icon("info"), h("span", { text: m.note })));
+    if (m.status === "complete") (m.parts || []).forEach(function (p) { var el = renderPart(c, m, p); if (el) body.appendChild(el); });
+    else {
+      var words = SCRIPTS[m.script].text.split(" "); var n = Math.max(0, m.pos - m.tools.length * 4);
+      if (n > 0 || m.status === "streaming") body.appendChild(h("p", { class: "sprig-p", "aria-live": "off" }, words.slice(0, n).join(" "), m.status === "streaming" ? h("span", { class: "caret", "aria-hidden": "true" }) : null));
+      if (m.status === "stopped") {
+        body.appendChild(h("div", { class: "note-line sun" }, icon("info"), h("span", { text: "You stopped this reply. It's incomplete and wasn't used to change anything." })));
+        body.appendChild(h("div", { class: "act-row" }, btn("btn-primary btn-sm", "continue", "Continue reply", { arg: m.id, icon: "arrowRight" }), btn("btn-secondary btn-sm", "retry-reply", "Start over", { arg: m.id, icon: "refresh" })));
+      }
+      if (m.status === "failed") {
+        body.appendChild(h("div", { class: "err-box", role: "alert" }, h("b", { text: "Reply interrupted" }),
+          h("span", { text: "The model connection dropped before Sprig finished (demo). The text above is incomplete. Nothing was changed in your records." }),
+          h("div", { class: "act-row" }, btn("btn-primary btn-sm", "retry-reply", "Retry reply", { arg: m.id, icon: "refresh" }))));
+      }
+    }
+    body.appendChild(h("span", { "data-fk": "msgend:" + m.id, tabindex: "-1", style: "display:block;height:1px" }));
+    return h("div", { class: "msg sprig" }, h("span", { class: "avatar" }, sprig()), body);
+  }
+  function toolList(m) {
+    var ul = h("ul", { class: "tools", "aria-label": "What Sprig is doing" });
+    m.tools.forEach(function (t, i) {
+      var done = m.pos >= (i + 1) * 4, running = !done && m.pos >= i * 4 && m.status === "streaming";
+      var cls = done ? "done" : running ? "run" : "skip";
+      ul.appendChild(h("li", { class: cls }, icon(done ? "check" : running ? "loader" : "clock", running ? "spin" : null), h("span", { text: done ? t : running ? t + "…" : t + " · not run" })));
+    });
+    return ul;
+  }
+  function renderPart(c, m, p) {
+    if (p.t === "p") return h("p", { class: "sprig-p" }, p.c.map(function (x) { return typeof x === "string" ? x : srcChip(x.src, m.id); }));
+    if (p.t === "badges") return h("div", { class: "peek-meta" }, p.items.map(function (b) { return h("span", { class: "badge " + b[0] }, b[1] ? icon(b[1]) : null, b[2]); }));
+    if (p.t === "note") return h("div", { class: "note-line" + (p.tone ? " " + p.tone : "") }, icon(p.icon || "info"), h("span", { text: p.text }));
+    if (p.t === "ol") return h("ol", { class: "sprig-ol" }, p.items.map(function (it) {
+      return h("li", null, h("div", null, h("div", { class: "li-title", text: it.title }), h("div", { class: "li-detail", text: it.detail }), h("div", { class: "li-chips" }, it.src.map(function (s) { return srcChip(s, m.id); }))));
+    }));
+    if (p.t === "actions") {
+      var blocked = !!activeProposalBlocks(c) && p.items.some(function (i) { return i.act === "ask-tasks"; });
+      return h("div", { class: "act-row" }, p.items.map(function (it) {
+        if (it.act === "ask-tasks" && (c.proposal || blocked)) return null;
+        return btn((it.primary ? "btn-primary" : "btn-secondary") + " btn-sm", it.act, it.label, { arg: it.act === "fill-draft" ? it.arg : (it.act === "open-attach" ? m.id : null), icon: it.icon, fk: it.act === "fill-draft" ? "fill:" + m.id + ":" + it.label.length : (it.act === "open-attach" ? "open-attach:" + m.id : it.act) });
+      }));
+    }
+    if (p.t === "partialStatus") return h("div", { class: "peek-meta" }, h("span", { class: "badge b-sun", text: m.readMore ? "Partly read · pages 1–76 of 186" : "Partly read · pages 1–38 of 186" }));
+    if (p.t === "partialMore") {
+      if (m.readMore) return h("div", null, h("div", { class: "note-line leaf" }, icon("check"), h("span", { text: "Also read pages 39–76 (chapter 4 · Results): reports the pilot screening agreement and the final included set. Chapters 5–6 (pages 77–186) are still unread." })));
+      var busy = S.pending && S.pending.kind === "readmore";
+      return h("div", { class: "act-row" }, btn("btn-primary btn-sm", "read-more", busy ? "Reading pages 39–76…" : "Read pages 39–76 (demo)", { arg: m.id, icon: busy ? "loader" : "file", spin: busy, disabled: busy, busy: busy }),
+        btn("btn-secondary btn-sm", "fill-draft", "Ask about chapter 4", { arg: "What does chapter 4 of my thesis draft conclude?", fk: "fill:" + m.id + ":ch4" }));
+    }
+    if (p.t === "proposal") return renderProposal(c);
+    if (p.t === "workflow") return renderWorkflow(c);
+    if (p.t === "savedOne") {
+      var s = SOURCES[p.src];
+      return h("div", { class: "proposal approved" },
+        h("div", { class: "prop-head" }, h("span", { class: "tile t-leaf" }, icon("checkCircle")), h("div", { class: "prop-head-text" }, h("h3", { text: "Saved · 1 journal entry" }), h("div", { class: "sub", text: p.when }))),
+        h("ul", { class: "prop-rows" }, h("li", null, h("div", { class: "rmain" },
+          h("button", { type: "button", class: "saved-link", "data-act": "src", "data-arg": p.src, "data-fk": "src:" + m.id + ":saved:" + p.src }, h("span", { text: s.title }), icon("arrowRight")),
+          h("div", { class: "rmeta" }, h("span", { class: "badge b-outline" }, icon("calendar"), s.date), h("span", { class: "badge b-sun", text: "Month only" }))))));
+    }
+    return null;
+  }
+  function dueBadges(t) {
+    var out = [];
+    if (t.due.kind === "day" && validDay(t.due.value)) { out.push(h("span", { class: "badge b-outline" }, icon("calendar"), "Due " + fmtDay(t.due.value))); out.push(h("span", { class: "badge b-neutral", text: "Exact day" })); }
+    else out.push(h("span", { class: "badge b-neutral", text: "No due date" }));
+    return out;
+  }
+  function taskNote(t) {
+    var bits = [];
+    if (t.note) bits.push(h("div", { class: "rnote" }, icon("info"), h("span", null, "Note saved with task: “", h("span", { text: t.note }), "”")));
+    if (t.sourceDate) bits.push(h("div", { class: "rnote" }, icon("calendar"), h("span", { text: "Source date: " + t.sourceDate + (t.due.kind === "none" && t.note ? ". Not used as a due date." : "") })));
+    return bits;
+  }
+  function renderProposal(c) {
+    var p = c.proposal, st = p.status;
+    var included = p.tasks.filter(function (t) { return t.include; });
+    var cls = st === "saved" ? "approved" : (st === "conflict" || st === "failed") ? "problem" : st === "rejected" ? "" : "pending";
+    var card = h("div", { class: "proposal " + cls, "data-fk": "prop-card", "aria-busy": st === "saving" || p.checking ? "true" : null });
+
+    if (st === "saved") {
+      card.appendChild(h("div", { class: "prop-head" }, h("span", { class: "tile t-leaf" }, icon("checkCircle")),
+        h("div", { class: "prop-head-text" }, h("h3", { tabindex: "-1", "data-fk": "prop-heading", text: "Saved · " + p.saved.length + (p.saved.length === 1 ? " task" : " tasks") + " added to Planner" }), h("div", { class: "sub", text: "Linked to Manuscript · " + MS })),
+        h("span", { class: "badge b-leaf" }, icon("check"), "Saved")));
+      if (p.recovered) card.appendChild(h("div", { class: "prop-band leaf" }, icon("receipt"), h("span", { text: p.recovered })));
+      if (p.retried) card.appendChild(h("div", { class: "prop-band leaf" }, icon("check"), h("span", { text: "Saved on retry. It was the same request, so nothing was duplicated." })));
+      card.appendChild(h("ul", { class: "prop-rows" }, p.saved.map(function (t) {
+        return h("li", null, h("span", { class: "rnum ok" }, icon("check")), h("div", { class: "rmain" },
+          h("button", { type: "button", class: "saved-link", "data-act": "task", "data-arg": t.id, "data-fk": "task:" + t.id }, h("span", { text: t.title }), icon("arrowRight")),
+          h("div", { class: "rmeta" }, dueBadges(t), h("span", { class: "badge b-outline", text: "Not started" })), taskNote(t)));
+      })));
+      card.appendChild(h("div", { class: "receipt" }, icon("receipt"), h("b", { text: "One receipt" }), h("span", { text: "Approved by you at " + p.receipt.at + " · via PhD Companion assistant ·" }), h("code", { text: p.receipt.id })));
+      return card;
+    }
+    if (st === "rejected") {
+      card.appendChild(h("div", { class: "prop-head" }, h("span", { class: "tile t-neutral" }, icon("x")),
+        h("div", { class: "prop-head-text" }, h("h3", { text: "Declined · nothing saved" }), h("div", { class: "sub", text: p.tasks.length + " proposed tasks weren't added. Your records are unchanged." }))));
+      card.appendChild(h("ul", { class: "prop-rows" }, p.tasks.map(function (t, i) { return h("li", null, h("span", { class: "rnum", text: String(i + 1) }), h("div", { class: "rmain" }, h("div", { class: "rtitle", style: "color:var(--muted-fg)", text: t.title }))); })));
+      card.appendChild(h("div", { class: "prop-foot" }, btn("btn-primary", "prop-review", "Review again", { icon: "eye" }), btn("btn-secondary", "prop-ask", "Ask for changes", { icon: "pencil" })));
+      return card;
+    }
+    var heads = {
+      pending: ["t-sun", "listTodo", "Proposed · " + included.length + " new task" + (included.length === 1 ? "" : "s"), "Awaiting your approval. Nothing is saved yet."],
+      editing: ["t-sun", "pencil", "Editing proposal", "Changes apply to this proposal only. You'll still approve it after."],
+      saving: ["t-sky", "loader", "Saving " + included.length + " task" + (included.length === 1 ? "" : "s") + "…", "Approved by you. Saving all together."],
+      conflict: ["t-clay", "alert", "Your records changed since this was proposed", "Nothing was saved. Review the difference below."],
+      failed: ["t-clay", "alert", "Couldn't save · nothing was saved", "The save stopped before anything was written."],
+      unknown: ["t-sky", "receipt", "Checking whether your approval saved", "The connection dropped after you approved."]
+    }[st];
+    card.appendChild(h("div", { class: "prop-head" }, h("span", { class: "tile " + heads[0] }, icon(heads[1], st === "saving" ? "spin" : null)),
+      h("div", { class: "prop-head-text" }, h("h3", { tabindex: "-1", "data-fk": "prop-heading", text: heads[2] }), h("div", { class: "sub", text: heads[3] })),
+      st === "pending" || st === "editing" ? h("span", { class: "badge b-sun", text: "Needs your approval" }) : null,
+      p.edited && st === "pending" ? h("span", { class: "badge b-outline" }, icon("pencil"), "Edited") : null));
+    if (p.refreshed && st === "pending") card.appendChild(h("div", { class: "prop-band sky" }, icon("refresh"), h("span", { text: p.refreshed })));
+
+    if (st === "editing") {
+      if (p.formError) card.appendChild(h("p", { class: "form-err", role: "alert", text: p.formError }));
+      var ul = h("ul", { class: "prop-rows edit-list" });
+      p.edit.forEach(function (t, i) {
+        var e = p.errors[t.id] || {};
+        var tid = "pcf-t-" + t.id;
+        var rowEl = h("div", { class: "edit-row" + (t.include ? "" : " off") },
+          h("label", { class: "inc" }, h("input", { type: "checkbox", checked: t.include, "data-bind": "inc", "data-arg": t.id, "data-fk": "inc:" + t.id }), "Include task " + (i + 1)),
+          h("div", { class: "pc-field" }, h("label", { for: tid, text: "Task " + (i + 1) + " title" }),
+            h("input", { id: tid, class: "pc-input", type: "text", value: t.title, maxlength: "140", "data-bind": "title", "data-arg": t.id, "data-fk": "edit-title:" + t.id, disabled: !t.include, "aria-invalid": e.title ? "true" : null, "aria-describedby": e.title ? tid + "-err" : null }),
+            e.title ? h("p", { class: "field-err", id: tid + "-err" }, icon("alert"), e.title) : null),
+          h("fieldset", { class: "due-set", disabled: !t.include },
+            h("legend", { text: "Task " + (i + 1) + " due date" }),
+            h("label", { class: "opt" }, h("input", { type: "radio", name: "due-" + t.id, value: "day", checked: t.due.kind === "day", "data-bind": "duekind", "data-arg": t.id, "data-fk": "duekind-day:" + t.id }), "Exact day"),
+            h("input", { type: "date", class: "pc-input", value: t.due.value || "", "aria-label": "Due day for task " + (i + 1), "data-bind": "dueday", "data-arg": t.id, "data-fk": "edit-day:" + t.id, "aria-invalid": e.due ? "true" : null, "aria-describedby": e.due ? tid + "-due-err" : null }),
+            h("label", { class: "opt" }, h("input", { type: "radio", name: "due-" + t.id, value: "none", checked: t.due.kind === "none", "data-bind": "duekind", "data-arg": t.id, "data-fk": "duekind-none:" + t.id }), "No due date")),
+          e.due ? h("p", { class: "field-err", id: tid + "-due-err" }, icon("alert"), e.due) : null,
+          taskNote(t),
+          h("div", { class: "li-chips" }, t.src.map(function (s) { return srcChip(s, "edit"); })));
+        ul.appendChild(h("li", null, rowEl));
+      });
+      card.appendChild(ul);
+      card.appendChild(h("div", { class: "prop-foot" }, btn("btn-primary", "edit-save", "Save changes", { icon: "check" }), btn("btn-secondary", "edit-cancel", "Cancel"),
+        h("p", { class: "fine", text: "Month-only source dates stay as a note. A task due date is an exact day or none." })));
+      return card;
+    }
+    if (st === "conflict") {
+      card.appendChild(h("table", { class: "cmp" }, h("caption", { class: "sr-only", text: "What changed" }),
+        h("tbody", null,
+          h("tr", null, h("th", { scope: "row", text: "Record" }), h("td", { text: "Open tasks on Manuscript · " + MS })),
+          h("tr", null, h("th", { scope: "row", text: "When proposed (10:46)" }), h("td", { text: "4 open tasks · version 12" })),
+          h("tr", null, h("th", { scope: "row", text: "Now" }), h("td", { text: "5 open tasks · version 13. You added “Reword the inclusion and exclusion criteria” on your phone at 10:47." })),
+          h("tr", null, h("th", { scope: "row", text: "Effect" }), h("td", { text: "Approving as-is would create a duplicate of task 2." })))));
+      card.appendChild(h("div", { class: "prop-foot" }, btn("btn-primary", "prop-refresh", "Review refreshed proposal", { icon: "refresh" }), btn("btn-secondary", "prop-decline-x", "Decline", { fk: "prop-decline-x" }),
+        h("p", { class: "fine", text: "Approval was tied to version 12, so nothing was overwritten." })));
+      return card;
+    }
+    if (st === "unknown") {
+      card.appendChild(h("ul", { class: "prop-rows" },
+        h("li", null, h("span", { class: "rnum ok" }, icon("check")), h("div", { class: "rmain" }, h("div", { class: "rtitle", text: "You approved " + included.length + " tasks at 10:52" }))),
+        h("li", null, h("span", { class: "rnum" }, icon(p.checking ? "loader" : "receipt", p.checking ? "spin" : null)), h("div", { class: "rmain" }, h("div", { class: "rtitle", text: p.checking ? "Looking up the receipt…" : "Look up the receipt before doing anything else" }),
+          h("div", { class: "rmeta" }, h("span", { class: "badge b-outline", text: "Request " + p.execKey }))))));
+      card.appendChild(h("div", { class: "prop-foot" }, btn("btn-primary", "prop-check", p.checking ? "Checking…" : "Check receipt now", { icon: p.checking ? "loader" : "refresh", spin: p.checking, disabled: p.checking, busy: p.checking }),
+        h("p", { class: "fine", text: "We won't save again until we know. If it already saved, you'll see the saved tasks, not a second copy." })));
+      return card;
+    }
+    card.appendChild(h("ul", { class: "prop-rows" }, p.tasks.map(function (t, i) {
+      return h("li", null, h("span", { class: "rnum", text: String(i + 1) }), h("div", { class: "rmain" },
+        h("div", { class: "rtitle", text: t.title }),
+        h("div", { class: "rmeta" }, h("span", { class: "new-tag", text: "New task" }), dueBadges(t), h("span", { class: "chips" }, t.src.map(function (s) { return srcChip(s, "prop"); }))),
+        taskNote(t)));
+    })));
+    if (st === "failed") card.appendChild(h("div", { class: "prop-band clay" }, icon("alert"), h("span", { text: "Server error before anything was written (demo). Retrying sends the same request, so these tasks can't be added twice." })));
+    var saving = st === "saving";
+    var foot = h("div", { class: "prop-foot" });
+    if (st === "failed") {
+      foot.appendChild(btn("btn-primary", "prop-retry", "Retry save", { icon: "refresh" }));
+      foot.appendChild(btn("btn-secondary", "prop-edit-x", "Edit", { icon: "pencil", fk: "prop-edit-x" }));
+    } else {
+      foot.appendChild(btn("btn-primary", "prop-approve", saving ? "Saving…" : "Approve " + included.length + " task" + (included.length === 1 ? "" : "s"), { icon: saving ? "loader" : "check", spin: saving, disabled: saving, busy: saving }));
+      foot.appendChild(btn("btn-secondary", "prop-edit", "Edit", { icon: "pencil", disabled: saving }));
+      foot.appendChild(h("span", { class: "spacer" }));
+      foot.appendChild(btn("btn-ghost", "prop-decline", "Decline", { disabled: saving }));
+    }
+    foot.appendChild(h("p", { class: "fine" }, saving ? "This approval can only run once, so tapping again won't add duplicates. " : "Approving adds these to Planner with a receipt. It doesn't need the model connection. ",
+      h("span", null, "Request "), h("code", { text: p.execKey })));
+    card.appendChild(foot);
+    return card;
+  }
+  ACT["prop-decline-x"] = function () { var p = P(); p.status = "rejected"; setStage("proposal-rejected"); S.focus = "prop-review"; say("Declined. Nothing was saved."); };
+  ACT["prop-edit-x"] = function () { var p = P(); p.status = "pending"; ACT["prop-edit"](); };
+
+  function renderWorkflow(c) {
+    var w = c.workflow;
+    var failed = w.items.filter(function (x) { return x.status === "failed"; }).length, saving = w.items.some(function (x) { return x.status === "saving"; });
+    var nSaved = w.items.filter(function (x) { return x.status === "saved"; }).length;
+    var card = h("div", { class: "proposal " + (failed || saving ? "problem" : "approved") });
+    card.appendChild(h("div", { class: "prop-head" }, h("span", { class: "tile " + (failed ? "t-clay" : "t-leaf") }, icon(failed ? "alert" : "checkCircle")),
+      h("div", { class: "prop-head-text" }, h("h3", { tabindex: "-1", "data-fk": "wf-head", text: nSaved + " of " + w.items.length + " changes saved" }),
+        h("div", { class: "sub", text: "Separate changes. Each one saves on its own." }))));
+    card.appendChild(h("ul", { class: "prop-rows" }, w.items.map(function (it) {
+      var ok = it.status === "saved", sv = it.status === "saving";
+      return h("li", null, h("span", { class: "rnum " + (ok ? "ok" : sv ? "" : "bad") }, icon(ok ? "check" : sv ? "loader" : "x", sv ? "spin" : null)),
+        h("div", { class: "rmain" }, h("div", { class: "rtitle", text: it.label }),
+          h("div", { class: "rmeta" }, ok ? [h("span", { class: "badge b-leaf", text: it.retried ? "Saved on retry" : "Saved" }), h("span", { class: "badge b-outline", text: it.receipt })]
+            : sv ? h("span", { class: "badge b-sky", text: "Retrying…" }) : [h("span", { class: "badge b-clay", text: "Not saved" }), h("span", { text: "Timed out before saving. This task is unchanged." })])));
+    })));
+    var foot = h("div", { class: "prop-foot" });
+    if (failed || saving) foot.appendChild(btn("btn-primary", "wf-retry", saving ? "Retrying…" : "Retry the failed change only", { icon: saving ? "loader" : "refresh", spin: saving, disabled: saving, busy: saving }));
+    foot.appendChild(h("p", { class: "fine", text: "Saved changes aren't repeated. Linked bundles, like feedback turned into tasks, save all-or-nothing instead." }));
+    card.appendChild(foot);
+    return card;
+  }
+
+  /* Composer */
+  function notice(tone, ic, title, text, actions, extra) {
+    return h("div", { class: "notice " + tone, role: tone === "clay" ? "alert" : "status" }, h("span", { class: "tile t-" + (tone === "clay" ? "clay" : tone === "leaf" ? "leaf" : tone === "sky" ? "sky" : tone === "sun" ? "sun" : "neutral") }, icon(ic)),
+      h("div", { class: "n-main" }, h("b", { class: "n-title", text: title }), h("p", { text: text }), extra || null, actions && actions.length ? h("div", { class: "act-row" }, actions) : null));
+  }
+  function composerNotice(c) {
+    if (S.appSession !== "ok") return notice("sun", "lock", "Signed out of PhD Companion", "Sign in again to keep going. Your draft is kept.", [btn("btn-primary btn-sm", "signin", "Sign in again (simulated)", { fk: "signin-inline" })]);
+    switch (S.conn) {
+      case "required": return notice("sun", "plug", "Chat needs a model connection", "Sprig answers using your own ChatGPT plan through a sign-in. No API key. Until then you can read history and open sources.",
+        [btn("btn-primary btn-sm", "open-consent", "Set up connection", { icon: "plug" }), btn("btn-ghost btn-sm", "conn", "What's needed?", { fk: "conn-why" })]);
+      case "unavailable": return notice("sun", "info", "Hosted access isn't confirmed yet", "OpenAI hasn't confirmed plan access for hosted apps like PhD Companion, so model chat stays off. History, sources and the rest of the app work as usual." + (S.connChecked ? " Checked at " + S.connChecked + ": still not confirmed." : ""),
+        [btn("btn-secondary btn-sm", "check-access", "Check again", { icon: "refresh" }), btn("btn-ghost btn-sm", "open-consent", "Try the demo connection", { fk: "open-consent" })]);
+      case "declined": return notice("neutral", "x", "Connection declined", "Nothing was connected and nothing was shared. Your draft is still here.", [btn("btn-primary btn-sm", "open-consent", "Review connection again", { icon: "plug" }), btn("btn-ghost btn-sm", "dismiss-conn", "Not now")]);
+      case "failed": return notice("clay", "alert", "Connection didn't finish", "The sign-in didn't complete (demo: the callback never returned). Nothing was stored. Your draft is kept.", [btn("btn-primary btn-sm", "open-consent", "Try again", { icon: "refresh" }), btn("btn-ghost btn-sm", "dismiss-conn", "Back to chat")]);
+      case "expired": return notice("sun", "clock", "ChatGPT connection expired", "Reconnect to ask new questions. This conversation" + (c && activeProposalBlocks(c) ? " and its pending proposal are" : " is") + " saved as is.", [btn("btn-primary btn-sm", "open-consent", "Reconnect", { icon: "plug" })]);
+      case "disconnected": return notice("neutral", "plug", "Disconnected", "New questions are paused. History, sources and saved records stay available.", [btn("btn-primary btn-sm", "open-consent", "Reconnect", { icon: "plug" })]);
+    }
+    if (S.readyCard) return notice("leaf", "checkCircle", "Demo connection ready", "Simulated: no real ChatGPT account is connected, and replies are scripted.", [btn("btn-primary btn-sm", "start-new", "Start a new chat", { icon: "plus" }), btn("btn-ghost btn-sm", "dismiss-ready", "Stay here")]);
+    if (S.network !== "online") return notice("neutral", "wifiOff", "You're offline", "Your message hasn't been sent and isn't queued. The draft stays on this device until you send it.", [btn("btn-primary btn-sm", "check-net", "Check connection", { icon: "refresh" })]);
+    if (S.netNotice) return notice("leaf", "check", "Back online", S.netNotice, [btn("btn-ghost btn-sm", "dismiss-net", "Dismiss")]);
+    if (S.usage !== "ok") return notice("sun", "gauge", "Usage limit reached", "Your ChatGPT plan's limit is used up for now (demo). New questions are paused. History stays. PhD Companion never switches to a paid API key.",
+      [btn("btn-primary btn-sm", "usage-manage", S.usagePanel ? "Hide usage" : "Manage usage (demo)", { icon: "gauge" }), btn("btn-secondary btn-sm", "usage-check", "Check again", { icon: "refresh" })],
+      S.usagePanel ? h("div", { class: "subpanel", role: "region", "aria-label": "Simulated usage" }, h("b", { text: "Simulated usage page" }), h("span", { text: "Plan: demo · used 100% of this window · resets at 18:00 (demo)." }), h("span", { text: "The real page would be in your ChatGPT account, not in PhD Companion." })) : null);
+    if (S.usageNotice) return notice("leaf", "check", "Requests available again", S.usageNotice, [btn("btn-ghost btn-sm", "dismiss-usage", "Dismiss")]);
+    return null;
+  }
+  function attChip(a) {
+    if (a.status === "invalid") {
+      return h("div", { class: "att-bad", role: "group", "aria-label": "Problem with " + a.name },
+        h("div", { class: "top" }, icon("alert"), h("span", { class: "nm", text: a.name })), h("span", { text: a.error }),
+        h("div", { class: "acts" }, btn("btn-secondary btn-xs", "att-replace", "Choose another file", { arg: a.id }), btn("btn-ghost btn-xs", "att-remove", "Remove", { arg: a.id, aria: "Remove " + a.name })));
+    }
+    var st = a.origin === "stored" ? (SOURCES[a.id] ? SOURCES[a.id].kind : "Stored") : "Name only · not uploaded";
+    return h("span", { class: "att" }, icon(a.origin === "stored" ? "paperclip" : "upload"), h("span", { class: "nm", text: a.name }), h("span", { class: "st", text: st }),
+      h("button", { type: "button", class: "x", "data-act": "att-remove", "data-arg": a.id, "data-fk": "att-remove:" + a.id, "aria-label": "Remove " + a.name }, icon("x")));
+  }
+  function buildComposer(c) {
+    var wrap = h("div", { class: "pc-composer" });
+    var n = composerNotice(c); if (n) wrap.appendChild(n);
+    if (!c) return wrap;
+    var r = canSend(c);
+    var box = h("div", { class: "pc-compose-box" });
+    if (c.draft.atts.length) box.appendChild(h("div", { class: "pc-attach-row", role: "group", "aria-label": "Attachments" }, c.draft.atts.map(attChip)));
+    box.appendChild(h("label", { class: "sr-only", for: "pcf-input", text: "Message Sprig" }));
+    var ta = h("textarea", { id: "pcf-input", class: "pc-textarea", rows: "2", placeholder: "Ask about your PhD records…", "data-bind": "draft", "data-fk": "composer", "aria-describedby": "pcf-hint" });
+    ta.value = c.draft.text;
+    box.appendChild(ta);
+    var acts = h("div", { class: "pc-compose-actions" });
+    acts.appendChild(h("button", { type: "button", class: "pc-chipbtn", "data-act": "pop-attach", "data-fk": "pop-attach", "aria-expanded": S.pop === "attach" ? "true" : "false", "aria-controls": "pcf-attach-pop" }, icon("paperclip"), h("span", { class: "lbl", text: "Attach" })));
+    var ctx = c.ctx ? CONTEXTS[c.ctx] : null;
+    acts.appendChild(h("button", { type: "button", class: "pc-chipbtn" + (ctx ? " ctx-on" : ""), "data-act": "pop-ctx", "data-fk": "pop-ctx", "aria-expanded": S.pop === "ctx" ? "true" : "false", "aria-controls": "pcf-ctx-pop", "aria-label": "Focus: " + (ctx ? ctx.label : "Whole PhD") + ". Change focus" },
+      icon("layers"), h("span", { class: "lbl", text: ctx ? ctx.label : "Whole PhD" })));
+    if (ctx) acts.appendChild(h("button", { type: "button", class: "ctx-x", "data-act": "clear-ctx", "data-fk": "clear-ctx", "aria-label": "Remove " + ctx.label + " from context" }, icon("x")));
+    acts.appendChild(h("span", { class: "spacer" }));
+    if (streamingIn(c)) acts.appendChild(btn("btn-secondary btn-sm pc-stop", "stop", "Stop", { icon: "stop", aria: "Stop reply" }));
+    else acts.appendChild(h("button", { type: "button", class: "btn btn-primary pc-send", "data-act": "send", "data-fk": "send", "aria-label": "Send message", disabled: !r.ok, "aria-describedby": "pcf-hint" }, icon("send")));
+    box.appendChild(acts);
+    wrap.appendChild(box);
+    wrap.appendChild(h("div", { class: "pc-hint", id: "pcf-hint" }, r.why ? h("span", { class: "why", text: r.why }) : h("span", { text: streamingIn(c) ? "Sprig is replying. Stop keeps what's written so far." : "Enter to send · Shift+Enter for a new line" }), h("span", { text: "Simulated replies" })));
+
+    if (S.pop === "attach") {
+      var pop = h("div", { class: "pop", id: "pcf-attach-pop", role: "dialog", "aria-label": "Attach evidence", style: "left:14px; bottom:100%;" });
+      pop.appendChild(h("h4", { text: "Evidence in PhD Companion" }));
+      EVIDENCE.forEach(function (e, i) {
+        var on = c.draft.atts.some(function (a) { return a.id === e.id; });
+        pop.appendChild(h("button", { type: "button", class: "pop-opt", "data-act": "attach-stored", "data-arg": e.id, "data-fk": i === 0 ? "attach-first" : "attach-stored:" + e.id, "aria-pressed": on ? "true" : "false" },
+          h("span", { class: "tile t-sky" }, icon(SOURCES[e.id].icon)), h("span", { class: "o-main" }, h("b", { text: SOURCES[e.id].title }), h("span", { text: e.note + " · demo" })), on ? icon("check", "check") : null));
+      });
+      pop.appendChild(h("hr"));
+      pop.appendChild(h("button", { type: "button", class: "pop-opt", "data-act": "pick-device", "data-fk": "pick-device" }, h("span", { class: "tile t-neutral" }, icon("upload")),
+        h("span", { class: "o-main" }, h("b", { text: "From this device" }), h("span", { text: "Name only. Nothing uploads in this preview. Up to 20 MB." }))));
+      pop.appendChild(h("div", { style: "padding:6px 8px 2px" }, btn("btn-secondary btn-sm", "pop-attach", "Done", { fk: "attach-done" })));
+      wrap.appendChild(pop);
+    }
+    if (S.pop === "ctx") {
+      var cp = h("div", { class: "pop", id: "pcf-ctx-pop", role: "dialog", "aria-label": "Conversation focus", style: "left:14px; bottom:100%;" });
+      cp.appendChild(h("h4", { text: "What should Sprig focus on?" }));
+      var opts = [["none", { tone: "neutral", icon: "layers", label: "Whole PhD", sub: "Everything in your records" }]].concat(CTX_ORDER.map(function (k) { return [k, CONTEXTS[k]]; }));
+      if (c.ctx && CTX_ORDER.indexOf(c.ctx) === -1) opts.push([c.ctx, CONTEXTS[c.ctx]]);
+      opts.forEach(function (o, i) {
+        var on = (c.ctx || "none") === o[0];
+        cp.appendChild(h("button", { type: "button", class: "pop-opt", "data-act": "set-ctx", "data-arg": o[0], "data-fk": i === 0 ? "ctx-first" : "set-ctx:" + o[0], "aria-pressed": on ? "true" : "false" },
+          h("span", { class: "tile t-" + o[1].tone }, icon(o[1].icon)), h("span", { class: "o-main" }, h("b", { text: o[1].label }), h("span", { text: o[1].sub })), on ? icon("check", "check") : null));
+      });
+      wrap.appendChild(cp);
+    }
+    return wrap;
+  }
+
+  /* Peek (source / task) */
+  function buildPeek(c) {
+    var pk = S.peek;
+    var aside = h("aside", { class: "peek", role: "dialog", "aria-modal": "false", "aria-labelledby": "pcf-peek-title" });
+    aside.appendChild(h("div", { class: "peek-head" }, btn("btn-ghost btn-sm", "close-peek", "Back to chat", { icon: "arrowLeft" }), h("span", { class: "grow" }), h("span", { class: "badge b-sun", text: "Demo record" })));
+    var b = h("div", { class: "peek-body", "data-scroll": "peek" });
+    if (pk.type === "task") {
+      var t = (c.proposal.saved || []).filter(function (x) { return x.id === pk.id; })[0];
+      b.appendChild(h("div", { class: "peek-meta" }, h("span", { class: "badge b-sun" }, icon("listTodo"), "Task"), h("span", { class: "badge b-outline", text: "Not started" }), h("span", { class: "badge b-leaf", text: "via PhD Companion assistant" })));
+      b.appendChild(h("h3", { id: "pcf-peek-title", tabindex: "-1", "data-fk": "peek-title", text: t.title }));
+      b.appendChild(h("dl", { class: "peek-dl" },
+        h("dt", { text: "Due" }), h("dd", { text: t.due.kind === "day" ? fmtDay(t.due.value) + " (exact day)" : "No due date" }),
+        t.note ? [h("dt", { text: "Note" }), h("dd", { text: t.note })] : null,
+        h("dt", { text: "Linked to" }), h("dd", { text: "Manuscript · " + MS }),
+        h("dt", { text: "Created" }), h("dd", { text: "Today " + c.proposal.receipt.at + ", approved by you" }),
+        h("dt", { text: "Record" }), h("dd", { text: t.record }),
+        h("dt", { text: "Receipt" }), h("dd", { text: c.proposal.receipt.id })));
+      b.appendChild(h("div", null, h("div", { class: "li-chips" }, t.src.map(function (s) { return srcChip(s, "peek"); }))));
+      b.appendChild(h("p", { class: "fine", text: "Preview of the saved Planner task. Opening Planner itself is outside this prototype." }));
+    } else {
+      var s = SOURCES[pk.id];
+      if (s.unavailable) {
+        b.appendChild(h("h3", { id: "pcf-peek-title", tabindex: "-1", "data-fk": "peek-title", text: s.title }));
+        var gone = h("div", { class: "gone-box", role: "status" }, icon("trash"), h("b", { text: "This source isn't available" }),
+          h("span", { text: "It may have been moved to Trash or its access changed. Sprig won't show a saved copy of its text." }));
+        var acts = h("div", { class: "act-row" }, btn("btn-secondary btn-sm", "close-peek", "Back to chat", { fk: "peek-back2" }));
+        if (c && c.ctx === "labnotes") acts.insertBefore(btn("btn-primary btn-sm", "peek-remove-ctx", "Remove from context", { icon: "x" }), acts.firstChild);
+        gone.appendChild(acts); b.appendChild(gone);
+      } else {
+        b.appendChild(h("div", { class: "peek-meta" }, h("span", { class: "badge b-sky" }, icon(s.icon), s.kind), h("span", { class: "badge " + (/Month only/.test(s.precision) ? "b-sun" : /Partly|Not read/.test(s.precision) ? "b-sun" : "b-outline"), text: s.precision })));
+        b.appendChild(h("h3", { id: "pcf-peek-title", tabindex: "-1", "data-fk": "peek-title", text: s.title }));
+        b.appendChild(h("dl", { class: "peek-dl" }, h("dt", { text: "Date" }), h("dd", { text: s.date }), h("dt", { text: "Precision" }), h("dd", { text: s.precision }), h("dt", { text: "Linked to" }), h("dd", { text: s.linked })));
+        if (s.excerpt) b.appendChild(h("blockquote", { text: s.excerpt }));
+        else b.appendChild(h("div", { class: "note-line sun" }, icon("image"), h("span", { text: "No text could be read from this file, so there's no excerpt. No OCR runs here." })));
+        b.appendChild(h("p", { class: "fine", text: "Excerpt from a demo record. Esc or Back returns to the same place in the chat." }));
+      }
+    }
+    aside.appendChild(b);
+    return aside;
+  }
+
+  /* Overlays */
+  function buildConsent() {
+    var busy = S.connBusy;
+    var ov = h("div", { class: "overlay", "data-overlay": "1", "data-scroll": "ov" },
+      h("div", { class: "ov-card", role: "dialog", "aria-modal": "true", "aria-labelledby": "pcf-consent-title" },
+        h("div", { class: "ov-sim" }, icon("info"), h("span", { text: "Simulated permission page. Not a real ChatGPT or OpenAI screen. No account, password or token is used." })),
+        h("div", { class: "ov-body" },
+          h("div", { class: "ov-apps", "aria-hidden": "true" }, h("span", { class: "mk" }, sprig()), icon("arrowRight"), h("span", { class: "prov", text: "Plan" })),
+          h("h2", { id: "pcf-consent-title", tabindex: "-1", "data-fk": "consent-title", text: "Let PhD Companion use your ChatGPT plan?" }),
+          h("div", null, h("h4", { text: "PhD Companion (demo) would:" }), h("ul", null,
+            h("li", { text: "Send your questions, and only the records you pick or Sprig looks up, to get answers" }),
+            h("li", { text: "Count those answers against your plan's usage" }))),
+          h("div", null, h("h4", { text: "It wouldn't:" }), h("ul", null,
+            h("li", { text: "Give ChatGPT access to your PhD records. They stay behind your PhD Companion sign-in" }),
+            h("li", { text: "Use an API key or a paid fallback" }),
+            h("li", { text: "Save any record change without your approval" }))),
+          h("p", { class: "fine", text: "In the real app this step needs OpenAI to confirm hosted access first. Approving here only marks a demo connection as ready." })),
+        h("div", { class: "ov-foot" }, btn("btn-secondary", "consent-decline", "Decline", { disabled: busy }),
+          btn("btn-primary", "consent-approve", busy ? "Connecting…" : "Approve demo access", { icon: busy ? "loader" : "check", spin: busy, disabled: busy, busy: busy }))));
+    return ov;
+  }
+  function buildSignin() {
+    var busy = S.pending && S.pending.kind === "signin";
+    return h("div", { class: "overlay", "data-overlay": "1" },
+      h("div", { class: "ov-card", role: "dialog", "aria-modal": "true", "aria-labelledby": "pcf-signin-title" },
+        h("div", { class: "ov-sim" }, icon("info"), h("span", { text: "Simulated sign-in. No email or password is collected in this preview." })),
+        h("div", { class: "ov-body" },
+          h("h2", { id: "pcf-signin-title", tabindex: "-1", "data-fk": "signin-title", text: "Your PhD Companion sign-in expired" }),
+          h("p", { text: "For your security, this device was signed out of PhD Companion. This is your app sign-in, not the ChatGPT connection, which is unchanged." }),
+          h("p", { text: "After you sign in you'll return to “" + (A() ? A().title : "Ask Sprig") + "” with your draft as you left it." })),
+        h("div", { class: "ov-foot" }, btn("btn-primary", "signin", busy ? "Signing in…" : "Sign in again (simulated)", { icon: busy ? "loader" : "lock", spin: busy, disabled: busy, busy: busy }))));
+  }
+
+  /* ---------------- Render orchestration ---------------- */
+  function captureFocus() {
+    var a = document.activeElement; if (!a || !root.contains(a)) return null;
+    var fk = a.getAttribute("data-fk"); if (!fk) return null;
+    var sel = null; try { if (typeof a.selectionStart === "number") sel = [a.selectionStart, a.selectionEnd]; } catch (e) { sel = null; }
+    return { fk: fk, sel: sel };
+  }
+  function byFk(fk) { var all = root.querySelectorAll("[data-fk]"); for (var i = 0; i < all.length; i++) if (all[i].getAttribute("data-fk") === fk) return all[i]; return null; }
+  function scrollIn(el) {
+    var sc = el.closest("[data-scroll]"); if (!sc) return;
+    var er = el.getBoundingClientRect(), sr = sc.getBoundingClientRect();
+    if (er.bottom > sr.bottom - 10) sc.scrollTop += er.bottom - sr.bottom + 18;
+    er = el.getBoundingClientRect();
+    if (er.top < sr.top + 6) sc.scrollTop -= sr.top - er.top + 12;
+  }
+  function render() {
+    var prev = captureFocus();
+    var logOld = root.querySelector('[data-scroll="log"]'), listOld = root.querySelector('[data-scroll="list"]');
+    var logTop = logOld ? logOld.scrollTop : 0, listTop = listOld ? listOld.scrollTop : 0;
+    var nearBottom = logOld ? (logOld.scrollHeight - logOld.scrollTop - logOld.clientHeight < 60) : true;
+    var sameConv = render.lastConv === S.active;
+
+    stageWrap.textContent = "";
+    if (S.phone) stageWrap.appendChild(h("p", { class: "pcf-device-note", text: "Phone-width frame (380px) for this case" }));
+    var stage = h("div", { class: "pcf-stage" + (S.phone ? " phone" : "") });
+    stage.appendChild(buildApp());
+    stageWrap.appendChild(stage);
+
+    var log = root.querySelector('[data-scroll="log"]'), list = root.querySelector('[data-scroll="list"]');
+    if (list) list.scrollTop = listTop;
+    if (log) {
+      if (S.reveal === "bottom" || !sameConv) log.scrollTop = log.scrollHeight;
+      else { log.scrollTop = logTop; if (S.pending && S.pending.kind === "stream" && nearBottom) log.scrollTop = log.scrollHeight; }
+    }
+    render.lastConv = S.active;
+    if (S.reveal && S.reveal !== "bottom") { var rv = byFk(S.reveal); if (rv) scrollIn(rv); }
+    S.reveal = null;
+
+    var target = S.focus ? byFk(S.focus) : (prev ? byFk(prev.fk) : null);
+    if (target && !target.disabled && target.offsetParent !== null) {
+      target.focus({ preventScroll: true }); scrollIn(target);
+      if (!S.focus && prev && prev.sel && typeof target.setSelectionRange === "function") { try { target.setSelectionRange(prev.sel[0], prev.sel[1]); } catch (e) { /* not text */ } }
+    } else if (S.focus) {
+      var fb = byFk("composer") || byFk("search"); if (fb && fb.offsetParent !== null) fb.focus({ preventScroll: true });
+    }
+    S.focus = null;
+    var live = document.getElementById("pcf-live");
+    if (liveMsg && live) { var t = liveMsg; liveMsg = ""; setTimeout(function () { live.textContent = t; }, 30); }
+    var f = document.getElementById("pcf-file");
+    if (f) f.addEventListener("change", function () { if (f.files && f.files.length) onFiles(f.files); });
+    renderReviewer();
+  }
+
+  /* ---------------- Reviewer layer ---------------- */
+  var MINI = {
+    frame: '<rect x="1" y="1" width="62" height="40" rx="5" fill="#fbfaf6" stroke="#d6d3cb" stroke-width="1.5"/><rect x="1" y="1" width="16" height="40" rx="5" fill="#fff" stroke="#e6e4de"/>',
+    setup: '<rect x="21" y="27" width="38" height="10" rx="3" fill="#fff3c4" stroke="#f5de8a"/><rect x="24" y="30" width="14" height="4" rx="2" fill="#268519"/><rect x="21" y="7" width="26" height="5" rx="2.5" fill="#e3f2fd"/><rect x="31" y="15" width="28" height="5" rx="2.5" fill="#e6e4de"/>',
+    consent: '<rect x="1" y="1" width="62" height="40" rx="5" fill="#2d2d33" opacity=".25"/><rect x="14" y="5" width="36" height="32" rx="4" fill="#fff" stroke="#d6d3cb"/><rect x="14" y="5" width="36" height="6" rx="3" fill="#fff3c4"/><rect x="18" y="15" width="24" height="3" rx="1.5" fill="#a8a6a0"/><rect x="18" y="21" width="28" height="2" rx="1" fill="#d6d3cb"/><rect x="34" y="29" width="13" height="5" rx="2" fill="#268519"/>',
+    newchat: '<circle cx="40" cy="12" r="5" fill="#5cc73f"/><rect x="24" y="20" width="32" height="4" rx="2" fill="#e6e4de"/><rect x="24" y="26" width="32" height="4" rx="2" fill="#e6e4de"/><rect x="21" y="33" width="38" height="6" rx="3" fill="#fff" stroke="#d6d3cb"/><rect x="23" y="34.5" width="12" height="3" rx="1.5" fill="#f1eafe"/>',
+    attach: '<rect x="22" y="12" width="30" height="16" rx="3" fill="#fff" stroke="#d6d3cb"/><rect x="25" y="15" width="20" height="3" rx="1.5" fill="#e3f2fd"/><rect x="25" y="21" width="20" height="3" rx="1.5" fill="#e3f2fd"/><rect x="21" y="31" width="38" height="8" rx="3" fill="#fff" stroke="#d6d3cb"/><rect x="23" y="33" width="16" height="4" rx="2" fill="#f3f1eb" stroke="#d6d3cb" stroke-width=".6"/>',
+    stream: '<rect x="38" y="5" width="21" height="6" rx="3" fill="#e3f2fd"/><circle cx="24" cy="17" r="3" fill="#5cc73f"/><rect x="29" y="15" width="22" height="3" rx="1.5" fill="#a8a6a0"/><rect x="29" y="21" width="14" height="3" rx="1.5" fill="#a8a6a0"/><rect x="44" y="21" width="2" height="3" fill="#268519"/><rect x="21" y="32" width="38" height="7" rx="3" fill="#fff" stroke="#d6d3cb"/>',
+    source: '<rect x="21" y="8" width="22" height="3" rx="1.5" fill="#a8a6a0"/><rect x="21" y="15" width="14" height="5" rx="2.5" fill="#fff" stroke="#1872b3"/><rect x="42" y="1" width="21" height="40" rx="3" fill="#fff" stroke="#d6d3cb"/><rect x="45" y="6" width="14" height="3" rx="1.5" fill="#2d2d33"/><rect x="45" y="13" width="15" height="10" rx="2" fill="#e3f2fd"/>',
+    proposal: '<rect x="21" y="6" width="38" height="31" rx="4" fill="#fff" stroke="#f5de8a" stroke-width="1.6"/><rect x="25" y="10" width="20" height="3" rx="1.5" fill="#2d2d33"/><rect x="25" y="16" width="30" height="2.5" rx="1.2" fill="#d6d3cb"/><rect x="25" y="21" width="30" height="2.5" rx="1.2" fill="#d6d3cb"/><rect x="25" y="29" width="12" height="5" rx="2" fill="#268519"/>',
+    edit: '<rect x="21" y="6" width="38" height="31" rx="4" fill="#fff" stroke="#f5de8a" stroke-width="1.6"/><rect x="25" y="10" width="4" height="4" rx="1" fill="#268519"/><rect x="31" y="10" width="24" height="5" rx="1.5" fill="#fff" stroke="#a8a6a0"/><rect x="25" y="19" width="4" height="4" rx="1" fill="#268519"/><rect x="31" y="19" width="24" height="5" rx="1.5" fill="#fff" stroke="#a8a6a0"/><rect x="25" y="29" width="12" height="5" rx="2" fill="#268519"/>',
+    saved: '<rect x="21" y="6" width="38" height="31" rx="4" fill="#fff" stroke="#bfe5b0" stroke-width="1.6"/><circle cx="27" cy="13" r="3" fill="#268519"/><rect x="32" y="11.5" width="22" height="3" rx="1.5" fill="#1872b3"/><circle cx="27" cy="21" r="3" fill="#268519"/><rect x="32" y="19.5" width="22" height="3" rx="1.5" fill="#1872b3"/><rect x="21" y="29" width="38" height="8" rx="0" fill="#e4f6dc"/>',
+    resume: '<rect x="21" y="5" width="38" height="8" rx="3" fill="#e3f2fd"/><rect x="21" y="16" width="38" height="18" rx="4" fill="#fff" stroke="#bfe5b0" stroke-width="1.6"/><rect x="25" y="20" width="24" height="3" rx="1.5" fill="#1872b3"/><rect x="25" y="26" width="18" height="3" rx="1.5" fill="#1872b3"/>'
+  };
+  function mini(kind) {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 64 42"); s.setAttribute("aria-hidden", "true");
+    s.innerHTML = MINI.frame + (MINI[kind] || "");
+    return s;
+  }
+  function rb(label, act, arg, extra) { var a = { type: "button", class: "rv-btn" + (extra && extra.dark ? " dark" : ""), "data-rv": act, "data-arg": arg, disabled: extra && extra.disabled, "data-rk": "rv:" + act + (arg ? ":" + arg : ""), "aria-label": extra && extra.aria }; return h("button", a, label); }
+  function renderReviewer() {
+    var prevA = document.activeElement, prevRk = prevA && rvEl.contains(prevA) ? prevA.getAttribute("data-rk") : null;
+    rvEl.textContent = "";
+    var top = h("div", { class: "rv-top" }, h("span", { class: "rv-tag", text: "Prototype reviewer · not part of the app" }));
+    var tabs = h("div", { class: "rv-tabs", role: "tablist", "aria-label": "Review mode" });
+    [["journey", "Guided journey"], ["cases", "All UI cases (" + CASES.length + ")"], ["map", "Flow map"]].forEach(function (t) {
+      tabs.appendChild(h("button", { type: "button", role: "tab", class: "rv-tab", id: "rv-tab-" + t[0], "aria-selected": UI.tab === t[0] ? "true" : "false", "aria-controls": "rv-panel", tabindex: UI.tab === t[0] ? "0" : "-1", "data-rv": "tab", "data-arg": t[0], "data-rk": "rv:tab:" + t[0] }, t[1]));
+    });
+    top.appendChild(tabs);
+    top.appendChild(rb("Reset preview", "reset", null, { aria: "Reset preview: reload “" + (CASE_BY[S.caseId] || {}).label + "” from scratch" }));
+    rvEl.appendChild(top);
+    var panel = h("div", { class: "rv-panel", id: "rv-panel", role: "tabpanel", "aria-labelledby": "rv-tab-" + UI.tab });
+
+    if (UI.tab === "journey") {
+      var j = JOURNEY[UI.jStep];
+      var sel = h("select", { id: "rv-step", "data-rv-sel": "step", "data-rk": "rv:step" });
+      JOURNEY.forEach(function (x, i) { var o = h("option", { value: String(i), text: (i + 1) + ". " + CASE_BY[x.id].label }); if (i === UI.jStep) o.selected = true; sel.appendChild(o); });
+      panel.appendChild(h("div", { class: "rv-row" }, h("label", { for: "rv-step", text: "Step" }), sel,
+        rb("‹ Previous", "prev", null, { disabled: UI.jStep === 0 }), rb("Next ›", "next", null, { disabled: UI.jStep === JOURNEY.length - 1, dark: true }),
+        h("span", { class: "rv-count", text: "Step " + (UI.jStep + 1) + " of " + JOURNEY.length })));
+      panel.appendChild(h("p", { class: "rv-line" }, h("b", { text: "Goal: " }), j.goal));
+      panel.appendChild(h("p", { class: "rv-line" }, h("b", { text: "Do next: " }), j.next, S.stage !== j.id ? h("span", { style: "color:#5d5d65" }, " (Now showing: " + (CASE_BY[S.stage] || {}).label + ")") : null));
+    } else if (UI.tab === "cases") {
+      var gr = h("div", { class: "rv-groups", role: "group", "aria-label": "Case groups" });
+      GROUPS.forEach(function (g) { var n = CASES.filter(function (c) { return c.group === g[0]; }).length; gr.appendChild(h("button", { type: "button", class: "rv-group", "aria-pressed": UI.group === g[0] ? "true" : "false", "data-rv": "group", "data-arg": g[0], "data-rk": "rv:group:" + g[0] }, g[1] + " · " + n)); });
+      panel.appendChild(h("div", { class: "rv-row" }, gr, rb("‹ Back to guided journey", "tab", "journey")));
+      var cs = h("div", { class: "rv-cases", role: "group", "aria-label": "Cases in " + GROUPS.filter(function (g) { return g[0] === UI.group; })[0][1] });
+      CASES.filter(function (c) { return c.group === UI.group; }).forEach(function (c) { cs.appendChild(h("button", { type: "button", class: "rv-case", "data-rv": "case", "data-arg": c.id, "data-rk": "rv:case:" + c.id, "data-case": c.id, "aria-current": S.caseId === c.id ? "true" : null }, c.label)); });
+      panel.appendChild(cs);
+      var cur = CASE_BY[S.caseId];
+      panel.appendChild(h("p", { class: "rv-line" }, h("b", { text: cur.label + ". " }), h("b", { text: "Trigger: " }), cur.trigger + ". ", h("b", { text: "Expect: " }), cur.expectation));
+    } else {
+      var map = h("div", { class: "rv-map", role: "group", "aria-label": "Success path, in order" });
+      FLOW.forEach(function (f, i) {
+        if (i) map.appendChild(h("span", { class: "rv-arrow", "aria-hidden": "true", text: "→" }));
+        map.appendChild(h("button", { type: "button", class: "rv-node", "data-rv": "flow", "data-arg": f.id, "data-rk": "rv:flow:" + f.id, "aria-current": S.caseId === f.id ? "true" : null, "aria-label": (i + 1) + ". " + f.label + ": open " + CASE_BY[f.id].label }, mini(f.art), h("span", { text: (i + 1) + ". " + f.label })));
+      });
+      panel.appendChild(map);
+      var br = h("div", { class: "rv-branches" }, h("b", { text: "Branches:" }));
+      BRANCHES.forEach(function (b) { var n = CASES.filter(function (c) { return c.group === b[0]; }).length; br.appendChild(rb(b[1] + " (" + n + ")", "branch", b[0])); });
+      panel.appendChild(br);
+    }
+    if (S.pending) {
+      var sim = h("div", { class: "rv-sim", role: "status" }, h("span", { text: "Simulated: " + S.pending.label + (S.pending.auto ? "…" : ".") }));
+      if (S.pending.kind === "stream" && !S.pending.auto) sim.appendChild(rb("Play stream", "play"));
+      sim.appendChild(rb("Finish now", "settle"));
+      panel.appendChild(sim);
+    }
+    rvEl.appendChild(panel);
+    if (prevRk) { var t = rvEl.querySelector('[data-rk="' + prevRk + '"]'); if (t) t.focus({ preventScroll: true }); }
+  }
+  function rvSay(t) { var l = document.getElementById("pcf-rv-live"); l.textContent = ""; setTimeout(function () { l.textContent = t; }, 30); }
+
+  function selectCase(id, opts) {
+    if (!CASE_BY[id]) return false;
+    clearTimer();
+    S = caseState(id);
+    if (opts && opts.tab) UI.tab = opts.tab;
+    if (UI.tab === "journey") { if (JIDX[id] != null) UI.jStep = JIDX[id]; }
+    if (UI.tab === "cases") UI.group = CASE_BY[id].group;
+    render.lastConv = null;
+    render();
+    var log = root.querySelector('[data-scroll="log"]'); if (log) log.scrollTop = log.scrollHeight;
+    if (S.main) { var m = byFk(S.main); if (m) scrollIn(m); }
+    rvSay("Showing case: " + CASE_BY[id].label + ".");
+    return true;
+  }
+
+  /* ---------------- Events ---------------- */
+  root.addEventListener("click", function (e) {
+    var r = e.target.closest("[data-rv]");
+    if (r && rvEl.contains(r)) {
+      var a = r.getAttribute("data-rv"), g = r.getAttribute("data-arg");
+      if (a === "tab") { UI.tab = g; if (g === "cases") UI.group = CASE_BY[S.caseId].group; renderReviewer(); var tb = rvEl.querySelector("#rv-tab-" + g); if (tb) tb.focus(); return; }
+      if (a === "reset") { selectCase(S.caseId); rvSay("Preview reset: " + CASE_BY[S.caseId].label + "."); return; }
+      if (a === "prev") { UI.jStep = Math.max(0, UI.jStep - 1); selectCase(JOURNEY[UI.jStep].id); return; }
+      if (a === "next") { UI.jStep = Math.min(JOURNEY.length - 1, UI.jStep + 1); selectCase(JOURNEY[UI.jStep].id); return; }
+      if (a === "group") { UI.group = g; renderReviewer(); return; }
+      if (a === "case") { selectCase(g); return; }
+      if (a === "flow") { if (JIDX[g] != null) { UI.tab = "journey"; } selectCase(g); return; }
+      if (a === "branch") { UI.tab = "cases"; UI.group = g; renderReviewer(); var f1 = rvEl.querySelector(".rv-case"); if (f1) f1.focus(); return; }
+      if (a === "settle") { settle(); return; }
+      if (a === "play") { playStream(); return; }
+      return;
+    }
+    var el = e.target.closest("[data-act]");
+    if (!el || !stageWrap.contains(el) || el.disabled) return;
+    var fn = ACT[el.getAttribute("data-act")];
+    if (!fn) return;
+    fn(el.getAttribute("data-arg"), el);
+    if (el.getAttribute("data-act") !== "pick-device") render();
+  });
+  root.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.getAttribute && t.getAttribute("data-rv-sel") === "step") { UI.jStep = +t.value; selectCase(JOURNEY[UI.jStep].id); var s2 = document.getElementById("rv-step"); if (s2) s2.focus(); return; }
+    var b = t.getAttribute && t.getAttribute("data-bind"); if (!b) return;
+    var p = P(); var task = p && p.edit ? p.edit.filter(function (x) { return x.id === t.getAttribute("data-arg"); })[0] : null;
+    if (b === "inc" && task) { task.include = t.checked; if (p.errors[task.id]) delete p.errors[task.id]; render(); }
+    if (b === "duekind" && task) { task.due.kind = t.value; if (t.value === "none") task.due.value = ""; if (p.errors[task.id]) delete p.errors[task.id].due; render(); }
+    if (b === "dueday" && task) { task.due.value = t.value; if (t.value) task.due.kind = "day"; render(); }
+  });
+  root.addEventListener("input", function (e) {
+    var t = e.target, b = t.getAttribute && t.getAttribute("data-bind"); if (!b) return;
+    if (b === "draft") { var c = A(); if (c) { c.draft.text = t.value; var sendB = byFk("send"); var r = canSend(c); if (sendB) sendB.disabled = !r.ok; } return; }
+    if (b === "search") { S.inbox.search = t.value; render(); return; }
+    if (b === "rename") { S.inbox.rename.value = t.value; return; }
+    if (b === "title") { var p = P(); var task = p.edit.filter(function (x) { return x.id === t.getAttribute("data-arg"); })[0]; task.title = t.value; return; }
+    if (b === "dueday") { var p2 = P(); var tk = p2.edit.filter(function (x) { return x.id === t.getAttribute("data-arg"); })[0]; tk.due.value = t.value; if (t.value) tk.due.kind = "day"; return; }
+  });
+  root.addEventListener("keydown", function (e) {
+    var t = e.target;
+    if (t.getAttribute && t.getAttribute("role") === "tab" && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      var order = ["journey", "cases", "map"]; var i = order.indexOf(UI.tab); i = (i + (e.key === "ArrowRight" ? 1 : 2)) % 3; UI.tab = order[i];
+      if (UI.tab === "cases") UI.group = CASE_BY[S.caseId].group; renderReviewer(); document.getElementById("rv-tab-" + UI.tab).focus(); e.preventDefault(); return;
+    }
+    if (!stageWrap.contains(t) && e.key !== "Escape") return;
+    if (e.key === "Enter" && t.getAttribute("data-bind") === "draft" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ACT.send(); render(); return; }
+    if (e.key === "Enter" && t.getAttribute("data-bind") === "rename") { e.preventDefault(); ACT["rename-save"](); render(); return; }
+    if (e.key === "Tab" && S.screen) {
+      var ov = root.querySelector("[data-overlay]"); if (!ov) return;
+      var f = Array.prototype.filter.call(ov.querySelectorAll("button, [tabindex='-1'][data-fk='consent-title']"), function (x) { return !x.disabled && x.tagName === "BUTTON"; });
+      if (!f.length) return;
+      if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+      else if (!ov.contains(document.activeElement)) { e.preventDefault(); f[0].focus(); }
+      return;
+    }
+    if (e.key !== "Escape" || !stageWrap.contains(t)) return;
+    var handled = true;
+    if (S.screen === "consent" && !S.connBusy) ACT["consent-decline"]();
+    else if (S.screen) handled = false;
+    else if (S.pop) { var map = { attach: "pop-attach", ctx: "pop-ctx", conn: "conn" }; S.focus = map[S.pop]; S.pop = null; }
+    else if (S.inbox.rename) ACT["rename-cancel"]();
+    else if (S.inbox.menu) { S.focus = "more:" + S.inbox.menu; S.inbox.menu = null; }
+    else if (S.peek) ACT["close-peek"]();
+    else handled = false;
+    if (handled) { e.preventDefault(); render(); }
+  });
+
+  /* ---------------- Design-only QA API ---------------- */
+  window.pcFlowDemo = {
+    listCases: function () { return CASES.map(function (c) { return { id: c.id, group: c.group, label: c.label }; }); },
+    journey: function () { return JOURNEY.map(function (j, i) { return { step: i + 1, id: j.id, label: CASE_BY[j.id].label }; }); },
+    selectCase: function (id) { return selectCase(id); },
+    reset: function () { return selectCase(S.caseId); },
+    settle: function () { settle(); return this.getState(); },
+    getState: function () {
+      var c = A(), p = c && c.proposal;
+      return {
+        case: S.caseId, stage: S.stage, mainAction: S.main, reviewerTab: UI.tab, journeyStep: UI.jStep + 1, journeyStepId: JOURNEY[UI.jStep].id,
+        view: S.view, phoneFrame: S.phone, screen: S.screen, connection: S.conn, network: S.network, usage: S.usage, appSession: S.appSession,
+        inbox: { status: S.inbox.status, search: S.inbox.search, visible: S.convs.filter(function (x) { return !x.archived; }).map(function (x) { return x.title; }), archived: S.convs.filter(function (x) { return x.archived; }).map(function (x) { return x.title; }), archivedView: S.inbox.archivedView },
+        activeConversation: c ? { id: c.id, title: c.title, context: c.ctx, userMessages: c.messages.filter(function (m) { return m.role === "user"; }).length,
+          lastReply: (function () { var m = c.messages.filter(function (x) { return x.role === "sprig"; }).pop(); return m ? { status: m.status, script: m.script || null } : null; })(),
+          draft: c.draft.text, attachments: c.draft.atts.map(function (a) { return { name: a.name, status: a.status, error: a.error || "" }; }) } : null,
+        proposal: p ? { status: p.status, edited: p.edited, execKey: p.execKey, receipt: p.receipt ? p.receipt.id : null, saved: p.saved ? p.saved.length : 0,
+          tasks: (p.edit || p.tasks).map(function (t) { return { id: t.id, title: t.title, include: t.include, dueDate: t.due.kind === "day" ? t.due.value : null, note: t.note || null }; }), errors: p.errors, formError: p.formError } : null,
+        workflow: c && c.workflow ? c.workflow.items.map(function (i) { return { id: i.id, status: i.status, receipt: i.receipt }; }) : null,
+        peek: S.peek ? { type: S.peek.type, id: S.peek.id } : null, popover: S.pop, pending: S.pending ? { kind: S.pending.kind, auto: !!S.pending.auto } : null
+      };
+    }
+  };
+
+  /* Optional deep link: #<case-id> (e.g. #proposal-conflict), plus #<case-id>&tab=cases|map */
+  (function () {
+    var hs = (location.hash || "").replace(/^#/, "").split("&"), id = hs[0], tab = null;
+    hs.slice(1).forEach(function (kv) { var m = /^tab=(journey|cases|map)$/.exec(kv); if (m) tab = m[1]; });
+    if (tab) UI.tab = tab;
+    selectCase(CASE_BY[id] ? id : "setup-required");
+  })();
+})();
+</script>
+</body>
+</html>

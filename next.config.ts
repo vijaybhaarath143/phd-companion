@@ -16,7 +16,11 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // OAuth callbacks can carry one-time codes. Override the global referrer policy.
+      { source: "/api/chatgpt/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
+    ];
   },
   turbopack: {
     rules: {

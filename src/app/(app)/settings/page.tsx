@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asUser } from "@/server/auth";
+import { asUser, requireUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
 import { adminViewsOfMe } from "@/server/admin";
 import { signOut } from "@/server/actions/auth";
@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import type { RestorableTable } from "@/server/actions/settings";
 import { ConnectedApps, ProfileForm, RemindersToggle, TrashList } from "./settings-client";
+
+import { connectionSummary } from "@/server/chatgpt/connection";
+import { ChatGPTConnection } from "./chatgpt-connection";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -64,6 +67,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   // ChatGPT / Codex connections she approved (empty if the connector isn't switched on).
   const { data: grants } = await (await createSupabaseServer()).auth.oauth.listGrants();
 
+  const chatgpt = await connectionSummary(await requireUser());
+
   const tz = data.profile.timezone;
   // dates are written here, on her own clock, so the page reads the same before and after it loads
   const label = (rows: typeof data.trash, limit: number) => rows.slice(0, limit).map(({ at, ...r }) => ({ ...r, when: formatTimestamp(at, tz) }));
@@ -107,6 +112,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <TrashList items={trash} kind="trash" />
           {data.trash.length > trashLimit && <ShowMore sp={sp} param="trash" current={trashLimit} anchor="trash" />}
         </div>
+      </Block>
+
+      <Block id="chatgpt" title="Ask Sprig · ChatGPT" hint="Use your ChatGPT subscription with the assistant inside PhD Companion.">
+        <ChatGPTConnection connection={chatgpt} result={typeof sp.chatgpt === "string" ? sp.chatgpt : undefined} />
       </Block>
 
       <Block title="Connected apps" hint="Assistants you allowed to read and add to your records, such as ChatGPT or Codex.">
