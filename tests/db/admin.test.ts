@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { SessionUser } from "@/server/db";
-import { addScholar, deleteScholar, listScholars, setPaused, adminLog, type Admin } from "@/server/admin";
+import { addScholar, adminViewsOfMe, deleteScholar, listScholars, setPaused, adminLog, viewAsScholar, type Admin } from "@/server/admin";
 import { EVIDENCE_BUCKET } from "@/server/storage";
 import { admin as superuser, dropUser, makeUser, refused, withUser } from "./helpers";
 
@@ -68,6 +68,39 @@ describe("what an admin sees", () => {
     // the "own rows only" rule still holds for an admin
     const seen = await withUser(boss, (tx) => tx`select 1 from public.entries where owner_id = ${scholar.id}`);
     expect(seen.length).toBe(0);
+  });
+});
+
+describe("looking at a scholar's work", () => {
+  it("shows an admin the scholar's records, read-only", async () => {
+    const titles = await viewAsScholar(asAdmin(), scholar.id, (tx) => tx<{ title: string }[]>`select title from public.entries`);
+    expect(titles?.map((r) => r.title)).toContain("Private notes");
+    // nothing can be changed while looking
+    await expect(viewAsScholar(asAdmin(), scholar.id, (tx) => tx`insert into public.entries (title, entry_precision) values ('From admin', 'none')`)).rejects.toThrow(/read-only transaction/);
+    await expect(viewAsScholar(asAdmin(), scholar.id, (tx) => tx`update public.entries set title = 'Changed'`)).rejects.toThrow(/read-only transaction/);
+    await expect(viewAsScholar(asAdmin(), scholar.id, (tx) => tx`select app.admin_view_as(${otherAdmin.id})`)).rejects.toThrow(/Only admins/);
+    const [still] = await superuser`select count(*)::int as n from public.entries where owner_id = ${scholar.id} and title = 'Private notes'`;
+    expect(still.n).toBe(1);
+  });
+
+  it("is refused to a scholar, and to an admin's connected assistant", async () => {
+    expect(await refused(scholar, (tx) => tx`select app.admin_view_as(${boss.id})`)).toMatch(/Only admins/);
+    const viaAssistant = { ...boss, clientId: crypto.randomUUID(), sessionId: crypto.randomUUID() };
+    expect(await refused(viaAssistant, (tx) => tx`select app.admin_view_as(${scholar.id})`)).toMatch(/Only admins|connection/);
+  });
+
+  it("returns nothing for an account that doesn't exist", async () => {
+    expect(await viewAsScholar(asAdmin(), crypto.randomUUID(), async () => 1)).toBeNull();
+    expect(await viewAsScholar(asAdmin(), "not-an-id", async () => 1)).toBeNull();
+  });
+
+  it("logs the look once per half hour, and tells the scholar", async () => {
+    const views = (await adminLog(asAdmin(), 50)).filter((e) => e.action === "view" && e.actorEmail === boss.email && e.targetEmail === scholar.email);
+    expect(views).toHaveLength(1);
+    const seen = await withUser(scholar, (tx) => adminViewsOfMe(tx));
+    expect(seen.map((v) => v.actorEmail)).toEqual([boss.email]);
+    // nobody else is told about it
+    expect(await withUser(otherAdmin, (tx) => adminViewsOfMe(tx))).toHaveLength(0);
   });
 });
 

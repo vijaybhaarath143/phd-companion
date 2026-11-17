@@ -5,7 +5,8 @@ accounts without opening Supabase. Sign-up stays closed to the public.
 
 | An admin can | What it does |
 |---|---|
-| See every account | Email, name, joined, last sign-in, and a status: Admin, Active, Not signed in yet or Paused. **Never anyone's records**: the "own rows only" rules are unchanged. |
+| See every account | Email, name, joined, last sign-in, and a status: Admin, Active, Not signed in yet or Paused. |
+| See a scholar's work | **See their work** opens `/admin/scholars/<id>`: overview, planner, research, academics, events, journal (each entry in full) and notes. **Read-only**: nothing can be changed. Every look is in the activity log (once per half hour per scholar), and the scholar sees who looked and when in Settings → Who can see your work. Stored files are listed by name only. |
 | Add a scholar | Creates the account (email confirmed) and shows a message to send them: sign in at the usual page with that email. Live sign-in links only work in the browser that asked for them, so the scholar asks for their own. |
 | Pause / Resume | Pause blocks sign-in and stops a signed-in session renewing (it ends within the hour). Nothing is deleted. Resume undoes it. |
 | Delete | Their stored files, then the account and every record. Only after typing their email. Can't be undone. |
@@ -20,6 +21,11 @@ from the app; it's granted by SQL only.
 - Every admin page load and action asks the database `app.is_admin()`, so removing an admin
   takes effect on their next click. Non-admins get "page not found".
 - Website sessions only: a ChatGPT / Codex connection can never act as an admin.
+- Looking at someone's work (`supabase/migrations/20261120000001_admin_view.sql`): in one
+  transaction the database checks the caller is an admin, logs the look, then switches the
+  transaction to the scholar; the app makes it read-only straight after (`viewAsScholar` in
+  `src/server/admin.ts`). The tables' "own rows only" rules are unchanged, so outside that
+  transaction an admin still sees only their own rows.
 - Adding, pausing and deleting need Supabase's **secret key**. It's read in
   `src/server/admin.ts` only, by functions that take an admin the database has just confirmed.
   `tests/unit/admin.test.ts` fails if any other file reads it.
@@ -48,6 +54,8 @@ functions; nothing existing changes.
 - The sidebar (or More on a phone) shows **Admin** for you, and not for a scholar.
 - A scholar opening `/admin` gets "page not found".
 - Add a test account, pause it, resume it, delete it; the activity log shows all four.
+- **See their work** on a scholar shows their records; the log shows "looked at the work of", and
+  that scholar's Settings shows your email under "Who can see your work".
 - An admin without a PhD space of their own lands on `/admin` after signing in; "Set up your own
   PhD space" leads to the usual welcome.
 
