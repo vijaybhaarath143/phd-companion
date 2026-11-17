@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Eye, KeyRound, ShieldCheck } from "lucide-react";
 import { accountToolsReady, adminLog, currentAdmin, listScholars, statusOf } from "@/server/admin";
 import { withUser } from "@/server/db";
 import { getProfile } from "@/server/profile";
@@ -22,7 +22,7 @@ const STATUS = {
   active: { label: "Active", variant: "success" },
 } as const;
 
-const ACTION_TEXT = { add: "added", pause: "paused", resume: "resumed", delete: "deleted" } as const;
+const ACTION_TEXT = { add: "added", pause: "paused", resume: "resumed", delete: "deleted", view: "looked at the work of" } as const;
 
 export default async function AdminPage() {
   // Anyone who isn't an admin gets "not found", so the page doesn't announce itself.
@@ -54,7 +54,7 @@ export default async function AdminPage() {
         <PageHeader
           eyebrow="Admin"
           title="Scholars"
-          subtitle="Add, pause and remove accounts. You can't see anyone's records from here."
+          subtitle="Add, pause and remove accounts, and look at a scholar's work (read-only) to help them. Each look is logged, and they can see it."
           actions={ready ? <AddScholar signInUrl={signInUrl} /> : undefined}
         />
 
@@ -87,6 +87,11 @@ export default async function AdminPage() {
                     </span>
                   </span>
                   <Badge variant={status.variant}>{status.label}</Badge>
+                  {!self && (
+                    <Link href={`/admin/scholars/${s.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-xl border-2 bg-card px-3 font-display text-[14px] font-bold transition-colors hover:bg-muted">
+                      <Eye className="size-4" aria-hidden /> See their work
+                    </Link>
+                  )}
                   {ready && !self && !s.isAdmin && <ScholarActions id={s.id} email={s.email} paused={statusOf(s) === "paused"} />}
                 </li>
               );
@@ -96,12 +101,12 @@ export default async function AdminPage() {
 
         <Section title="Activity">
           {log.length === 0 ? (
-            <p className="px-5 pb-5 text-sm text-muted-foreground">Nothing yet. Adding, pausing and deleting accounts shows up here.</p>
+            <p className="px-5 pb-5 text-sm text-muted-foreground">Nothing yet. Adding, pausing and deleting accounts, and looking at someone&apos;s work, shows up here.</p>
           ) : (
             <Rows>
               {log.map((e, i) => (
                 <li key={i} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-5 py-3 text-[14px]">
-                  <IconTile tone={e.action === "delete" ? "berry" : e.action === "pause" ? "sun" : "leaf"} size="sm"><ShieldCheck /></IconTile>
+                  <IconTile tone={e.action === "delete" ? "berry" : e.action === "pause" ? "sun" : e.action === "view" ? "sky" : "leaf"} size="sm">{e.action === "view" ? <Eye /> : <ShieldCheck />}</IconTile>
                   <span className="min-w-0 flex-1">
                     <span className="font-display font-bold">{e.actorEmail}</span> {ACTION_TEXT[e.action]} <span className="font-display font-bold">{e.targetEmail}</span>
                   </span>

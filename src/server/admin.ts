@@ -1,7 +1,8 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { currentUser } from "@/server/auth";
-import { withUser, type SessionUser } from "@/server/db";
+import { withUser, type SessionUser, type Tx } from "@/server/db";
+import { isUuid } from "@/lib/utils";
 import { EVIDENCE_BUCKET } from "@/server/storage";
 import { ValidationError } from "@/server/validate";
 
@@ -68,10 +69,35 @@ export async function listScholars(admin: Admin): Promise<Scholar[]> {
   return withUser(admin, (tx) => tx<Scholar[]>`select * from app.admin_scholars()`);
 }
 
-export type AdminEvent = { at: Date; actorEmail: string; action: "add" | "pause" | "resume" | "delete"; targetEmail: string };
+export type AdminEvent = { at: Date; actorEmail: string; action: "add" | "pause" | "resume" | "delete" | "view"; targetEmail: string };
 
 export async function adminLog(admin: Admin, n = 30): Promise<AdminEvent[]> {
   return withUser(admin, (tx) => tx<AdminEvent[]>`select * from app.admin_log(${n})`);
+}
+
+/**
+ * Read a scholar's records, to help them: `fn` runs in a read-only transaction as that scholar,
+ * so the same "own rows only" rules apply and nothing can be added, changed or deleted. The
+ * database checks the caller is an admin and records the look (the scholar sees it in Settings).
+ * Null when the account doesn't exist.
+ */
+export async function viewAsScholar<T>(admin: Admin, scholarId: string, fn: (tx: Tx) => Promise<T>): Promise<T | null> {
+  if (!isUuid(scholarId)) return null;
+  try {
+    return await withUser(admin, async (tx) => {
+      await tx`select app.admin_view_as(${scholarId})`;
+      await tx`set transaction read only`;
+      return fn(tx);
+    });
+  } catch (e) {
+    if ((e as { code?: string }).code === "P0002") return null; // no_data_found: no such account
+    throw e;
+  }
+}
+
+/** Who has looked at the signed-in person's work from the Admin page, newest first. */
+export async function adminViewsOfMe(tx: Tx, n = 5): Promise<{ at: Date; actorEmail: string }[]> {
+  return tx<{ at: Date; actorEmail: string }[]>`select * from app.admin_views_of_me(${n})`;
 }
 
 /**

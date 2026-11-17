@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { asUser } from "@/server/auth";
 import { requireProfile } from "@/server/profile";
+import { adminViewsOfMe } from "@/server/admin";
 import { signOut } from "@/server/actions/auth";
 import { PageHeader } from "@/components/app/ui";
 import { signInMode } from "@/lib/sign-in-mode";
@@ -58,7 +59,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     const archived = await tx<Row[]>`
       select 'entries' as table, id, title, archived_at as at from public.entries where archived_at is not null and deleted_at is null
       order by archived_at desc limit ${archiveLimit + 1}`;
-    return { profile, email: user.email, trash, archived };
+    return { profile, email: user.email, trash, archived, adminViews: await adminViewsOfMe(tx, 5) };
   });
   // ChatGPT / Codex connections she approved (empty if the connector isn't switched on).
   const { data: grants } = await (await createSupabaseServer()).auth.oauth.listGrants();
@@ -112,6 +113,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <ConnectedApps
           apps={(grants ?? []).map((g) => ({ id: g.client.id, name: g.client.name || "Unnamed app", connected: formatTimestamp(g.granted_at, tz) }))}
         />
+      </Block>
+
+      <Block id="admin-access" title="Who can see your work" hint="The people who run this app (admins) can look at your records, read-only, to help you. They can't change anything.">
+        <div>
+          <p className="font-medium">When an admin last looked</p>
+          {data.adminViews.length ? (
+            <ul className="mt-1 flex flex-col gap-0.5 text-[13px] text-zinc-700">
+              {data.adminViews.map((v, i) => (
+                <li key={i}>{v.actorEmail} · {formatTimestamp(v.at, tz, { time: true })}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-muted-foreground">No admin has looked at your work.</p>
+          )}
+        </div>
       </Block>
 
       <Block title="Account">
